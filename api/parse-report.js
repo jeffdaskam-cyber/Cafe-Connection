@@ -110,25 +110,23 @@ export default async function handler(req, res) {
 }
 
 // ─── EXCEL PARSER ─────────────────────────────────────────────────────────────
-// Targets the exact cell layout of the InfoGenesis Sales Summary .xlsx export.
+// Finds all values by searching for their section and column header labels,
+// not by fixed cell addresses. This means the parser survives row/column shifts
+// caused by InfoGenesis template changes, new meal periods, or added header rows.
 //
-// Key cell addresses (all on Sheet1, 1-indexed rows/columns):
+// Strategy:
+//   1. Scan every cell for section anchors ("STATISTICS", "REVENUE") — these
+//      are always in column B, but we don't assume which row.
+//   2. The row immediately after each anchor contains the column headers
+//      ("Net Checks", "Avg Check", "Net Revenue", etc.) — scan that row to
+//      find the column index of each header, wherever it landed.
+//   3. Scan column B below each anchor to find meal period row labels
+//      ("Breakfast(1)", "Lunch(2)", "Total").
+//   4. Read values at the intersection of (meal period row) x (header column).
 //
-//   B4  — Period string: "Processed Business Period Starting M/D/YYYY ... Ending M/D/YYYY ..."
-//
-//   STATISTICS section:
-//   B7  — "Breakfast(1)" label         B8  — "Lunch(2)" label        B9  — "Total" label
-//   M7  — Breakfast Total Checks       M8  — Lunch Total Checks      M9  — Total Checks
-//   T7  — Breakfast Refund Checks      T8  — Lunch Refund Checks
-//   AC7 — Breakfast Net Checks         AC8 — Lunch Net Checks        AC9 — Total Net Checks
-//   AP7 — Breakfast Avg Check          AP8 — Lunch Avg Check
-//
-//   REVENUE section:
-//   M13 — Breakfast Receipts           M14 — Lunch Receipts          M15 — Total Receipts
-//   W13 — Breakfast Refunds            W14 — Lunch Refunds
-//   AK13— Breakfast Gross Revenue      AK14— Lunch Gross Revenue     AK15— Total Gross Revenue
-//   AT13— Breakfast Discounts          AT14— Lunch Discounts         AT15— Total Discounts
-//   AZ13— Breakfast Net Revenue        AZ14— Lunch Net Revenue       AZ15— Total Net Revenue
+// The only hard assumption is that InfoGenesis keeps section labels in column B
+// and column headers in the row directly below the section label. Both have
+// been true across all known versions of this report.
 
 async function parseExcel(buffer) {
   const workbook = new ExcelJS.Workbook();
@@ -137,124 +135,187 @@ async function parseExcel(buffer) {
   const ws = workbook.worksheets[0];
   if (!ws) throw new Error("Excel file has no worksheets.");
 
-  // Helper: get cell value by row + column (1-indexed), return null if missing
-  const cell = (row, col) => {
-    const c = ws.getCell(row, col);
-    const v = c.value;
+  // ── Cell helpers ───────────────────────────────────────────────────────────
+
+  // Return the plain string value of a cell, or null if empty.
+  const strVal = (row, col) => {
+    const v = ws.getCell(row, col).value;
     if (v === null || v === undefined || v === "") return null;
-    // ExcelJS can return rich text objects — unwrap to plain string
-    if (typeof v === "object" && v.richText) {
-      return v.richText.map(r => r.text).join("");
-    }
-    return v;
+    if (typeof v === "object" && v.richText) return v.richText.map(r => r.text).join("");
+    return String(v).trim();
   };
 
-  const num = (row, col) => {
-    const v = cell(row, col);
-    if (v === null) return null;
+  // Return the numeric value of a cell, or null if missing/non-numeric.
+  const numVal = (row, col) => {
+    const v = ws.getCell(row, col).value;
+    if (v === null || v === undefined || v === "") return null;
     const n = parseFloat(v);
     return isNaN(n) ? null : n;
   };
 
+  // ── Label search helpers ───────────────────────────────────────────────────
+
+  // Find the first cell in a specific column whose text matches the label
+  // (case-insensitive), starting from afterRow. Returns { row, col } or null.
+  const findInCol = (col, label, afterRow = 0) => {
+    const target = label.toLowerCase();
+    for (let r = afterRow + 1; r <= ws.rowCount; r++) {
+      const v = strVal(r, col);
+      if (v && v.toLowerCase() === target) return { row: r, col };
+    }
+    return null;
+  };
+
+  // Find the first cell in a specific row whose text matches the label
+  // (case-insensitive). Returns { row, col } or null.
+  const findInRow = (row, label) => {
+    const target = label.toLowerCase();
+    for (let c = 1; c <= ws.columnCount; c++) {
+      const v = strVal(row, c);
+      if (v && v.toLowerCase() === target) return { row, col: c };
+    }
+    return null;
+  };
+
   // ── Date / Period ──────────────────────────────────────────────────────────
-  const periodStr = cell(4, 2); // B4
+  // Scan column B for the "Processed Business Period..." string — it's always
+  // there but we don't assume it's row 4.
+
   let date = null;
   let periodStart = null;
   let periodEnd = null;
 
-  if (periodStr) {
-    const startMatch = periodStr.match(/Starting (\d+\/\d+\/\d+)/);
-    const endMatch   = periodStr.match(/Ending (\d+\/\d+\/\d+)/);
-
-    if (startMatch) {
-      const d = new Date(startMatch[1]);
-      periodStart = formatDate(d);
-      // Use the period start month/year as the report date key
-      date = periodStart;
-    }
-    if (endMatch) {
-      // The "Ending" date is the first moment of the NEXT period (e.g. 3/1 for a Feb report).
-      // Subtract one day to get the last day of the actual period.
-      const d = new Date(endMatch[1]);
-      d.setDate(d.getDate() - 1);
-      periodEnd = formatDate(d);
+  for (let r = 1; r <= Math.min(ws.rowCount, 20); r++) {
+    const v = strVal(r, 2);
+    if (v && v.includes("Business Period")) {
+      const startMatch = v.match(/Starting (\d+\/\d+\/\d+)/);
+      const endMatch   = v.match(/Ending (\d+\/\d+\/\d+)/);
+      if (startMatch) {
+        const d = new Date(startMatch[1]);
+        periodStart = formatDate(d);
+        date = periodStart;
+      }
+      if (endMatch) {
+        // "Ending" is the first moment of the next period — subtract one day.
+        const d = new Date(endMatch[1]);
+        d.setDate(d.getDate() - 1);
+        periodEnd = formatDate(d);
+      }
+      break;
     }
   }
 
-  if (!date) {
-    // Fallback: use today's date if we can't parse the period
-    date = formatDate(new Date());
-  }
+  if (!date) date = formatDate(new Date()); // fallback to today
 
-  // ── STATISTICS ─────────────────────────────────────────────────────────────
-  // Rows: 7 = Breakfast, 8 = Lunch, 9 = Total
-  // Columns: M=13 Total Checks, T=20 Refund Checks, AC=29 Net Checks, AP=42 Avg Check
+  // ── STATISTICS section ─────────────────────────────────────────────────────
 
-  const breakfastTotalChecks = num(7, 13);
-  const lunchTotalChecks     = num(8, 13);
-  const totalChecks          = num(9, 13);  // Total Checks (gross)
+  const statsAnchor = findInCol(2, "STATISTICS");
+  if (!statsAnchor) throw new Error(
+    "Could not find STATISTICS section. Verify this is an InfoGenesis Sales Summary report."
+  );
 
-  const breakfastNetChecks   = num(7, 29);
-  const lunchNetChecks       = num(8, 29);
-  const totalNetChecks       = num(9, 29);  // Net Checks
+  // Column headers are in the row immediately after the section label.
+  const statsHeaderRow = statsAnchor.row + 1;
+  const netChecksHdr = findInRow(statsHeaderRow, "Net Checks");
+  const avgCheckHdr  = findInRow(statsHeaderRow, "Avg Check");
+  const totalChecksHdr = findInRow(statsHeaderRow, "Total Checks");
 
-  const breakfastAvgCheck    = num(7, 42);
-  const lunchAvgCheck        = num(8, 42);
+  if (!netChecksHdr && !totalChecksHdr) throw new Error(
+    `Could not find 'Net Checks' or 'Total Checks' column header in STATISTICS (checked row ${statsHeaderRow}).`
+  );
+  if (!avgCheckHdr) throw new Error(
+    `Could not find 'Avg Check' column header in STATISTICS (checked row ${statsHeaderRow}).`
+  );
 
-  // Prefer Net Checks for total_checks (matches what PDF parser extracted)
-  const finalTotalChecks = totalNetChecks ?? totalChecks;
+  // Meal period rows — scan column B below the STATISTICS anchor.
+  const bfastStatsRow  = findInCol(2, "Breakfast(1)", statsAnchor.row);
+  const lunchStatsRow  = findInCol(2, "Lunch(2)",     statsAnchor.row);
+  const totalStatsRow  = findInCol(2, "Total",        statsAnchor.row);
 
-  // ── REVENUE ────────────────────────────────────────────────────────────────
-  // Rows: 13 = Breakfast, 14 = Lunch, 15 = Total
-  // Columns: M=13 Receipts, W=23 Refunds, AK=37 Gross Revenue, AT=46 Discounts, AZ=52 Net Revenue
+  // Prefer Net Checks column; fall back to Total Checks if Net Checks not present.
+  const checksCol = netChecksHdr ? netChecksHdr.col : totalChecksHdr.col;
 
-  const breakfastNetRevenue  = num(13, 52); // AZ13
-  const lunchNetRevenue      = num(14, 52); // AZ14
-  const totalNetRevenue      = num(15, 52); // AZ15 — Net Revenue directly (no truncation in Excel!)
+  const totalChecks       = totalStatsRow ? numVal(totalStatsRow.row, checksCol)            : null;
+  const lunchAvgCheck     = lunchStatsRow ? numVal(lunchStatsRow.row, avgCheckHdr.col)      : null;
+  const breakfastAvgCheck = bfastStatsRow ? numVal(bfastStatsRow.row, avgCheckHdr.col)      : null;
+  const lunchChecks       = lunchStatsRow ? numVal(lunchStatsRow.row, checksCol)            : null;
+  const breakfastChecks   = bfastStatsRow ? numVal(bfastStatsRow.row, checksCol)            : null;
 
-  const totalGrossRevenue    = num(15, 37); // AK15
-  const totalDiscounts       = num(15, 46); // AT15
+  // ── REVENUE section ────────────────────────────────────────────────────────
 
-  // Validate: Net Revenue should equal Gross - Discounts (within rounding)
+  const revAnchor = findInCol(2, "REVENUE");
+  if (!revAnchor) throw new Error(
+    "Could not find REVENUE section. Verify this is an InfoGenesis Sales Summary report."
+  );
+
+  const revHeaderRow = revAnchor.row + 1;
+  const netRevHdr   = findInRow(revHeaderRow, "Net Revenue");
+  const grossRevHdr = findInRow(revHeaderRow, "= Gross Revenue");
+  const discountsHdr = findInRow(revHeaderRow, "- Discounts");
+
+  if (!netRevHdr) throw new Error(
+    `Could not find 'Net Revenue' column header in REVENUE (checked row ${revHeaderRow}).`
+  );
+  if (!grossRevHdr) throw new Error(
+    `Could not find '= Gross Revenue' column header in REVENUE (checked row ${revHeaderRow}).`
+  );
+  if (!discountsHdr) throw new Error(
+    `Could not find '- Discounts' column header in REVENUE (checked row ${revHeaderRow}).`
+  );
+
+  // Find meal period rows in the REVENUE section — scan column B below the anchor.
+  const bfastRevRow = findInCol(2, "Breakfast(1)", revAnchor.row);
+  const lunchRevRow = findInCol(2, "Lunch(2)",     revAnchor.row);
+  const totalRevRow = findInCol(2, "Total",        revAnchor.row);
+
+  const totalNetRevenue      = totalRevRow ? numVal(totalRevRow.row, netRevHdr.col)    : null;
+  const totalGrossRevenue    = totalRevRow ? numVal(totalRevRow.row, grossRevHdr.col)  : null;
+  const totalDiscounts       = totalRevRow ? numVal(totalRevRow.row, discountsHdr.col) : null;
+  const breakfastNetRevenue  = bfastRevRow ? numVal(bfastRevRow.row, netRevHdr.col)   : null;
+  const lunchNetRevenue      = lunchRevRow ? numVal(lunchRevRow.row, netRevHdr.col)    : null;
+
+  // Cross-check: Net Revenue should equal Gross - Discounts within a rounding penny.
   if (totalGrossRevenue !== null && totalDiscounts !== null && totalNetRevenue !== null) {
     const calculated = round2(totalGrossRevenue - totalDiscounts);
     const diff = Math.abs(calculated - totalNetRevenue);
     if (diff > 0.02) {
       console.warn(
-        `[parseExcel] Net Revenue mismatch: direct=${totalNetRevenue}, calculated=${calculated}, diff=${diff}`
+        `[parseExcel] Net Revenue cross-check mismatch: ` +
+        `direct=${totalNetRevenue}, calculated=${calculated}, diff=${diff}`
       );
     }
   }
 
-  // ── Validate required fields ───────────────────────────────────────────────
+  // ── Validate all required fields were found ────────────────────────────────
+
   const missing = [];
-  if (finalTotalChecks === null) missing.push("total_checks (AC9 or M9)");
-  if (lunchAvgCheck    === null) missing.push("lunch_avg_check (AP8)");
-  if (totalNetRevenue  === null) missing.push("net_revenue (AZ15)");
+  if (totalChecks    === null) missing.push("total_checks");
+  if (lunchAvgCheck  === null) missing.push("lunch_avg_check");
+  if (totalNetRevenue === null) missing.push("net_revenue");
 
   if (missing.length > 0) {
     throw new Error(
-      `Excel parse failed — could not read required fields: ${missing.join(", ")}. ` +
-      `Verify this is an InfoGenesis Sales Summary report.`
+      `Excel parse failed — could not read: ${missing.join(", ")}. ` +
+      `The report structure may have changed. Check the Vercel logs for details.`
     );
   }
 
   return {
     date,
-    period_start:            periodStart,
-    period_end:              periodEnd,
-    // Core metrics (match Firestore schema)
-    net_revenue:             round2(totalNetRevenue),
-    total_checks:            finalTotalChecks,
-    lunch_avg_check:         round2(lunchAvgCheck),
-    // Extended metrics (bonus — only available via Excel)
-    breakfast_net_revenue:   round2(breakfastNetRevenue),
-    lunch_net_revenue:       round2(lunchNetRevenue),
-    gross_revenue:           round2(totalGrossRevenue),
-    discounts:               round2(totalDiscounts),
-    breakfast_checks:        breakfastNetChecks ?? breakfastTotalChecks,
-    lunch_checks:            lunchNetChecks ?? lunchTotalChecks,
-    breakfast_avg_check:     round2(breakfastAvgCheck),
+    period_start:           periodStart,
+    period_end:             periodEnd,
+    // Core metrics (Firestore schema)
+    net_revenue:            round2(totalNetRevenue),
+    total_checks:           totalChecks,
+    lunch_avg_check:        round2(lunchAvgCheck),
+    // Extended metrics (Excel only)
+    breakfast_net_revenue:  round2(breakfastNetRevenue),
+    lunch_net_revenue:      round2(lunchNetRevenue),
+    gross_revenue:          round2(totalGrossRevenue),
+    discounts:              round2(totalDiscounts),
+    breakfast_checks:       breakfastChecks,
+    lunch_checks:           lunchChecks,
+    breakfast_avg_check:    round2(breakfastAvgCheck),
   };
 }
 
