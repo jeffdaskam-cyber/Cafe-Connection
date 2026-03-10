@@ -1,13 +1,13 @@
-// api/parse-report.js
+// api/parse-report.cjs
 // Vercel Serverless Function — Cafe Connection
 // Parses InfoGenesis Sales Summary reports (Excel or PDF) and writes to Firestore.
 //
 // POST body: { fileUrl: string, campus: string, fileName: string }
 // Returns:   { success: true, docId: string, metrics: object }
 
-import admin from "firebase-admin";
-import ExcelJS from "exceljs";
-import pdfParse from "pdf-parse";
+const admin = require("firebase-admin");
+const ExcelJS = require("exceljs");
+const pdfParse = require("pdf-parse");
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 if (!admin.apps.length) {
@@ -24,7 +24,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // ─── Main Handler ────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

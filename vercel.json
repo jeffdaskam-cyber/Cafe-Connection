@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/parse-report.cjs": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
