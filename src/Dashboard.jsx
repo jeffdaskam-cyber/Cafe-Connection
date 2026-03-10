@@ -513,7 +513,15 @@ export default function Dashboard() {
                       tickLine={false} axisLine={false}
                       tickFormatter={(v) => `$${(v / 1000).toFixed(1)}k`} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="cafe_sales" name="Cafe Sales" fill={AQUA} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="cafe_sales" name="Cafe Sales" fill={AQUA} radius={[4, 4, 0, 0]}
+                      label={{
+                        position: "top",
+                        formatter: (v) => v >= 1000 ? `$${(v/1000).toFixed(1)}k` : `$${v}`,
+                        fill: TSEC,
+                        fontSize: 8,
+                        fontFamily: "'Poppins'",
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
