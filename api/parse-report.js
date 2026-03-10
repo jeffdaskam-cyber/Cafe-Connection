@@ -3,6 +3,7 @@
 // Parses InfoGenesis Sales Summary reports (Excel or PDF) and writes to Firestore.
 //
 // POST body: { fileUrl: string, campus: string, fileName: string }
+//   campus is used as a fallback for PDFs — Excel files detect campus automatically.
 // Returns:   { success: true, docId: string, metrics: object }
 
 import admin from "firebase-admin";
@@ -23,21 +24,34 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// ─── Campus detection from Profit Center label ───────────────────────────────
+// Maps the InfoGenesis "Profit Center" name to the canonical campus string
+// used throughout the app. Add new entries here if campus names ever change.
+const PROFIT_CENTER_MAP = {
+  "ucar foothills lab":  "Foothills",
+  "ucar mesa lab":       "Mesa Lab",
+  "ucar center green":   "Center Green",
+};
+
+function detectCampusFromProfitCenter(profitCenterString) {
+  if (!profitCenterString) return null;
+  const lower = profitCenterString.toLowerCase();
+  for (const [key, campus] of Object.entries(PROFIT_CENTER_MAP)) {
+    if (lower.includes(key)) return campus;
+  }
+  return null;
+}
+
 // ─── Main Handler ────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { fileUrl, campus, fileName } = req.body;
+  const { fileUrl, campus: campusFallback, fileName } = req.body;
 
-  if (!fileUrl || !campus || !fileName) {
-    return res.status(400).json({ error: "Missing required fields: fileUrl, campus, fileName" });
-  }
-
-  const validCampuses = ["Mesa Lab", "Foothills", "Center Green"];
-  if (!validCampuses.includes(campus)) {
-    return res.status(400).json({ error: `Invalid campus. Must be one of: ${validCampuses.join(", ")}` });
+  if (!fileUrl || !fileName) {
+    return res.status(400).json({ error: "Missing required fields: fileUrl, fileName" });
   }
 
   try {
@@ -53,17 +67,32 @@ export default async function handler(req, res) {
     const isPdf   = /\.pdf$/i.test(fileName);
 
     let metrics;
+    let campus;
+
     if (isExcel) {
       metrics = await parseExcel(fileBuffer);
+      // Use campus detected from the report; fall back to what the browser sent
+      campus = metrics.detectedCampus || campusFallback;
     } else if (isPdf) {
       metrics = await parsePdf(fileBuffer);
+      // PDFs: try detection from text, fall back to browser-supplied campus
+      campus = metrics.detectedCampus || campusFallback;
     } else {
       return res.status(400).json({ error: "Unsupported file type. Please upload a .xlsx or .pdf file." });
     }
 
+    // Final campus validation
+    const validCampuses = ["Mesa Lab", "Foothills", "Center Green"];
+    if (!campus || !validCampuses.includes(campus)) {
+      return res.status(400).json({
+        error: `Could not determine campus from the report. Detected: "${campus || "none"}". ` +
+               `Expected one of: ${validCampuses.join(", ")}.`
+      });
+    }
+
     // Build Firestore document ID
-    // Daily report:  {YYYY-MM-DD}_{CampusName}          e.g. 2026-03-08_Foothills
-    // Period report: period_{YYYY-MM-DD}_{YYYY-MM-DD}_{CampusName} e.g. period_2026-02-01_2026-02-28_Foothills
+    // Daily:  {YYYY-MM-DD}_{CampusName}
+    // Period: period_{YYYY-MM-DD}_{YYYY-MM-DD}_{CampusName}
     const campusSlug = campus.replace(/\s+/g, "");
     const isPeriod = metrics.period_end && metrics.period_end !== metrics.period_start;
     const docId = isPeriod
@@ -98,6 +127,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       docId,
+      campus,
       metrics,
     });
 
@@ -110,24 +140,6 @@ export default async function handler(req, res) {
 }
 
 // ─── EXCEL PARSER ─────────────────────────────────────────────────────────────
-// Finds all values by searching for their section and column header labels,
-// not by fixed cell addresses. This means the parser survives row/column shifts
-// caused by InfoGenesis template changes, new meal periods, or added header rows.
-//
-// Strategy:
-//   1. Scan every cell for section anchors ("STATISTICS", "REVENUE") — these
-//      are always in column B, but we don't assume which row.
-//   2. The row immediately after each anchor contains the column headers
-//      ("Net Checks", "Avg Check", "Net Revenue", etc.) — scan that row to
-//      find the column index of each header, wherever it landed.
-//   3. Scan column B below each anchor to find meal period row labels
-//      ("Breakfast(1)", "Lunch(2)", "Total").
-//   4. Read values at the intersection of (meal period row) x (header column).
-//
-// The only hard assumption is that InfoGenesis keeps section labels in column B
-// and column headers in the row directly below the section label. Both have
-// been true across all known versions of this report.
-
 async function parseExcel(buffer) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -136,8 +148,6 @@ async function parseExcel(buffer) {
   if (!ws) throw new Error("Excel file has no worksheets.");
 
   // ── Cell helpers ───────────────────────────────────────────────────────────
-
-  // Return the plain string value of a cell, or null if empty.
   const strVal = (row, col) => {
     const v = ws.getCell(row, col).value;
     if (v === null || v === undefined || v === "") return null;
@@ -145,7 +155,6 @@ async function parseExcel(buffer) {
     return String(v).trim();
   };
 
-  // Return the numeric value of a cell, or null if missing/non-numeric.
   const numVal = (row, col) => {
     const v = ws.getCell(row, col).value;
     if (v === null || v === undefined || v === "") return null;
@@ -154,9 +163,6 @@ async function parseExcel(buffer) {
   };
 
   // ── Label search helpers ───────────────────────────────────────────────────
-
-  // Find the first cell in a specific column whose text matches the label
-  // (case-insensitive), starting from afterRow. Returns { row, col } or null.
   const findInCol = (col, label, afterRow = 0) => {
     const target = label.toLowerCase();
     for (let r = afterRow + 1; r <= ws.rowCount; r++) {
@@ -166,8 +172,6 @@ async function parseExcel(buffer) {
     return null;
   };
 
-  // Find the first cell in a specific row whose text matches the label
-  // (case-insensitive). Returns { row, col } or null.
   const findInRow = (row, label) => {
     const target = label.toLowerCase();
     for (let c = 1; c <= ws.columnCount; c++) {
@@ -177,10 +181,19 @@ async function parseExcel(buffer) {
     return null;
   };
 
-  // ── Date / Period ──────────────────────────────────────────────────────────
-  // Scan column B for the "Processed Business Period..." string — it's always
-  // there but we don't assume it's row 4.
+  // ── Campus detection ───────────────────────────────────────────────────────
+  // Row 11 contains "Profit Center: UCAR Foothills Lab(552)" in column B.
+  // We scan the first 20 rows of column B to find it, rather than assuming row 11.
+  let detectedCampus = null;
+  for (let r = 1; r <= Math.min(ws.rowCount, 20); r++) {
+    const v = strVal(r, 2);
+    if (v && v.toLowerCase().startsWith("profit center:")) {
+      detectedCampus = detectCampusFromProfitCenter(v);
+      break;
+    }
+  }
 
+  // ── Date / Period ──────────────────────────────────────────────────────────
   let date = null;
   let periodStart = null;
   let periodEnd = null;
@@ -196,7 +209,6 @@ async function parseExcel(buffer) {
         date = periodStart;
       }
       if (endMatch) {
-        // "Ending" is the first moment of the next period — subtract one day.
         const d = new Date(endMatch[1]);
         d.setDate(d.getDate() - 1);
         periodEnd = formatDate(d);
@@ -205,19 +217,17 @@ async function parseExcel(buffer) {
     }
   }
 
-  if (!date) date = formatDate(new Date()); // fallback to today
+  if (!date) date = formatDate(new Date());
 
   // ── STATISTICS section ─────────────────────────────────────────────────────
-
   const statsAnchor = findInCol(2, "STATISTICS");
   if (!statsAnchor) throw new Error(
     "Could not find STATISTICS section. Verify this is an InfoGenesis Sales Summary report."
   );
 
-  // Column headers are in the row immediately after the section label.
   const statsHeaderRow = statsAnchor.row + 1;
-  const netChecksHdr = findInRow(statsHeaderRow, "Net Checks");
-  const avgCheckHdr  = findInRow(statsHeaderRow, "Avg Check");
+  const netChecksHdr   = findInRow(statsHeaderRow, "Net Checks");
+  const avgCheckHdr    = findInRow(statsHeaderRow, "Avg Check");
   const totalChecksHdr = findInRow(statsHeaderRow, "Total Checks");
 
   if (!netChecksHdr && !totalChecksHdr) throw new Error(
@@ -227,54 +237,43 @@ async function parseExcel(buffer) {
     `Could not find 'Avg Check' column header in STATISTICS (checked row ${statsHeaderRow}).`
   );
 
-  // Meal period rows — scan column B below the STATISTICS anchor.
-  const bfastStatsRow  = findInCol(2, "Breakfast(1)", statsAnchor.row);
-  const lunchStatsRow  = findInCol(2, "Lunch(2)",     statsAnchor.row);
-  const totalStatsRow  = findInCol(2, "Total",        statsAnchor.row);
+  const bfastStatsRow = findInCol(2, "Breakfast(1)", statsAnchor.row);
+  const lunchStatsRow = findInCol(2, "Lunch(2)",     statsAnchor.row);
+  const totalStatsRow = findInCol(2, "Total",        statsAnchor.row);
 
-  // Prefer Net Checks column; fall back to Total Checks if Net Checks not present.
   const checksCol = netChecksHdr ? netChecksHdr.col : totalChecksHdr.col;
 
-  const totalChecks       = totalStatsRow ? numVal(totalStatsRow.row, checksCol)            : null;
-  const lunchAvgCheck     = lunchStatsRow ? numVal(lunchStatsRow.row, avgCheckHdr.col)      : null;
-  const breakfastAvgCheck = bfastStatsRow ? numVal(bfastStatsRow.row, avgCheckHdr.col)      : null;
-  const lunchChecks       = lunchStatsRow ? numVal(lunchStatsRow.row, checksCol)            : null;
-  const breakfastChecks   = bfastStatsRow ? numVal(bfastStatsRow.row, checksCol)            : null;
+  const totalChecks       = totalStatsRow ? numVal(totalStatsRow.row, checksCol)          : null;
+  const lunchAvgCheck     = lunchStatsRow ? numVal(lunchStatsRow.row, avgCheckHdr.col)    : null;
+  const breakfastAvgCheck = bfastStatsRow ? numVal(bfastStatsRow.row, avgCheckHdr.col)    : null;
+  const lunchChecks       = lunchStatsRow ? numVal(lunchStatsRow.row, checksCol)          : null;
+  const breakfastChecks   = bfastStatsRow ? numVal(bfastStatsRow.row, checksCol)          : null;
 
   // ── REVENUE section ────────────────────────────────────────────────────────
-
   const revAnchor = findInCol(2, "REVENUE");
   if (!revAnchor) throw new Error(
     "Could not find REVENUE section. Verify this is an InfoGenesis Sales Summary report."
   );
 
   const revHeaderRow = revAnchor.row + 1;
-  const netRevHdr   = findInRow(revHeaderRow, "Net Revenue");
-  const grossRevHdr = findInRow(revHeaderRow, "= Gross Revenue");
+  const netRevHdr    = findInRow(revHeaderRow, "Net Revenue");
+  const grossRevHdr  = findInRow(revHeaderRow, "= Gross Revenue");
   const discountsHdr = findInRow(revHeaderRow, "- Discounts");
 
-  if (!netRevHdr) throw new Error(
-    `Could not find 'Net Revenue' column header in REVENUE (checked row ${revHeaderRow}).`
-  );
-  if (!grossRevHdr) throw new Error(
-    `Could not find '= Gross Revenue' column header in REVENUE (checked row ${revHeaderRow}).`
-  );
-  if (!discountsHdr) throw new Error(
-    `Could not find '- Discounts' column header in REVENUE (checked row ${revHeaderRow}).`
-  );
+  if (!netRevHdr)    throw new Error(`Could not find 'Net Revenue' column header in REVENUE (checked row ${revHeaderRow}).`);
+  if (!grossRevHdr)  throw new Error(`Could not find '= Gross Revenue' column header in REVENUE (checked row ${revHeaderRow}).`);
+  if (!discountsHdr) throw new Error(`Could not find '- Discounts' column header in REVENUE (checked row ${revHeaderRow}).`);
 
-  // Find meal period rows in the REVENUE section — scan column B below the anchor.
   const bfastRevRow = findInCol(2, "Breakfast(1)", revAnchor.row);
   const lunchRevRow = findInCol(2, "Lunch(2)",     revAnchor.row);
   const totalRevRow = findInCol(2, "Total",        revAnchor.row);
 
-  const totalNetRevenue      = totalRevRow ? numVal(totalRevRow.row, netRevHdr.col)    : null;
-  const totalGrossRevenue    = totalRevRow ? numVal(totalRevRow.row, grossRevHdr.col)  : null;
-  const totalDiscounts       = totalRevRow ? numVal(totalRevRow.row, discountsHdr.col) : null;
-  const breakfastNetRevenue  = bfastRevRow ? numVal(bfastRevRow.row, netRevHdr.col)   : null;
-  const lunchNetRevenue      = lunchRevRow ? numVal(lunchRevRow.row, netRevHdr.col)    : null;
+  const totalNetRevenue     = totalRevRow ? numVal(totalRevRow.row, netRevHdr.col)    : null;
+  const totalGrossRevenue   = totalRevRow ? numVal(totalRevRow.row, grossRevHdr.col)  : null;
+  const totalDiscounts      = totalRevRow ? numVal(totalRevRow.row, discountsHdr.col) : null;
+  const breakfastNetRevenue = bfastRevRow ? numVal(bfastRevRow.row, netRevHdr.col)   : null;
+  const lunchNetRevenue     = lunchRevRow ? numVal(lunchRevRow.row, netRevHdr.col)    : null;
 
-  // Cross-check: Net Revenue should equal Gross - Discounts within a rounding penny.
   if (totalGrossRevenue !== null && totalDiscounts !== null && totalNetRevenue !== null) {
     const calculated = round2(totalGrossRevenue - totalDiscounts);
     const diff = Math.abs(calculated - totalNetRevenue);
@@ -286,11 +285,10 @@ async function parseExcel(buffer) {
     }
   }
 
-  // ── Validate all required fields were found ────────────────────────────────
-
+  // ── Validate ───────────────────────────────────────────────────────────────
   const missing = [];
-  if (totalChecks    === null) missing.push("total_checks");
-  if (lunchAvgCheck  === null) missing.push("lunch_avg_check");
+  if (totalChecks     === null) missing.push("total_checks");
+  if (lunchAvgCheck   === null) missing.push("lunch_avg_check");
   if (totalNetRevenue === null) missing.push("net_revenue");
 
   if (missing.length > 0) {
@@ -302,31 +300,23 @@ async function parseExcel(buffer) {
 
   return {
     date,
-    period_start:           periodStart,
-    period_end:             periodEnd,
-    // Core metrics (Firestore schema)
-    net_revenue:            round2(totalNetRevenue),
-    total_checks:           totalChecks,
-    lunch_avg_check:        round2(lunchAvgCheck),
-    // Extended metrics (Excel only)
-    breakfast_net_revenue:  round2(breakfastNetRevenue),
-    lunch_net_revenue:      round2(lunchNetRevenue),
-    gross_revenue:          round2(totalGrossRevenue),
-    discounts:              round2(totalDiscounts),
-    breakfast_checks:       breakfastChecks,
-    lunch_checks:           lunchChecks,
-    breakfast_avg_check:    round2(breakfastAvgCheck),
+    period_start:          periodStart,
+    period_end:            periodEnd,
+    detectedCampus,
+    net_revenue:           round2(totalNetRevenue),
+    total_checks:          totalChecks,
+    lunch_avg_check:       round2(lunchAvgCheck),
+    breakfast_net_revenue: round2(breakfastNetRevenue),
+    lunch_net_revenue:     round2(lunchNetRevenue),
+    gross_revenue:         round2(totalGrossRevenue),
+    discounts:             round2(totalDiscounts),
+    breakfast_checks:      breakfastChecks,
+    lunch_checks:          lunchChecks,
+    breakfast_avg_check:   round2(breakfastAvgCheck),
   };
 }
 
 // ─── PDF PARSER ───────────────────────────────────────────────────────────────
-// Fallback for PDF uploads. Less reliable due to column truncation in the
-// wide InfoGenesis layout — Net Revenue is calculated rather than read directly.
-//
-// Known limitation: Net Revenue column (rightmost) is cut off during text
-// extraction. We calculate it as Gross Revenue - Discounts, which is correct
-// within ±$0.01 rounding.
-
 async function parsePdf(buffer) {
   const data = await pdfParse(buffer);
   const text = data.text;
@@ -335,28 +325,28 @@ async function parsePdf(buffer) {
     throw new Error("PDF text extraction returned empty content. The file may be scanned or image-based.");
   }
 
-  // ── Date ───────────────────────────────────────────────────────────────────
-  let date = formatDate(new Date()); // default to today
-  const dateMatch = text.match(/Starting\s+(\d+\/\d+\/\d+)/);
-  if (dateMatch) {
-    date = formatDate(new Date(dateMatch[1]));
+  // ── Campus detection from PDF text ────────────────────────────────────────
+  // Look for "Profit Center: UCAR Foothills Lab" anywhere in the PDF text
+  let detectedCampus = null;
+  const profitCenterMatch = text.match(/Profit Center:\s*([^\n\r(]+)/i);
+  if (profitCenterMatch) {
+    detectedCampus = detectCampusFromProfitCenter(profitCenterMatch[1]);
   }
 
+  // ── Date ───────────────────────────────────────────────────────────────────
+  let date = formatDate(new Date());
+  const dateMatch = text.match(/Starting\s+(\d+\/\d+\/\d+)/);
+  if (dateMatch) date = formatDate(new Date(dateMatch[1]));
+
   // ── STATISTICS — Total Checks ──────────────────────────────────────────────
-  // Layout: "Total  <TotalChecks>  <RefundChecks>  <NetChecks>"
-  // The 3rd number on the Total row in STATISTICS is Net Checks.
   const totalChecksMatch = text.match(/Total\s+(\d+)\s+\d+\s+(\d+)/);
   const totalChecks = totalChecksMatch ? parseInt(totalChecksMatch[2], 10) : null;
 
   // ── STATISTICS — Lunch Avg Check ───────────────────────────────────────────
-  // Layout: "Lunch(2)  <TotalChecks>  <RefundChecks>  <NetChecks>  $<AvgCheck>"
   const lunchAvgMatch = text.match(/Lunch\(2\)\s+\d+\s+\d+\s+\d+\s+\$?([\d,]+\.\d{2})/);
   const lunchAvgCheck = lunchAvgMatch ? parseFloat(lunchAvgMatch[1].replace(/,/g, "")) : null;
 
   // ── REVENUE — Gross Revenue and Discounts ──────────────────────────────────
-  // The Net Revenue column is truncated in PDF extraction.
-  // We find the REVENUE > Total row and extract Gross Revenue (3rd $) and Discounts (4th $).
-  // Pattern: "Total  $<Receipts>  $<Refunds>  $<GrossRevenue>  $<Discounts>"
   const revenueMatch = text.match(
     /REVENUE[\s\S]*?Total\s+\$?([\d,]+\.\d{2})\s+[-–]?\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/
   );
@@ -372,9 +362,9 @@ async function parsePdf(buffer) {
 
   // ── Validate ───────────────────────────────────────────────────────────────
   const missing = [];
-  if (totalChecks  === null) missing.push("total_checks");
+  if (totalChecks   === null) missing.push("total_checks");
   if (lunchAvgCheck === null) missing.push("lunch_avg_check");
-  if (netRevenue   === null) missing.push("net_revenue");
+  if (netRevenue    === null) missing.push("net_revenue");
 
   if (missing.length > 0) {
     throw new Error(
@@ -385,10 +375,11 @@ async function parsePdf(buffer) {
 
   return {
     date,
-    net_revenue:    netRevenue,
-    total_checks:   totalChecks,
+    detectedCampus,
+    net_revenue:     netRevenue,
+    total_checks:    totalChecks,
     lunch_avg_check: lunchAvgCheck,
-    gross_revenue:  grossRevenue,
+    gross_revenue:   grossRevenue,
     discounts,
   };
 }
