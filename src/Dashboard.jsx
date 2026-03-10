@@ -298,9 +298,9 @@ const filteredDaily = period === "daily"
   period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
                          annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
 
-  // Summary stats use same source
   const statSource  = period === "daily" ? metrics : period === "monthly" ? monthlyData : annualData;
-  const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
+  // Summary stats use same source
+   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
   const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
 
