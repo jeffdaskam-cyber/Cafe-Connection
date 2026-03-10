@@ -239,8 +239,9 @@ export default function Dashboard() {
   const [metrics, setMetrics]   = useState([]);      // daily docs for campus
   const [allDocs, setAllDocs]   = useState([]);      // all docs for campus (all report_types)
   const [uploadStates, setUploadStates] = useState({
-    "Mesa Lab": "IDLE", Foothills: "IDLE", "Center Green": "IDLE",
+   "Mesa Lab": "IDLE", Foothills: "IDLE", "Center Green": "IDLE",
   });
+  const [fiscalYear, setFiscalYear] = useState(null); // null = all years
 
   // Daily subscription — existing behaviour
   useEffect(() => {
@@ -260,11 +261,44 @@ export default function Dashboard() {
   const monthlyData = buildMonthlyData(allDocs);
   const annualData  = buildAnnualData(monthlyData);
 
-  // Map to chart shape based on selected period
-  const chartData =
-    period === "daily"   ? metrics.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue||0, cafe_volume: d.total_checks||0, event_volume: d.lunch_checks||0 })) :
-    period === "monthly" ? monthlyData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
-                           annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+  // Derive available fiscal years from real data and auto-add new ones
+const fiscalYears = annualData.map(d => d.label); // e.g. ["FY2023–24", ...]
+useEffect(() => {
+  if (fiscalYears.length > 0 && !fiscalYears.includes(fiscalYear)) {
+    setFiscalYear(fiscalYears[fiscalYears.length - 1]);
+  }
+}, [fiscalYears.join(",")]);
+
+// Filter monthly/daily data to selected fiscal year
+function inFiscalYear(monthKey, fyLabel) {
+  if (!fyLabel) return true;
+  const [year, month] = monthKey.split("-").map(Number);
+  const fy = month >= 10 ? year : year - 1;
+  const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
+  return label === fyLabel;
+}
+const filteredMonthly = period === "monthly"
+  ? monthlyData.filter(d => inFiscalYear(d.monthKey, fiscalYear))
+  : monthlyData;
+const filteredDaily = period === "daily"
+  ? metrics.filter(d => {
+      if (!fiscalYear) return true;
+      const dt = d.date?.toDate ? d.date.toDate() : new Date(d.date);
+      const m = dt.getMonth() + 1;
+      const y = dt.getFullYear();
+      const fy = m >= 10 ? y : y - 1;
+      const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
+      return label === fiscalYear;
+    })
+  : metrics;
+
+// Map to chart shape based on selected period
+ const chartData =
+  period === "daily"   ? filteredDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue||0, cafe_volume: d.total_checks||0, event_volume: d.lunch_checks||0 })) :
+  period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
+                         annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+
+const statSource = period === "daily" ? filteredDaily : period === "monthly" ? filteredMonthly : annualData;
 
   // Summary stats use same source
   const statSource  = period === "daily" ? metrics : period === "monthly" ? monthlyData : annualData;
@@ -429,7 +463,39 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Period toggle */}
+           {/* Fiscal Year selector */}
+{period !== "annual" && fiscalYears.length > 0 && (
+  <div>
+    <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Fiscal Year</div>
+    <select
+      value={fiscalYear || ""}
+      onChange={e => setFiscalYear(e.target.value)}
+      style={{
+        background: `${SPACE}cc`,
+        border: `1px solid ${BORDER}`,
+        borderRadius: 8,
+        color: TPRI,
+        fontFamily: "'Poppins',sans-serif",
+        fontWeight: 600,
+        fontSize: 12,
+        padding: "9px 32px 9px 14px",
+        cursor: "pointer",
+        appearance: "none",
+        WebkitAppearance: "none",
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237aaec8'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 12px center",
+      }}
+    >
+      {fiscalYears.map(fy => (
+        <option key={fy} value={fy} style={{ background: DARKBLUE }}>{fy}</option>
+      ))}
+    </select>
+  </div>
+)}
+
+{/* Period toggle */}
+<div>
             <div>
               <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Period</div>
               <div style={{ display: "flex", background: `${SPACE}cc`, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 3, gap: 2 }}>
