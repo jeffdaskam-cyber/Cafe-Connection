@@ -196,16 +196,16 @@ export default function Dashboard() {
 
   const color = CAMPUS_COLOR[campus];
 
-  const totalSales  = metrics.reduce((s, d) => s + (d.cafe_sales  || 0), 0);
+  const totalSales  = metrics.reduce((s, d) => s + (d.net_revenue   || 0), 0);
   const avgVolume   = metrics.length
-    ? Math.round(metrics.reduce((s, d) => s + (d.cafe_volume || 0), 0) / metrics.length) : 0;
-  const totalEvents = metrics.reduce((s, d) => s + (d.event_volume || 0), 0);
+    ? Math.round(metrics.reduce((s, d) => s + (d.total_checks || 0), 0) / metrics.length) : 0;
+  const totalEvents = metrics.reduce((s, d) => s + (d.lunch_checks || 0), 0);
 
   const chartData = metrics.map((d) => ({
     date:         fmt(d.date),
-    cafe_sales:   d.cafe_sales   || 0,
-    cafe_volume:  d.cafe_volume  || 0,
-    event_volume: d.event_volume || 0,
+    cafe_sales:   d.net_revenue   || 0,
+    cafe_volume:  d.total_checks  || 0,
+    event_volume: d.lunch_checks  || 0,
   }));
 
   const anyProcessing = Object.values(uploadStates)
@@ -371,19 +371,19 @@ export default function Dashboard() {
             animation: "ucar-fadein .5s ease both",
           }}>
             <StatCard
-              label="30-Day Cafe Sales"
+              label="Net Revenue"
               value={`$${(totalSales / 1000).toFixed(1)}k`}
               delta={4.2}
               accentColor={AQUA}
             />
             <StatCard
-              label="Avg Daily Transactions"
+              label="Avg Daily Checks"
               value={avgVolume || "—"}
               delta={-1.8}
               accentColor={LAQUA}
             />
             <StatCard
-              label="Total Events"
+              label="Avg Lunch Checks"
               value={totalEvents || "—"}
               delta={11.3}
               accentColor={color}
@@ -433,9 +433,9 @@ export default function Dashboard() {
                 <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.06 }}>
                   <WaveGraphic color={LAQUA} opacity={1} width={340} height={90} />
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Volume Comparison</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Check Volume</div>
                 <div style={{ fontSize: 10, color: TSEC, fontWeight: 500, marginBottom: 20, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  Cafe volume vs Event volume · {campus}
+                  Total checks vs Lunch checks · {campus}
                 </div>
                 <ResponsiveContainer width="100%" height={210}>
                   <LineChart data={chartData}>
@@ -448,8 +448,8 @@ export default function Dashboard() {
                       tickLine={false} axisLine={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 10, fontFamily: "'Poppins'", fontWeight: 600 }} />
-                    <Line type="monotone" dataKey="cafe_volume"  name="Cafe Volume"  stroke={AQUA}  strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="event_volume" name="Event Volume" stroke={LAQUA} strokeWidth={2} dot={false} strokeDasharray="5 3" />
+                    <Line type="monotone" dataKey="cafe_volume"  name="Total Checks"  stroke={AQUA}  strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="event_volume" name="Lunch Checks" stroke={LAQUA} strokeWidth={2} dot={false} strokeDasharray="5 3" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
