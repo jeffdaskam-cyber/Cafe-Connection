@@ -526,9 +526,9 @@ export default function Dashboard() {
                 <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.06 }}>
                   <WaveGraphic color={LAQUA} opacity={1} width={340} height={90} />
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Volume Comparison</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Total Cafe Volume</div>
                 <div style={{ fontSize: 10, color: TSEC, fontWeight: 500, marginBottom: 20, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  Total checks vs Lunch checks · {campus}
+                  Total checks · {campus}
                 </div>
                 <ResponsiveContainer width="100%" height={210}>
                   <LineChart data={chartData}>
@@ -540,9 +540,7 @@ export default function Dashboard() {
                       tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
                       tickLine={false} axisLine={false} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 10, fontFamily: "'Poppins'", fontWeight: 600 }} />
-                    <Line type="monotone" dataKey="cafe_volume"  name="Cafe Volume"  stroke={AQUA}  strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="event_volume" name="Event Volume" stroke={LAQUA} strokeWidth={2} dot={false} strokeDasharray="5 3" />
+                    <Line type="monotone" dataKey="cafe_volume" name="Cafe Volume" stroke={AQUA} strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
