@@ -298,8 +298,6 @@ const filteredDaily = period === "daily"
   period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
                          annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
 
-const statSource = period === "daily" ? filteredDaily : period === "monthly" ? filteredMonthly : annualData;
-
   // Summary stats use same source
   const statSource  = period === "daily" ? metrics : period === "monthly" ? monthlyData : annualData;
   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
@@ -676,7 +674,7 @@ const statSource = period === "daily" ? filteredDaily : period === "monthly" ? f
             </div>
           </div>
 
-          {/* ── UCAR footer tag ── */}
+         {/* ── UCAR footer tag ── */}
           <div style={{
             marginTop: 32, textAlign: "center",
             fontSize: 10, color: `${TSEC}88`,
