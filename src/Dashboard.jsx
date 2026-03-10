@@ -60,22 +60,21 @@ function buildAnnualData(monthlyData) {
 // ── UCAR Brand Palette (Brand Style Guide, Dec 2025) ─────────────────────────
 const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 const CAMPUS_COLOR = {
-  "Mesa Lab":     "#00A2B4", // UCAR Aqua
-  Foothills:      "#34E1F4", // Light Aqua
-  "Center Green": "#00818F", // UCAR Aqua Contrast
+  "Mesa Lab":     "#00A2B4",
+  Foothills:      "#34E1F4",
+  "Center Green": "#00818F",
 };
 
-const SPACE     = "#011837";
-const DARKBLUE  = "#00357A";
-const PANEL     = "#001f4d";
-const BORDER    = "#003070";
-const TPRI      = "#FFFFFF";
-const TSEC      = "#7aaec8";
-const TMID      = "#b0d0e8";
-const AQUA      = "#00A2B4";
-const LAQUA     = "#34E1F4";
-const ORANGE    = "#FAA119";
-const YELLOW    = "#FFDD31";
+const SPACE    = "#011837";
+const DARKBLUE = "#00357A";
+const PANEL    = "#001f4d";
+const BORDER   = "#003070";
+const TPRI     = "#FFFFFF";
+const TSEC     = "#7aaec8";
+const TMID     = "#b0d0e8";
+const AQUA     = "#00A2B4";
+const LAQUA    = "#34E1F4";
+const ORANGE   = "#FAA119";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(d) {
@@ -84,7 +83,7 @@ function fmt(d) {
   return `${dt.getMonth() + 1}/${dt.getDate()}`;
 }
 
-// ── Wave SVG (UCAR graphic element per brand guide) ───────────────────────────
+// ── Wave SVG ──────────────────────────────────────────────────────────────────
 function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 }) {
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}
@@ -103,15 +102,9 @@ function StatCard({ label, value, delta, accentColor }) {
   const pos = delta >= 0;
   return (
     <div style={{
-      flex: 1,
-      background: PANEL,
-      borderRadius: 14,
-      padding: "20px 22px",
-      border: `1px solid ${BORDER}`,
-      position: "relative",
-      overflow: "hidden",
+      flex: 1, background: PANEL, borderRadius: 14, padding: "20px 22px",
+      border: `1px solid ${BORDER}`, position: "relative", overflow: "hidden",
     }}>
-      {/* top accent line */}
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: 3,
         background: `linear-gradient(90deg, ${accentColor}, transparent)`,
@@ -131,7 +124,6 @@ function StatCard({ label, value, delta, accentColor }) {
       }}>
         {pos ? "▲" : "▼"} {Math.abs(delta)}% vs last period
       </div>
-      {/* subtle wave watermark */}
       <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.07 }}>
         <WaveGraphic color={accentColor} opacity={1} width={180} height={50} />
       </div>
@@ -193,14 +185,10 @@ function UploadZone({ campus, onUpload, uploadState }) {
   return (
     <div {...getRootProps()} style={{
       border: `1.5px dashed ${isDragActive ? color : BORDER}`,
-      borderRadius: 12,
-      padding: "22px 16px",
-      cursor: "pointer",
+      borderRadius: 12, padding: "22px 16px", cursor: "pointer",
       background: isDragActive ? `${color}18` : `${SPACE}cc`,
-      transition: "all 0.25s",
-      textAlign: "center",
-      position: "relative",
-      overflow: "hidden",
+      transition: "all 0.25s", textAlign: "center",
+      position: "relative", overflow: "hidden",
     }}>
       <input {...getInputProps()} />
       <div style={{
@@ -234,22 +222,20 @@ function UploadZone({ campus, onUpload, uploadState }) {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [campus, setCampus]     = useState("Mesa Lab");
-  const [period, setPeriod]     = useState("daily"); // "daily" | "monthly" | "annual"
-  const [metrics, setMetrics]   = useState([]);      // daily docs for campus
-  const [allDocs, setAllDocs]   = useState([]);      // all docs for campus (all report_types)
+  const [campus, setCampus]   = useState("Mesa Lab");
+  const [period, setPeriod]   = useState("daily");
+  const [metrics, setMetrics] = useState([]);
+  const [allDocs, setAllDocs] = useState([]);
   const [uploadStates, setUploadStates] = useState({
-   "Mesa Lab": "IDLE", Foothills: "IDLE", "Center Green": "IDLE",
+    "Mesa Lab": "IDLE", Foothills: "IDLE", "Center Green": "IDLE",
   });
-  const [fiscalYear, setFiscalYear] = useState(null); // null = all years
+  const [fiscalYear, setFiscalYear] = useState(null);
 
-  // Daily subscription — existing behaviour
   useEffect(() => {
     const unsub = subscribeToCampus(campus, setMetrics);
     return unsub;
   }, [campus]);
 
-  // All-docs subscription — feeds monthly & annual views
   useEffect(() => {
     const unsub = subscribeAllReports(campus, setAllDocs);
     return unsub;
@@ -257,53 +243,51 @@ export default function Dashboard() {
 
   const color = CAMPUS_COLOR[campus];
 
-  // Build aggregated views
   const monthlyData = buildMonthlyData(allDocs);
   const annualData  = buildAnnualData(monthlyData);
 
-  // Derive available fiscal years from real data and auto-add new ones
-const fiscalYears = annualData.map(d => d.label); // e.g. ["FY2023–24", ...]
-useEffect(() => {
-  if (fiscalYears.length > 0 && !fiscalYears.includes(fiscalYear)) {
-    setFiscalYear(fiscalYears[fiscalYears.length - 1]);
+  // Derive fiscal years from real data; auto-select most recent
+  const fiscalYears = annualData.map(d => d.label);
+  useEffect(() => {
+    if (fiscalYears.length > 0 && !fiscalYears.includes(fiscalYear)) {
+      setFiscalYear(fiscalYears[fiscalYears.length - 1]);
+    }
+  }, [fiscalYears.join(",")]);
+
+  // Filter helpers
+  function inFiscalYear(monthKey, fyLabel) {
+    if (!fyLabel) return true;
+    const [year, month] = monthKey.split("-").map(Number);
+    const fy = month >= 10 ? year : year - 1;
+    const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
+    return label === fyLabel;
   }
-}, [fiscalYears.join(",")]);
 
-// Filter monthly/daily data to selected fiscal year
-function inFiscalYear(monthKey, fyLabel) {
-  if (!fyLabel) return true;
-  const [year, month] = monthKey.split("-").map(Number);
-  const fy = month >= 10 ? year : year - 1;
-  const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
-  return label === fyLabel;
-}
-const filteredMonthly = period === "monthly"
-  ? monthlyData.filter(d => inFiscalYear(d.monthKey, fiscalYear))
-  : monthlyData;
-const filteredDaily = period === "daily"
-  ? metrics.filter(d => {
-      if (!fiscalYear) return true;
-      const dt = d.date?.toDate ? d.date.toDate() : new Date(d.date);
-      const m = dt.getMonth() + 1;
-      const y = dt.getFullYear();
-      const fy = m >= 10 ? y : y - 1;
-      const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
-      return label === fiscalYear;
-    })
-  : metrics;
+  const filteredMonthly = period === "monthly"
+    ? monthlyData.filter(d => inFiscalYear(d.monthKey, fiscalYear))
+    : monthlyData;
 
-// Map to chart shape based on selected period
- const chartData =
-  period === "daily"   ? filteredDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue||0, cafe_volume: d.total_checks||0, event_volume: d.lunch_checks||0 })) :
-  period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
-                         annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+  const filteredDaily = period === "daily"
+    ? metrics.filter(d => {
+        if (!fiscalYear) return true;
+        const dt = d.date?.toDate ? d.date.toDate() : new Date(d.date);
+        const m = dt.getMonth() + 1;
+        const y = dt.getFullYear();
+        const fy = m >= 10 ? y : y - 1;
+        const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
+        return label === fiscalYear;
+      })
+    : metrics;
 
-  const statSource  = period === "daily" ? metrics : period === "monthly" ? monthlyData : annualData;
-  // Summary stats use same source
-   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
+  const chartData =
+    period === "daily"   ? filteredDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue||0, cafe_volume: d.total_checks||0, event_volume: d.lunch_checks||0 })) :
+    period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
+                           annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+
+  const statSource  = period === "daily" ? filteredDaily : period === "monthly" ? filteredMonthly : annualData;
+  const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
   const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
-
 
   const anyProcessing = Object.values(uploadStates)
     .some((s) => s === "UPLOADING" || s === "PROCESSING");
@@ -338,12 +322,8 @@ const filteredDaily = period === "daily"
           from { opacity:0; transform:translateY(10px); }
           to   { opacity:1; transform:translateY(0);    }
         }
-        .ucar-campus-btn {
-          transition: all .22s ease;
-        }
-        .ucar-campus-btn:hover {
-          filter: brightness(1.15);
-        }
+        .ucar-campus-btn { transition: all .22s ease; }
+        .ucar-campus-btn:hover { filter: brightness(1.15); }
       `}</style>
 
       <div style={{
@@ -366,20 +346,16 @@ const filteredDaily = period === "daily"
           height: 64,
           overflow: "hidden",
         }}>
-          {/* wave graphic in header — UCAR brand element */}
           <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.25 }}>
             <WaveGraphic color={AQUA} opacity={0.6} width={500} height={64} />
           </div>
 
-          {/* Logo area */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, zIndex: 1 }}>
-            {/* UCAR logomark approximation using brand colors */}
             <div style={{
               width: 40, height: 40, borderRadius: "50%",
               background: `linear-gradient(135deg, ${AQUA}, ${DARKBLUE})`,
               display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: `0 0 16px ${AQUA}44`,
-              flexShrink: 0,
+              boxShadow: `0 0 16px ${AQUA}44`, flexShrink: 0,
             }}>
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
                 <ellipse cx="12" cy="12" rx="10" ry="10" stroke="white" strokeWidth="1.2" />
@@ -388,10 +364,7 @@ const filteredDaily = period === "daily"
               </svg>
             </div>
             <div>
-              <div style={{
-                fontWeight: 800, fontSize: 15, letterSpacing: "0.02em",
-                color: TPRI,
-              }}>
+              <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "0.02em", color: TPRI }}>
                 <span style={{ color: AQUA }}>UCAR</span> Cafe Connection
               </div>
               <div style={{
@@ -401,26 +374,21 @@ const filteredDaily = period === "daily"
             </div>
           </div>
 
-          {/* Date + processing badge */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, zIndex: 1 }}>
-            <div style={{
-              fontSize: 11, color: TSEC, fontWeight: 500,
-              letterSpacing: "0.04em",
-            }}>{new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
-
+            <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, letterSpacing: "0.04em" }}>
+              {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </div>
             {anyProcessing && (
               <div style={{
                 display: "flex", alignItems: "center", gap: 7,
-                background: `${DARKBLUE}cc`,
-                border: `1px solid ${AQUA}55`,
+                background: `${DARKBLUE}cc`, border: `1px solid ${AQUA}55`,
                 padding: "5px 14px", borderRadius: 20,
                 fontSize: 11, fontWeight: 600, color: AQUA,
                 animation: "ucar-pulse 1.6s ease-in-out infinite",
               }}>
                 <div style={{
                   width: 6, height: 6, borderRadius: "50%",
-                  background: ORANGE,
-                  boxShadow: `0 0 6px ${ORANGE}`,
+                  background: ORANGE, boxShadow: `0 0 6px ${ORANGE}`,
                 }} />
                 Processing report…
               </div>
@@ -430,8 +398,12 @@ const filteredDaily = period === "daily"
 
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
 
-          {/* ── Campus + Period Selector ── */}
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
+          {/* ── Campus + Period + FY Selector ── */}
+          <div style={{
+            display: "flex", alignItems: "flex-end",
+            justifyContent: "space-between",
+            marginBottom: 32, flexWrap: "wrap", gap: 16
+          }}>
 
             {/* Campus buttons */}
             <div>
@@ -446,10 +418,8 @@ const filteredDaily = period === "daily"
                       style={{
                         padding: "9px 24px", borderRadius: 6,
                         border: active ? `1.5px solid ${cc}` : `1.5px solid ${BORDER}`,
-                        cursor: "pointer",
-                        fontFamily: "'Poppins',sans-serif",
-                        fontWeight: 600, fontSize: 12,
-                        letterSpacing: "0.03em",
+                        cursor: "pointer", fontFamily: "'Poppins',sans-serif",
+                        fontWeight: 600, fontSize: 12, letterSpacing: "0.03em",
                         background: active ? `${cc}22` : "transparent",
                         color: active ? cc : TSEC,
                         boxShadow: active ? `0 0 18px ${cc}33` : "none",
@@ -461,39 +431,35 @@ const filteredDaily = period === "daily"
               </div>
             </div>
 
-           {/* Fiscal Year selector */}
-{period !== "annual" && fiscalYears.length > 0 && (
-  <div>
-    <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Fiscal Year</div>
-    <select
-      value={fiscalYear || ""}
-      onChange={e => setFiscalYear(e.target.value)}
-      style={{
-        background: `${SPACE}cc`,
-        border: `1px solid ${BORDER}`,
-        borderRadius: 8,
-        color: TPRI,
-        fontFamily: "'Poppins',sans-serif",
-        fontWeight: 600,
-        fontSize: 12,
-        padding: "9px 32px 9px 14px",
-        cursor: "pointer",
-        appearance: "none",
-        WebkitAppearance: "none",
-        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237aaec8'/%3E%3C/svg%3E")`,
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "right 12px center",
-      }}
-    >
-      {fiscalYears.map(fy => (
-        <option key={fy} value={fy} style={{ background: DARKBLUE }}>{fy}</option>
-      ))}
-    </select>
-  </div>
-)}
+            {/* Fiscal Year selector */}
+            {period !== "annual" && fiscalYears.length > 0 && (
+              <div>
+                <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Fiscal Year</div>
+                <select
+                  value={fiscalYear || ""}
+                  onChange={e => setFiscalYear(e.target.value)}
+                  style={{
+                    background: `${SPACE}cc`,
+                    border: `1px solid ${BORDER}`,
+                    borderRadius: 8, color: TPRI,
+                    fontFamily: "'Poppins',sans-serif",
+                    fontWeight: 600, fontSize: 12,
+                    padding: "9px 32px 9px 14px",
+                    cursor: "pointer",
+                    appearance: "none", WebkitAppearance: "none",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237aaec8'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 12px center",
+                  }}
+                >
+                  {fiscalYears.map(fy => (
+                    <option key={fy} value={fy} style={{ background: DARKBLUE }}>{fy}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-{/* Period toggle */}
-<div>
+            {/* Period toggle */}
             <div>
               <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Period</div>
               <div style={{ display: "flex", background: `${SPACE}cc`, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 3, gap: 2 }}>
@@ -506,8 +472,7 @@ const filteredDaily = period === "daily"
                         padding: "7px 18px", borderRadius: 6,
                         border: "none", cursor: "pointer",
                         fontFamily: "'Poppins',sans-serif",
-                        fontWeight: 600, fontSize: 12,
-                        letterSpacing: "0.03em",
+                        fontWeight: 600, fontSize: 12, letterSpacing: "0.03em",
                         transition: "all .2s ease",
                         background: active ? AQUA : "transparent",
                         color: active ? SPACE : TSEC,
@@ -619,11 +584,9 @@ const filteredDaily = period === "daily"
             </div>
           ) : (
             <div style={{
-              background: PANEL,
-              border: `1.5px dashed ${BORDER}`,
+              background: PANEL, border: `1.5px dashed ${BORDER}`,
               borderRadius: 16, padding: 56, textAlign: "center",
-              marginBottom: 28,
-              animation: "ucar-fadein .5s ease both",
+              marginBottom: 28, animation: "ucar-fadein .5s ease both",
             }}>
               <div style={{
                 width: 56, height: 56, borderRadius: "50%",
@@ -674,7 +637,7 @@ const filteredDaily = period === "daily"
             </div>
           </div>
 
-         {/* ── UCAR footer tag ── */}
+          {/* ── UCAR footer tag ── */}
           <div style={{
             marginTop: 32, textAlign: "center",
             fontSize: 10, color: `${TSEC}88`,
