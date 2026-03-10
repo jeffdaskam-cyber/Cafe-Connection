@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, Timestamp } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 const firebaseConfig = {
@@ -80,14 +80,12 @@ export function subscribeAllReports(campus, callback) {
 export async function getMonthEndData(year, month) {
   const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 
-  // Build date range for the requested month
-  const startDate = new Date(year, month - 1, 1);          // e.g. Oct 1
-  const endDate   = new Date(year, month, 1);               // e.g. Nov 1 (exclusive)
+  const startDate = Timestamp.fromDate(new Date(year, month - 1, 1));
+  const endDate   = Timestamp.fromDate(new Date(year, month, 1));
 
   const results = {};
 
   await Promise.all(CAMPUSES.map(async (campus) => {
-    // Query all docs for this campus in this month
     const q = query(
       collection(db, "daily_metrics"),
       where("campus", "==", campus),
@@ -96,16 +94,9 @@ export async function getMonthEndData(year, month) {
       orderBy("date", "asc")
     );
 
-    const snap = await new Promise((resolve, reject) => {
-      // Use getDocs-style via onSnapshot with unsubscribe
-      const unsub = onSnapshot(q, resolve, reject);
-      // Immediately unsubscribe after first snapshot
-      setTimeout(unsub, 0);
-    });
-
+    const snap = await getDocs(q);
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // Prefer period report (has direct total_taxes and cash_drop)
     const periodDoc = docs.find(d => d.report_type === "period");
 
     if (periodDoc) {
@@ -115,7 +106,6 @@ export async function getMonthEndData(year, month) {
         source:      "period",
       };
     } else {
-      // Fall back to summing daily reports
       const total_taxes = docs.reduce((s, d) => s + (d.total_taxes ?? 0), 0);
       const cash_drop   = docs.reduce((s, d) => s + (d.cash_drop   ?? 0), 0);
       results[campus] = {
