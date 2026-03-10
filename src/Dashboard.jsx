@@ -507,7 +507,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke={`${BORDER}88`} vertical={false} />
                     <XAxis dataKey="date"
                       tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
-                      tickLine={false} axisLine={false} interval={4} />
+                      tickLine={false} axisLine={false} interval={period === "daily" ? 4 : 0} />
                     <YAxis
                       tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
                       tickLine={false} axisLine={false}
@@ -535,7 +535,7 @@ export default function Dashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke={`${BORDER}88`} vertical={false} />
                     <XAxis dataKey="date"
                       tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
-                      tickLine={false} axisLine={false} interval={4} />
+                      tickLine={false} axisLine={false} interval={period === "daily" ? 4 : 0} />
                     <YAxis
                       tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
                       tickLine={false} axisLine={false} />
