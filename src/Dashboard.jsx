@@ -57,7 +57,7 @@ function buildAnnualData(monthlyData) {
   return Object.values(byFY).sort((a, b) => a.fy - b.fy);
 }
 
-// ── UCAR Brand Palette (Brand Style Guide, Dec 2025) ─────────────────────────
+// ── UCAR Brand Palette ────────────────────────────────────────────────────────
 const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 const CAMPUS_COLOR = {
   "Mesa Lab":     "#00A2B4",
@@ -152,14 +152,13 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
-// ── Upload Zone ───────────────────────────────────────────────────────────────
-function UploadZone({ campus, onUpload, uploadState }) {
-  const color = CAMPUS_COLOR[campus];
-  const isProcessing = uploadState === "UPLOADING" || uploadState === "PROCESSING";
+// ── Single Upload Zone ────────────────────────────────────────────────────────
+function UploadZone({ onUpload, uploadState }) {
+  const isProcessing = uploadState.status === "UPLOADING" || uploadState.status === "PROCESSING";
 
   const onDrop = useCallback(
-    (files) => files[0] && onUpload(campus, files[0]),
-    [campus, onUpload]
+    (files) => files[0] && onUpload(files[0]),
+    [onUpload]
   );
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -170,48 +169,74 @@ function UploadZone({ campus, onUpload, uploadState }) {
     multiple: false,
   });
 
-  const icon = isProcessing ? "⏳"
-    : uploadState === "SUCCESS" ? "✓"
-    : uploadState === "ERROR"   ? "✕"
+  const icon = isProcessing
+    ? "⏳"
+    : uploadState.status === "SUCCESS" ? "✓"
+    : uploadState.status === "ERROR"   ? "✕"
     : "↑";
 
+  const successMsg = uploadState.campus
+    ? `Filed to ${uploadState.campus}. Drop another.`
+    : "Uploaded! Drop another.";
+
   const sub = isProcessing
-    ? (uploadState === "UPLOADING" ? "Uploading…" : "Analyzing report data…")
-    : uploadState === "SUCCESS" ? "Uploaded! Drop another."
-    : uploadState === "ERROR"   ? "Error — try again"
-    : isDragActive              ? "Release to upload"
-    : ".xlsx or .pdf";
+    ? (uploadState.status === "UPLOADING" ? "Uploading…" : "Analyzing report data…")
+    : uploadState.status === "SUCCESS" ? successMsg
+    : uploadState.status === "ERROR"   ? (uploadState.errorMsg || "Error — try again")
+    : isDragActive                     ? "Release to upload"
+    : "Drop any campus report — location detected automatically";
+
+  const accentColor = (uploadState.status === "SUCCESS" && uploadState.campus)
+    ? CAMPUS_COLOR[uploadState.campus]
+    : AQUA;
 
   return (
     <div {...getRootProps()} style={{
-      border: `1.5px dashed ${isDragActive ? color : BORDER}`,
-      borderRadius: 12, padding: "22px 16px", cursor: "pointer",
-      background: isDragActive ? `${color}18` : `${SPACE}cc`,
+      border: `1.5px dashed ${isDragActive ? accentColor : BORDER}`,
+      borderRadius: 12, padding: "32px 24px", cursor: "pointer",
+      background: isDragActive ? `${accentColor}18` : `${SPACE}cc`,
       transition: "all 0.25s", textAlign: "center",
       position: "relative", overflow: "hidden",
     }}>
       <input {...getInputProps()} />
       <div style={{
         position: "absolute", top: 0, left: 0, right: 0, height: 3,
-        background: color, borderRadius: "12px 12px 0 0"
+        background: accentColor, borderRadius: "12px 12px 0 0"
       }} />
       <div style={{
-        width: 36, height: 36, borderRadius: "50%",
-        background: `${color}22`, border: `1px solid ${color}55`,
+        width: 44, height: 44, borderRadius: "50%",
+        background: `${accentColor}22`, border: `1px solid ${accentColor}55`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        margin: "0 auto 10px", fontSize: 16, color: color, fontWeight: 700
+        margin: "0 auto 12px", fontSize: 20, color: accentColor, fontWeight: 700
       }}>{icon}</div>
+      <div style={{
+        color: TPRI, fontSize: 13, fontFamily: "'Poppins',sans-serif",
+        fontWeight: 600, marginBottom: 6,
+      }}>Upload Report</div>
       <div style={{
         color: TMID, fontSize: 11,
         fontFamily: "'Poppins',sans-serif", fontWeight: 500
       }}>{sub}</div>
+      {uploadState.status === "SUCCESS" && uploadState.campus && (
+        <div style={{
+          display: "inline-block", marginTop: 12,
+          padding: "4px 14px", borderRadius: 20,
+          background: `${CAMPUS_COLOR[uploadState.campus]}22`,
+          border: `1px solid ${CAMPUS_COLOR[uploadState.campus]}55`,
+          color: CAMPUS_COLOR[uploadState.campus],
+          fontSize: 11, fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+          letterSpacing: "0.04em", textTransform: "uppercase",
+        }}>
+          {uploadState.campus}
+        </div>
+      )}
       {isProcessing && (
         <div style={{
-          marginTop: 12, height: 2, background: BORDER,
+          marginTop: 14, height: 2, background: BORDER,
           borderRadius: 4, overflow: "hidden"
         }}>
           <div style={{
-            height: "100%", width: "55%", background: color,
+            height: "100%", width: "55%", background: accentColor,
             borderRadius: 4, animation: "ucar-slide 1.4s ease-in-out infinite alternate"
           }} />
         </div>
@@ -226,10 +251,8 @@ export default function Dashboard() {
   const [period, setPeriod]   = useState("daily");
   const [metrics, setMetrics] = useState([]);
   const [allDocs, setAllDocs] = useState([]);
-  const [uploadStates, setUploadStates] = useState({
-    "Mesa Lab": "IDLE", Foothills: "IDLE", "Center Green": "IDLE",
-  });
-  const [fiscalYear, setFiscalYear] = useState(null);
+  const [uploadState, setUploadState] = useState({ status: "IDLE", campus: null, errorMsg: null });
+  const [fiscalYear, setFiscalYear]   = useState(null);
 
   useEffect(() => {
     const unsub = subscribeToCampus(campus, setMetrics);
@@ -246,7 +269,6 @@ export default function Dashboard() {
   const monthlyData = buildMonthlyData(allDocs);
   const annualData  = buildAnnualData(monthlyData);
 
-  // Derive fiscal years from real data; auto-select most recent
   const fiscalYears = annualData.map(d => d.label);
   useEffect(() => {
     if (fiscalYears.length > 0 && !fiscalYears.includes(fiscalYear)) {
@@ -254,7 +276,6 @@ export default function Dashboard() {
     }
   }, [fiscalYears.join(",")]);
 
-  // Filter helpers
   function inFiscalYear(monthKey, fyLabel) {
     if (!fyLabel) return true;
     const [year, month] = monthKey.split("-").map(Number);
@@ -289,19 +310,23 @@ export default function Dashboard() {
   const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
 
-  const anyProcessing = Object.values(uploadStates)
-    .some((s) => s === "UPLOADING" || s === "PROCESSING");
+  const isProcessing = uploadState.status === "UPLOADING" || uploadState.status === "PROCESSING";
 
-  const handleUpload = useCallback(async (camp, file) => {
-    setUploadStates((s) => ({ ...s, [camp]: "UPLOADING" }));
+  const handleUpload = useCallback(async (file) => {
+    setUploadState({ status: "UPLOADING", campus: null, errorMsg: null });
     try {
-      const url = await uploadReport(camp, file, () => {});
-      setUploadStates((s) => ({ ...s, [camp]: "PROCESSING" }));
-      await parseReport(url, camp, file.name);
-      setUploadStates((s) => ({ ...s, [camp]: "SUCCESS" }));
+      const url = await uploadReport("unknown", file, () => {});
+      setUploadState({ status: "PROCESSING", campus: null, errorMsg: null });
+      const result = await parseReport(url, "unknown", file.name);
+      const detectedCampus = result?.campus || null;
+      setUploadState({ status: "SUCCESS", campus: detectedCampus, errorMsg: null });
     } catch (err) {
       console.error(err);
-      setUploadStates((s) => ({ ...s, [camp]: "ERROR" }));
+      setUploadState({
+        status: "ERROR",
+        campus: null,
+        errorMsg: err?.message || "Error — try again",
+      });
     }
   }, []);
 
@@ -343,13 +368,11 @@ export default function Dashboard() {
           backdropFilter: "blur(12px)",
           display: "flex", alignItems: "center",
           justifyContent: "space-between",
-          height: 64,
-          overflow: "hidden",
+          height: 64, overflow: "hidden",
         }}>
           <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.25 }}>
             <WaveGraphic color={AQUA} opacity={0.6} width={500} height={64} />
           </div>
-
           <div style={{ display: "flex", alignItems: "center", gap: 14, zIndex: 1 }}>
             <div style={{
               width: 40, height: 40, borderRadius: "50%",
@@ -373,12 +396,11 @@ export default function Dashboard() {
               }}>Catering &amp; Cafe Information Hub</div>
             </div>
           </div>
-
           <div style={{ display: "flex", alignItems: "center", gap: 12, zIndex: 1 }}>
             <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, letterSpacing: "0.04em" }}>
               {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
-            {anyProcessing && (
+            {isProcessing && (
               <div style={{
                 display: "flex", alignItems: "center", gap: 7,
                 background: `${DARKBLUE}cc`, border: `1px solid ${AQUA}55`,
@@ -402,9 +424,8 @@ export default function Dashboard() {
           <div style={{
             display: "flex", alignItems: "flex-end",
             justifyContent: "space-between",
-            marginBottom: 32, flexWrap: "wrap", gap: 16
+            marginBottom: 32, flexWrap: "wrap", gap: 16,
           }}>
-
             {/* Campus buttons */}
             <div>
               <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Campus</div>
@@ -484,7 +505,6 @@ export default function Dashboard() {
                 })}
               </div>
             </div>
-
           </div>
 
           {/* ── Stat Cards ── */}
@@ -621,20 +641,9 @@ export default function Dashboard() {
               letterSpacing: "0.04em", textTransform: "uppercase",
               marginBottom: 22, position: "relative",
             }}>
-              Drop .xlsx or .pdf files per campus to ingest data
+              Campus is detected automatically from each report
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-              {CAMPUSES.map((c) => (
-                <div key={c}>
-                  <div style={{
-                    fontSize: 11, fontWeight: 700, marginBottom: 8,
-                    color: CAMPUS_COLOR[c], letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                  }}>{c}</div>
-                  <UploadZone campus={c} onUpload={handleUpload} uploadState={uploadStates[c]} />
-                </div>
-              ))}
-            </div>
+            <UploadZone onUpload={handleUpload} uploadState={uploadState} />
           </div>
 
           {/* ── UCAR footer tag ── */}
