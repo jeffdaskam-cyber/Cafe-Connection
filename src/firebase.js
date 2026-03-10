@@ -64,3 +64,18 @@ export function subscribeToCampus(campus, callback) {
     callback(data);
   });
 }
+
+// ── Listen to ALL reports for a campus (all report_types, all dates) ─────────
+// Used by monthly and annual views. No date filter so historical data is included.
+export function subscribeAllReports(campus, callback) {
+  const q = query(
+    collection(db, "daily_metrics"),
+    where("campus", "==", campus),
+    orderBy("date", "asc")
+  );
+
+  return onSnapshot(q, (snap) => {
+    const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    callback(data);
+  });
+}

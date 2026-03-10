@@ -4,7 +4,58 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
-import { uploadReport, parseReport, subscribeToCampus } from "./firebase.js";
+import { uploadReport, parseReport, subscribeToCampus, subscribeAllReports } from "./firebase.js";
+
+// ── Period helpers ────────────────────────────────────────────────────────────
+function getMonthKey(date) {
+  const d = date?.toDate ? date.toDate() : new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function getMonthLabel(monthKey) {
+  const [year, month] = monthKey.split("-");
+  return new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
+const FISCAL_MONTH_ORDER = [9,10,11,0,1,2,3,4,5,6,7,8];
+function sortByFiscalMonth(a, b) {
+  const [ay, am] = a.monthKey.split("-").map(Number);
+  const [by, bm] = b.monthKey.split("-").map(Number);
+  const aFY = (am-1) >= 9 ? ay : ay-1;
+  const bFY = (bm-1) >= 9 ? by : by-1;
+  if (aFY !== bFY) return aFY - bFY;
+  return FISCAL_MONTH_ORDER.indexOf((am-1+12)%12) - FISCAL_MONTH_ORDER.indexOf((bm-1+12)%12);
+}
+function buildMonthlyData(docs) {
+  const byMonth = {};
+  docs.filter(d => d.report_type === "period").forEach(d => {
+    const key = getMonthKey(d.date);
+    byMonth[key] = { monthKey: key, label: getMonthLabel(key),
+      net_revenue: d.net_revenue||0, total_checks: d.total_checks||0,
+      lunch_checks: d.lunch_checks||0, source: "period" };
+  });
+  docs.filter(d => d.report_type === "daily" || !d.report_type).forEach(d => {
+    const key = getMonthKey(d.date);
+    if (byMonth[key]?.source === "period") return;
+    if (!byMonth[key]) byMonth[key] = { monthKey: key, label: getMonthLabel(key),
+      net_revenue: 0, total_checks: 0, lunch_checks: 0, source: "daily" };
+    byMonth[key].net_revenue  += d.net_revenue  || 0;
+    byMonth[key].total_checks += d.total_checks || 0;
+    byMonth[key].lunch_checks += d.lunch_checks || 0;
+  });
+  return Object.values(byMonth).sort(sortByFiscalMonth);
+}
+function buildAnnualData(monthlyData) {
+  const byFY = {};
+  monthlyData.forEach(m => {
+    const [year, month] = m.monthKey.split("-").map(Number);
+    const fy = month >= 10 ? year : year - 1;
+    const label = `FY${fy}\u2013${String(fy+1).slice(2)}`;
+    if (!byFY[fy]) byFY[fy] = { fy, label, net_revenue: 0, total_checks: 0, lunch_checks: 0 };
+    byFY[fy].net_revenue  += m.net_revenue;
+    byFY[fy].total_checks += m.total_checks;
+    byFY[fy].lunch_checks += m.lunch_checks;
+  });
+  return Object.values(byFY).sort((a, b) => a.fy - b.fy);
+}
 
 // ── UCAR Brand Palette (Brand Style Guide, Dec 2025) ─────────────────────────
 const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
@@ -183,30 +234,44 @@ function UploadZone({ campus, onUpload, uploadState }) {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [campus, setCampus]   = useState("Mesa Lab");
-  const [metrics, setMetrics] = useState([]);
+  const [campus, setCampus]     = useState("Mesa Lab");
+  const [period, setPeriod]     = useState("daily"); // "daily" | "monthly" | "annual"
+  const [metrics, setMetrics]   = useState([]);      // daily docs for campus
+  const [allDocs, setAllDocs]   = useState([]);      // all docs for campus (all report_types)
   const [uploadStates, setUploadStates] = useState({
     "Mesa Lab": "IDLE", Foothills: "IDLE", "Center Green": "IDLE",
   });
 
+  // Daily subscription — existing behaviour
   useEffect(() => {
     const unsub = subscribeToCampus(campus, setMetrics);
     return unsub;
   }, [campus]);
 
+  // All-docs subscription — feeds monthly & annual views
+  useEffect(() => {
+    const unsub = subscribeAllReports(campus, setAllDocs);
+    return unsub;
+  }, [campus]);
+
   const color = CAMPUS_COLOR[campus];
 
-  const totalSales  = metrics.reduce((s, d) => s + (d.net_revenue   || 0), 0);
-  const avgVolume   = metrics.length
-    ? Math.round(metrics.reduce((s, d) => s + (d.total_checks || 0), 0) / metrics.length) : 0;
-  const totalEvents = metrics.reduce((s, d) => s + (d.lunch_checks || 0), 0);
+  // Build aggregated views
+  const monthlyData = buildMonthlyData(allDocs);
+  const annualData  = buildAnnualData(monthlyData);
 
-  const chartData = metrics.map((d) => ({
-    date:         fmt(d.date),
-    cafe_sales:   d.net_revenue   || 0,
-    cafe_volume:  d.total_checks  || 0,
-    event_volume: d.lunch_checks  || 0,
-  }));
+  // Map to chart shape based on selected period
+  const chartData =
+    period === "daily"   ? metrics.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue||0, cafe_volume: d.total_checks||0, event_volume: d.lunch_checks||0 })) :
+    period === "monthly" ? monthlyData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
+                           annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+
+  // Summary stats use same source
+  const statSource  = period === "daily" ? metrics : period === "monthly" ? monthlyData : annualData;
+  const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
+  const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
+  const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
+
 
   const anyProcessing = Object.values(uploadStates)
     .some((s) => s === "UPLOADING" || s === "PROCESSING");
@@ -333,36 +398,64 @@ export default function Dashboard() {
 
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
 
-          {/* ── Campus Selector ── */}
-          <div style={{ marginBottom: 32 }}>
-            <div style={{
-              fontSize: 10, color: TSEC, fontWeight: 600,
-              letterSpacing: "1.5px", textTransform: "uppercase",
-              marginBottom: 10,
-            }}>Campus</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {CAMPUSES.map((c) => {
-                const active = c === campus;
-                const cc = CAMPUS_COLOR[c];
-                return (
-                  <button key={c} className="ucar-campus-btn"
-                    onClick={() => setCampus(c)}
-                    style={{
-                      padding: "9px 24px", borderRadius: 6,
-                      border: active ? `1.5px solid ${cc}` : `1.5px solid ${BORDER}`,
-                      cursor: "pointer",
-                      fontFamily: "'Poppins',sans-serif",
-                      fontWeight: 600, fontSize: 12,
-                      letterSpacing: "0.03em",
-                      background: active ? `${cc}22` : "transparent",
-                      color: active ? cc : TSEC,
-                      boxShadow: active ? `0 0 18px ${cc}33` : "none",
-                    }}>
-                    {c}
-                  </button>
-                );
-              })}
+          {/* ── Campus + Period Selector ── */}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
+
+            {/* Campus buttons */}
+            <div>
+              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Campus</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {CAMPUSES.map((c) => {
+                  const active = c === campus;
+                  const cc = CAMPUS_COLOR[c];
+                  return (
+                    <button key={c} className="ucar-campus-btn"
+                      onClick={() => setCampus(c)}
+                      style={{
+                        padding: "9px 24px", borderRadius: 6,
+                        border: active ? `1.5px solid ${cc}` : `1.5px solid ${BORDER}`,
+                        cursor: "pointer",
+                        fontFamily: "'Poppins',sans-serif",
+                        fontWeight: 600, fontSize: 12,
+                        letterSpacing: "0.03em",
+                        background: active ? `${cc}22` : "transparent",
+                        color: active ? cc : TSEC,
+                        boxShadow: active ? `0 0 18px ${cc}33` : "none",
+                      }}>
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Period toggle */}
+            <div>
+              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>Period</div>
+              <div style={{ display: "flex", background: `${SPACE}cc`, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 3, gap: 2 }}>
+                {[["daily","Daily"],["monthly","Monthly"],["annual","Annual"]].map(([val, label]) => {
+                  const active = period === val;
+                  return (
+                    <button key={val}
+                      onClick={() => setPeriod(val)}
+                      style={{
+                        padding: "7px 18px", borderRadius: 6,
+                        border: "none", cursor: "pointer",
+                        fontFamily: "'Poppins',sans-serif",
+                        fontWeight: 600, fontSize: 12,
+                        letterSpacing: "0.03em",
+                        transition: "all .2s ease",
+                        background: active ? AQUA : "transparent",
+                        color: active ? SPACE : TSEC,
+                        boxShadow: active ? `0 0 12px ${AQUA}55` : "none",
+                      }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
 
           {/* ── Stat Cards ── */}
@@ -371,19 +464,19 @@ export default function Dashboard() {
             animation: "ucar-fadein .5s ease both",
           }}>
             <StatCard
-              label="Net Revenue"
+              label={period === "daily" ? "Net Revenue (30d)" : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
               value={`$${(totalSales / 1000).toFixed(1)}k`}
               delta={4.2}
               accentColor={AQUA}
             />
             <StatCard
-              label="Avg Daily Checks"
+              label={period === "daily" ? "Avg Daily Checks" : period === "monthly" ? "Avg Monthly Checks" : "Avg Annual Checks"}
               value={avgVolume || "—"}
               delta={-1.8}
               accentColor={LAQUA}
             />
             <StatCard
-              label="Avg Lunch Checks"
+              label={period === "daily" ? "Avg Lunch Checks" : "Total Lunch Checks"}
               value={totalEvents || "—"}
               delta={11.3}
               accentColor={color}
@@ -407,7 +500,7 @@ export default function Dashboard() {
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Cafe Sales</div>
                 <div style={{ fontSize: 10, color: TSEC, fontWeight: 500, marginBottom: 20, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  Last 30 days · {campus}
+                  {period === "daily" ? "Last 30 days" : period === "monthly" ? "By month · fiscal year order" : "By fiscal year"} · {campus}
                 </div>
                 <ResponsiveContainer width="100%" height={210}>
                   <BarChart data={chartData} barSize={7}>
@@ -433,7 +526,7 @@ export default function Dashboard() {
                 <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.06 }}>
                   <WaveGraphic color={LAQUA} opacity={1} width={340} height={90} />
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Check Volume</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Volume Comparison</div>
                 <div style={{ fontSize: 10, color: TSEC, fontWeight: 500, marginBottom: 20, letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   Total checks vs Lunch checks · {campus}
                 </div>
@@ -448,8 +541,8 @@ export default function Dashboard() {
                       tickLine={false} axisLine={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ fontSize: 10, fontFamily: "'Poppins'", fontWeight: 600 }} />
-                    <Line type="monotone" dataKey="cafe_volume"  name="Total Checks"  stroke={AQUA}  strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="event_volume" name="Lunch Checks" stroke={LAQUA} strokeWidth={2} dot={false} strokeDasharray="5 3" />
+                    <Line type="monotone" dataKey="cafe_volume"  name="Cafe Volume"  stroke={AQUA}  strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="event_volume" name="Event Volume" stroke={LAQUA} strokeWidth={2} dot={false} strokeDasharray="5 3" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -469,7 +562,7 @@ export default function Dashboard() {
                 margin: "0 auto 16px", fontSize: 22,
               }}>📊</div>
               <div style={{ color: TPRI, fontWeight: 700, fontSize: 15, marginBottom: 6 }}>
-                No data yet for {campus}
+                No {period} data yet for {campus}
               </div>
               <div style={{ color: TSEC, fontSize: 12, fontWeight: 500 }}>
                 Upload a report below to populate the charts
