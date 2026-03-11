@@ -1,4 +1,23 @@
-// ── Brand Palette ─────────────────────────────────────────────────────────────
+/**
+ * ReportsPage — report generation engine.
+ *
+ * Phase 5: Month-End Report activated (moved from Financials tab).
+ * Phase 7: Full report engine with standardized definitions, previews, and export.
+ *
+ * Current live reports:
+ *   - Month-End Report ✅
+ *
+ * Stub reports (Phase 7):
+ *   - Cafe Charges
+ *   - Set-Up Report
+ *   - Event Report
+ */
+
+import { useState } from "react";
+import { getMonthEndData } from "../firebase.js";
+import Widget from "../components/Widget.jsx";
+
+// ── Brand palette ──────────────────────────────────────────────────────────────
 const SPACE    = "#011837";
 const DARKBLUE = "#00357A";
 const PANEL    = "#001f4d";
@@ -9,199 +28,266 @@ const AQUA     = "#00A2B4";
 const LAQUA    = "#34E1F4";
 const ORANGE   = "#FAA119";
 
-function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 }) {
+const CAMPUSES     = ["Mesa Lab", "Foothills", "Center Green"];
+const CAMPUS_COLOR = { "Mesa Lab": "#00A2B4", "Foothills": "#34E1F4", "Center Green": "#00818F" };
+const MONTH_NAMES  = ["January","February","March","April","May","June",
+                      "July","August","September","October","November","December"];
+
+function fmtMoney(n) {
+  if (n == null) return "N/A";
+  return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// ── Month-End Report ───────────────────────────────────────────────────────────
+function MonthEndReport() {
+  const now = new Date();
+  const [month,      setMonth]      = useState(now.getMonth() + 1);
+  const [year,       setYear]       = useState(now.getFullYear());
+  const [status,     setStatus]     = useState("idle"); // idle | loading | done | error
+  const [reportData, setReportData] = useState(null);
+  const [copied,     setCopied]     = useState(false);
+
+  const monthName = MONTH_NAMES[month - 1];
+  const years     = [now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2];
+
+  async function handleGenerate() {
+    setStatus("loading"); setCopied(false); setReportData(null);
+    try {
+      const data = await getMonthEndData(year, month);
+      setReportData(data);
+      setStatus("done");
+    } catch (err) {
+      console.error("[ReportsPage] Month-end fetch failed:", err);
+      setStatus("error");
+    }
+  }
+
+  function handleReset() {
+    setStatus("idle");
+    setReportData(null);
+    setCopied(false);
+  }
+
+  function buildEmailText() {
+    if (!reportData) return "";
+    const lines = [
+      "Good morning,",
+      `The month-end information for each cafe is listed below for ${monthName} ${year}:`,
+      "",
+    ];
+    CAMPUSES.forEach(c => {
+      const d = reportData[c];
+      lines.push(c === "Foothills" ? "Foothills Cafe" : c);
+      lines.push(`Total Taxes: ${fmtMoney(d?.total_taxes)}`);
+      lines.push(`Total Cash Drop: ${fmtMoney(d?.cash_drop)}`);
+      lines.push("");
+    });
+    lines.push("Please let me know if you have any questions.");
+    lines.push(""); lines.push("Sincerely,");
+    return lines.join("\n");
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(buildEmailText()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
+
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}
-      style={{ position: "absolute", pointerEvents: "none" }} aria-hidden="true">
-      {[0, 14, 28, 42].map((offset, i) => (
-        <path key={i}
-          d={`M0,${30+offset} C80,${10+offset} 160,${50+offset} 240,${28+offset} S380,${8+offset} ${width},${30+offset}`}
-          fill="none" stroke={color} strokeWidth="1.5" opacity={opacity - i * 0.02} />
-      ))}
-    </svg>
+    <Widget
+      title="Month-End Report"
+      subtitle="Accounting email generator"
+      icon="📋"
+      accentColor={AQUA}
+      loading={status === "loading"}
+      error={status === "error" ? "Could not fetch data. Check your Firestore connection and try again." : null}
+      onRetry={handleReset}
+    >
+      <div style={{ paddingTop: 4 }}>
+        {/* Month + Year selectors */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+          <div style={{ flex: 2 }}>
+            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              letterSpacing: "1.2px", textTransform: "uppercase", marginBottom: 8 }}>Month</div>
+            <select
+              value={month}
+              onChange={e => { setMonth(Number(e.target.value)); handleReset(); }}
+              style={{ width: "100%", background: `${SPACE}cc`, border: `1px solid ${BORDER}`,
+                borderRadius: 8, color: TPRI, fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 12, padding: "9px 12px", cursor: "pointer" }}>
+              {MONTH_NAMES.map((m, i) => (
+                <option key={m} value={i + 1} style={{ background: DARKBLUE }}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              letterSpacing: "1.2px", textTransform: "uppercase", marginBottom: 8 }}>Year</div>
+            <select
+              value={year}
+              onChange={e => { setYear(Number(e.target.value)); handleReset(); }}
+              style={{ width: "100%", background: `${SPACE}cc`, border: `1px solid ${BORDER}`,
+                borderRadius: 8, color: TPRI, fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 12, padding: "9px 12px", cursor: "pointer" }}>
+              {years.map(y => (
+                <option key={y} value={y} style={{ background: DARKBLUE }}>{y}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Generate button */}
+        {status === "idle" && (
+          <button onClick={handleGenerate}
+            style={{ width: "100%", padding: "11px 0", borderRadius: 8, border: "none",
+              background: AQUA, color: SPACE, fontFamily: "'Poppins',sans-serif",
+              fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            Generate {monthName} {year} Report
+          </button>
+        )}
+
+        {/* Results */}
+        {status === "done" && reportData && (
+          <div>
+            {/* Data source badges */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              {CAMPUSES.map(c => {
+                const src     = reportData[c]?.source;
+                const hasData = src && src !== "none";
+                const cc      = CAMPUS_COLOR[c];
+                return (
+                  <div key={c} style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px",
+                    borderRadius: 20, fontFamily: "'Poppins',sans-serif",
+                    background: hasData ? `${cc}22` : `${ORANGE}22`,
+                    border: `1px solid ${hasData ? cc : ORANGE}55`,
+                    color: hasData ? cc : ORANGE,
+                    letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                    {c} · {src === "period" ? "period report" : src === "daily" ? "summed daily" : "no data"}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Email text preview */}
+            <textarea readOnly value={buildEmailText()}
+              style={{ width: "100%", background: `${SPACE}cc`, border: `1px solid ${BORDER}`,
+                borderRadius: 10, color: TPRI, fontFamily: "'Courier New', monospace",
+                fontSize: 12, lineHeight: 1.7, padding: "14px 16px",
+                resize: "none", outline: "none", boxSizing: "border-box",
+                height: 260, marginBottom: 12 }} />
+
+            {/* Copy + reset */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={handleCopy}
+                style={{ flex: 1, padding: "10px 0", borderRadius: 8,
+                  background: copied ? `${AQUA}33` : AQUA,
+                  border: copied ? `1px solid ${AQUA}` : "none",
+                  color: copied ? AQUA : SPACE,
+                  fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+                  fontSize: 12, cursor: "pointer" }}>
+                {copied ? "✓ Copied!" : "Copy to Clipboard"}
+              </button>
+              <button onClick={handleReset}
+                style={{ padding: "10px 18px", borderRadius: 8,
+                  border: `1px solid ${BORDER}`, background: "transparent",
+                  color: TSEC, fontFamily: "'Poppins',sans-serif",
+                  fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                ← New Report
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </Widget>
   );
 }
 
-// Report definition cards - placeholders for Phase 7 report engine
-const REPORT_DEFINITIONS = [
-  {
-    id: "cafe_charges",
-    icon: "💳",
-    title: "Cafe Charges",
-    description: "Itemized charge summary across all campuses for a selected period.",
-    inputs: ["Date range", "Campus filter"],
-    accentColor: AQUA,
-  },
-  {
-    id: "month_end",
-    icon: "📋",
-    title: "Month-End Report",
-    description: "Accounting email template with total taxes and cash drop totals per campus.",
-    inputs: ["Month", "Year"],
-    accentColor: LAQUA,
-    note: "Currently available in Financials tab during Phase 7 build-out.",
-  },
-  {
-    id: "setup_report",
-    icon: "🔧",
-    title: "Set-Up Report",
-    description: "Event setup instructions and requirements for catering staff.",
-    inputs: ["Event date", "Event order"],
-    accentColor: ORANGE,
-  },
-  {
-    id: "event_report",
-    icon: "🎪",
-    title: "Event Report",
-    description: "Post-event summary with attendance, revenue, and notes.",
-    inputs: ["Event date", "Campus"],
-    accentColor: "#9B59B6",
-  },
-];
-
-function ReportCard({ report }) {
-  const isAvailable = report.id === "month_end";
+// ── Stub card for Phase 7 reports ──────────────────────────────────────────────
+function StubReportCard({ icon, title, description, inputs, accentColor = AQUA }) {
   return (
-    <div style={{
-      background: PANEL, borderRadius: 14,
-      border: `1px solid ${isAvailable ? report.accentColor + "44" : BORDER}`,
-      padding: "24px 24px",
-      position: "relative", overflow: "hidden",
-      opacity: isAvailable ? 1 : 0.65,
-    }}>
+    <div style={{ background: PANEL, borderRadius: 14,
+      border: `1px solid ${BORDER}`, padding: "24px",
+      opacity: 0.6, position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
-        background: isAvailable
-          ? `linear-gradient(90deg, ${report.accentColor}, transparent)`
-          : BORDER,
-        borderRadius: "14px 14px 0 0" }} />
-      <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.04 }}>
-        <WaveGraphic color={report.accentColor} opacity={1} width={200} height={60} />
-      </div>
-
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-          background: `${report.accentColor}18`, border: `1px solid ${report.accentColor}44`,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20,
-        }}>{report.icon}</div>
+        background: BORDER, borderRadius: "14px 14px 0 0" }} />
+      <div style={{ display: "flex", gap: 14, marginBottom: 16 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+          background: `${accentColor}14`, border: `1px solid ${accentColor}33`,
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+          {icon}
+        </div>
         <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TPRI, marginBottom: 4 }}>
-            {report.title}
-          </div>
-          <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, lineHeight: 1.55 }}>
-            {report.description}
-          </div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: TPRI, marginBottom: 4 }}>{title}</div>
+          <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, lineHeight: 1.55 }}>{description}</div>
         </div>
       </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1px",
-          textTransform: "uppercase", marginBottom: 8 }}>Inputs</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {report.inputs.map(inp => (
-            <span key={inp} style={{
-              fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 20,
-              background: `${DARKBLUE}`, border: `1px solid ${BORDER}`, color: TSEC,
-            }}>{inp}</span>
-          ))}
-        </div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+        {inputs.map(inp => (
+          <span key={inp} style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px",
+            borderRadius: 20, background: DARKBLUE, border: `1px solid ${BORDER}`, color: TSEC }}>
+            {inp}
+          </span>
+        ))}
       </div>
-
-      {report.note && (
-        <div style={{ fontSize: 10, color: AQUA, fontWeight: 500, marginBottom: 12,
-          padding: "6px 10px", borderRadius: 6, background: `${AQUA}10`,
-          border: `1px solid ${AQUA}22` }}>
-          ℹ️ {report.note}
-        </div>
-      )}
-
-      <button
-        disabled={!isAvailable}
-        style={{
-          width: "100%", padding: "9px 0", borderRadius: 8,
-          border: isAvailable ? "none" : `1.5px dashed ${BORDER}`,
-          background: isAvailable ? report.accentColor : "transparent",
-          color: isAvailable ? SPACE : TSEC,
-          fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 12,
-          cursor: isAvailable ? "pointer" : "not-allowed",
-          letterSpacing: "0.03em",
-        }}>
-        {isAvailable ? "Generate Report" : "Coming in Phase 7"}
+      <button disabled
+        style={{ width: "100%", padding: "9px 0", borderRadius: 8,
+          border: `1.5px dashed ${BORDER}`, background: "transparent",
+          color: TSEC, fontFamily: "'Poppins',sans-serif",
+          fontWeight: 700, fontSize: 12, cursor: "not-allowed" }}>
+        Coming in Phase 7
       </button>
     </div>
   );
 }
 
 // ── Reports Page ───────────────────────────────────────────────────────────────
-// Phase 7 will build this into a full report-generation engine with standardized
-// definitions, input parameters, preview views, and print/export actions.
 export default function ReportsPage() {
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
 
       {/* ── Header ── */}
-      <div style={{
-        display: "flex", alignItems: "flex-end",
-        justifyContent: "space-between", marginBottom: 32,
-        flexWrap: "wrap", gap: 16,
-      }}>
-        <div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: TPRI, marginBottom: 6 }}>Reports</div>
-          <div style={{ fontSize: 12, color: TSEC, fontWeight: 500, maxWidth: 520, lineHeight: 1.6 }}>
-            A repeatable report-generation engine is coming in Phase 7. Each report will support
-            parameter inputs, a print-ready preview, and export actions.
-          </div>
-        </div>
-        <div style={{
-          fontSize: 10, color: ORANGE, fontWeight: 700,
-          background: `${ORANGE}18`, border: `1px solid ${ORANGE}44`,
-          borderRadius: 20, padding: "5px 14px",
-          letterSpacing: "0.06em", textTransform: "uppercase",
-        }}>
-          Phase 7 · Not yet built
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: TPRI, marginBottom: 6,
+          fontFamily: "'Poppins',sans-serif" }}>Reports</div>
+        <div style={{ fontSize: 12, color: TSEC, fontWeight: 500,
+          maxWidth: 560, lineHeight: 1.6, fontFamily: "'Poppins',sans-serif" }}>
+          Generate and export operational reports. A full report engine with standardized
+          definitions and print/export actions is coming in Phase 7.
         </div>
       </div>
 
-      {/* ── Report Grid ── */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(2, 1fr)",
-        gap: 20, marginBottom: 32,
-        animation: "ucar-fadein .5s ease both",
-      }}>
-        {REPORT_DEFINITIONS.map(report => (
-          <ReportCard key={report.id} report={report} />
-        ))}
+      {/* ── Live reports ── */}
+      <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
+        textTransform: "uppercase", marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
+        Available Now
+      </div>
+      <div style={{ marginBottom: 36, animation: "ucar-fadein .5s ease both" }}>
+        <MonthEndReport />
       </div>
 
-      {/* ── Engine Status ── */}
-      <div style={{
-        background: PANEL, borderRadius: 14,
-        border: `1.5px dashed ${BORDER}`,
-        padding: "24px 28px",
-        animation: "ucar-fadein .6s ease both",
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: TPRI, marginBottom: 10 }}>
-          Phase 7 Build Plan
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[
-            "Standardized report definition schema",
-            "Shared input parameter components (date range, campus, period)",
-            "Print-friendly preview rendering for all report types",
-            "PDF export and clipboard copy actions",
-            "Generated report archive in Firestore (generated_reports collection)",
-          ].map((item, i) => (
-            <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <span style={{ color: BORDER, fontWeight: 700, flexShrink: 0 }}>○</span>
-              <span style={{ fontSize: 12, color: TSEC, fontWeight: 500 }}>{item}</span>
-            </div>
-          ))}
-        </div>
+      {/* ── Stub reports ── */}
+      <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
+        textTransform: "uppercase", marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
+        Coming in Phase 7
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 16, animation: "ucar-fadein .6s ease both" }}>
+        <StubReportCard icon="💳" title="Cafe Charges"
+          description="Itemized charge summary across all campuses for a selected period."
+          inputs={["Date range", "Campus filter"]} accentColor={AQUA} />
+        <StubReportCard icon="🔧" title="Set-Up Report"
+          description="Event setup instructions and requirements for catering staff."
+          inputs={["Event date", "Event order"]} accentColor={ORANGE} />
+        <StubReportCard icon="🎪" title="Event Report"
+          description="Post-event summary with attendance, revenue, and notes."
+          inputs={["Event date", "Campus"]} accentColor="#9B59B6" />
       </div>
 
       {/* ── Footer ── */}
-      <div style={{ marginTop: 32, textAlign: "center", fontSize: 10, color: `${TSEC}88`,
-        fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+      <div style={{ marginTop: 40, textAlign: "center", fontSize: 10, color: `${TSEC}88`,
+        fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase",
+        fontFamily: "'Poppins',sans-serif" }}>
         University Corporation for Atmospheric Research · Internal Tool
       </div>
 

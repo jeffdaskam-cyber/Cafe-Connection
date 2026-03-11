@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { fetchSchedule, uploadEventOrder, subscribeEventOrders } from "./firebase.js";
+import DropBox from "./components/DropBox.jsx";
 
 // ── Brand Palette ─────────────────────────────────────────────────────────────
 const SPACE    = "#011837";
@@ -441,6 +442,12 @@ export default function WeeklyOps() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Sales Report Drop Box ── */}
+      {/* Moved from Financials tab in Phase 5 per Architecture Map */}
+      <div style={{ marginTop: 24, animation: "ucar-fadein .7s ease both" }}>
+        <DropBox />
       </div>
 
       {/* ── Footer ── */}
