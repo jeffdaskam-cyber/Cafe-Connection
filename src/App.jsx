@@ -83,9 +83,10 @@ function AppShell() {
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: ${SPACE}; }
-        @keyframes ucar-slide  { from{transform:translateX(-120%)} to{transform:translateX(220%)} }
-        @keyframes ucar-pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
-        @keyframes ucar-fadein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes ucar-slide   { from{transform:translateX(-120%)} to{transform:translateX(220%)} }
+        @keyframes ucar-pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes ucar-fadein  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes ucar-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         .ucar-tab-btn   { transition: all .2s ease; }
         .ucar-tab-btn:hover { color: ${TPRI} !important; }
         .ucar-campus-btn { transition: all .22s ease; }
