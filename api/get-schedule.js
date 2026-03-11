@@ -51,14 +51,6 @@ async function findInFolder(token, parentId, name) {
   if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
   return data.files?.[0] || null;
 }
-async function listFolder(token, parentId) {
-  const q   = `'${parentId}' in parents and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=20`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  const data = await res.json();
-  if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
-  return data.files || [];
-}
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 function getMondayOf(date) {
@@ -100,24 +92,12 @@ export default async function handler(req, res) {
       const monthFolder = formatMonthFolder(weekMonday);
       const fileName    = formatFileDate(weekMonday);
 
-      // Navigate: root → "2026 ES Schedules" → month folder → week file
-      // rootFolderId may point to "2026 ES Schedules" itself or its parent — handle both.
-      let yearDir = await findInFolder(token, rootFolderId, "2026 ES Schedules");
-      console.log("[get-schedule] yearDir (lookup):", JSON.stringify(yearDir));
-      if (!yearDir) {
-        const rootContents = await listFolder(token, rootFolderId);
-        console.log("[get-schedule] root contents:", JSON.stringify(rootContents.map(f => f.name)));
-        // Assume root IS the year folder — use it directly
-        yearDir = { id: rootFolderId };
-        console.log("[get-schedule] falling back: using rootFolderId as yearDir");
-      }
-
-      const monthDir = await findInFolder(token, yearDir.id, monthFolder);
-      console.log("[get-schedule] monthFolder searched:", monthFolder, "monthDir:", JSON.stringify(monthDir));
+      // Navigate: GOOGLE_SCHEDULE_FOLDER_ID points directly to the year folder ("2026 ES Schedules").
+      // month folder → week file
+      const monthDir = await findInFolder(token, rootFolderId, monthFolder);
       if (!monthDir) continue;
 
       const file = await findInFolder(token, monthDir.id, fileName);
-      console.log("[get-schedule] fileName searched:", fileName, "file:", JSON.stringify(file));
       if (file) { scheduleFile = file; usedMonday = weekMonday; break; }
     }
 
