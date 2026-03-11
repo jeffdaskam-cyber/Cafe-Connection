@@ -5,6 +5,7 @@ import DashboardPage from "./pages/DashboardPage.jsx";
 import ReportsPage  from "./pages/ReportsPage.jsx";
 import FinancialsPage from "./Dashboard.jsx";
 import WeeklyOps    from "./WeeklyOps.jsx";
+import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
 
 // ── Brand Palette ─────────────────────────────────────────────────────────────
 const SPACE    = "#011837";
@@ -210,8 +211,13 @@ function AppShell() {
 
 // ── Root App — wraps everything with AuthProvider ──────────────────────────────
 export default function App() {
+  // Splash is shown once per page load. AppShell renders beneath it so Firebase
+  // auth can initialize in parallel — by the time the splash fades, auth is ready.
+  const [splashDone, setSplashDone] = useState(!SHOW_SPLASH);
+
   return (
     <AuthProvider>
+      {!splashDone && <SplashScreen onDone={() => setSplashDone(true)} />}
       <AppShell />
     </AuthProvider>
   );
