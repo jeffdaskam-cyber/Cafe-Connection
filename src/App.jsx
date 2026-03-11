@@ -1,6 +1,10 @@
 import { useState } from "react";
-import Dashboard from "./Dashboard.jsx";
-import WeeklyOps from "./WeeklyOps.jsx";
+import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
+import LoginPage    from "./pages/LoginPage.jsx";
+import DashboardPage from "./pages/DashboardPage.jsx";
+import ReportsPage  from "./pages/ReportsPage.jsx";
+import FinancialsPage from "./Dashboard.jsx";
+import WeeklyOps    from "./WeeklyOps.jsx";
 
 // ── Brand Palette ─────────────────────────────────────────────────────────────
 const SPACE    = "#011837";
@@ -24,13 +28,54 @@ function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 })
   );
 }
 
-export default function App() {
+// ── Loading Screen ─────────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: `linear-gradient(160deg, ${SPACE} 0%, #001230 100%)`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "'Poppins',sans-serif",
+    }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{
+          width: 52, height: 52, borderRadius: "50%",
+          background: `linear-gradient(135deg, ${AQUA}, ${DARKBLUE})`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 20px",
+          boxShadow: `0 0 24px ${AQUA}44`,
+          animation: "ucar-pulse 1.6s ease-in-out infinite",
+        }}>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
+            <ellipse cx="12" cy="12" rx="10" ry="10" stroke="white" strokeWidth="1.2" />
+            <path d="M4 10 Q8 6 12 10 Q16 14 20 10" stroke="white" strokeWidth="1.4" fill="none" />
+            <path d="M4 14 Q8 10 12 14 Q16 18 20 14" stroke="white" strokeWidth="1.4" fill="none" />
+          </svg>
+        </div>
+        <div style={{ color: TSEC, fontSize: 12, fontWeight: 500, letterSpacing: "0.08em",
+          textTransform: "uppercase" }}>
+          Loading…
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Tab definitions ────────────────────────────────────────────────────────────
+const TABS = [
+  { id: "dashboard",  label: "Dashboard",  icon: "🏠" },
+  { id: "weeklyops",  label: "Weekly Ops", icon: "📋" },
+  { id: "financials", label: "Financials", icon: "📊" },
+  { id: "reports",    label: "Reports",    icon: "📑" },
+];
+
+// ── Main App Shell ─────────────────────────────────────────────────────────────
+function AppShell() {
+  const { user, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("dashboard");
 
-  const tabs = [
-    { id: "dashboard", label: "Dashboard",   icon: "📊" },
-    { id: "weeklyops", label: "Weekly Ops",  icon: "📋" },
-  ];
+  if (loading) return <LoadingScreen />;
+  if (!user)   return <LoginPage />;
 
   return (
     <>
@@ -38,10 +83,10 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: ${SPACE}; }
-        @keyframes ucar-slide { from{transform:translateX(-120%)} to{transform:translateX(220%)} }
-        @keyframes ucar-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes ucar-slide  { from{transform:translateX(-120%)} to{transform:translateX(220%)} }
+        @keyframes ucar-pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
         @keyframes ucar-fadein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        .ucar-tab-btn { transition: all .2s ease; }
+        .ucar-tab-btn   { transition: all .2s ease; }
         .ucar-tab-btn:hover { color: ${TPRI} !important; }
         .ucar-campus-btn { transition: all .22s ease; }
         .ucar-campus-btn:hover { filter: brightness(1.15); }
@@ -57,7 +102,7 @@ export default function App() {
         paddingBottom: 48,
       }}>
 
-        {/* ── Header ── */}
+        {/* ── Sticky Header ── */}
         <div style={{
           borderBottom: `1px solid ${BORDER}`,
           padding: "0 36px",
@@ -68,6 +113,7 @@ export default function App() {
           justifyContent: "space-between",
           height: 64, overflow: "hidden",
         }}>
+          {/* Wave decoration */}
           <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.25 }}>
             <WaveGraphic color={AQUA} opacity={0.6} width={500} height={64} />
           </div>
@@ -99,20 +145,19 @@ export default function App() {
 
           {/* Tab navigation */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, zIndex: 1 }}>
-            {tabs.map(tab => {
+            {TABS.map(tab => {
               const active = activeTab === tab.id;
               return (
                 <button key={tab.id} className="ucar-tab-btn"
                   onClick={() => setActiveTab(tab.id)}
                   style={{
                     display: "flex", alignItems: "center", gap: 7,
-                    padding: "8px 20px", borderRadius: 8, border: "none",
+                    padding: "8px 20px", borderRadius: 0, border: "none",
                     cursor: "pointer", fontFamily: "'Poppins',sans-serif",
                     fontWeight: 600, fontSize: 12, letterSpacing: "0.03em",
                     background: active ? `${AQUA}22` : "transparent",
                     color: active ? AQUA : TSEC,
                     borderBottom: active ? `2px solid ${AQUA}` : "2px solid transparent",
-                    borderRadius: 0,
                     transition: "all .2s ease",
                   }}>
                   <span style={{ fontSize: 14 }}>{tab.icon}</span>
@@ -122,18 +167,51 @@ export default function App() {
             })}
           </div>
 
-          {/* Date */}
-          <div style={{ fontSize: 11, color: TSEC, fontWeight: 500,
-            letterSpacing: "0.04em", zIndex: 1 }}>
-            {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          {/* Date + user info */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, zIndex: 1 }}>
+            <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, letterSpacing: "0.04em" }}>
+              {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{
+                fontSize: 10, color: TSEC, fontWeight: 500,
+                maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}>
+                {user.email}
+              </div>
+              <button
+                onClick={logout}
+                title="Sign out"
+                style={{
+                  background: "transparent", border: `1px solid ${BORDER}`,
+                  borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+                  fontFamily: "'Poppins',sans-serif", fontWeight: 600,
+                  fontSize: 10, color: TSEC, letterSpacing: "0.04em",
+                  transition: "all .2s",
+                }}>
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
 
         {/* ── Tab Content ── */}
-        {activeTab === "dashboard" && <Dashboard />}
-        {activeTab === "weeklyops" && <WeeklyOps />}
+        {activeTab === "dashboard"  && <DashboardPage />}
+        {activeTab === "weeklyops"  && <WeeklyOps />}
+        {activeTab === "financials" && <FinancialsPage />}
+        {activeTab === "reports"    && <ReportsPage />}
 
       </div>
     </>
+  );
+}
+
+// ── Root App — wraps everything with AuthProvider ──────────────────────────────
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }

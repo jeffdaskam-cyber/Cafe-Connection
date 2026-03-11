@@ -320,8 +320,10 @@ function MonthEndModal({ onClose }) {
   );
 }
 
-// ── Main Dashboard ─────────────────────────────────────────────────────────────
-export default function Dashboard() {
+// ── Financials Page ────────────────────────────────────────────────────────────
+// Renamed from Dashboard → FinancialsPage as part of Phase 1 tab architecture refactor.
+// This component is now rendered under the "Financials" tab in App.jsx.
+export default function FinancialsPage() {
   const [campus, setCampus]   = useState("Mesa Lab");
   const [period, setPeriod]   = useState("daily");
   const [metrics, setMetrics] = useState([]);

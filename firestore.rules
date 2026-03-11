@@ -1,0 +1,114 @@
+// Cafe Connection — Firestore Security Rules
+// ─────────────────────────────────────────────────────────────────────────────
+// Deploy with: firebase deploy --only firestore:rules
+// Requires firebase.json in the project root (see firebase.json).
+//
+// Current policy (Phase 2):
+//   - All data requires authentication (UCAR magic-link sign-in)
+//   - Users can only read/write their own profile document
+//   - daily_metrics and event_orders are readable by any authenticated user
+//   - Client-side writes are restricted; most writes go via Admin SDK (serverless)
+//   - New operational collections (weekly_schedules, cash_drops, etc.) will
+//     tighten write rules to campus + role as those modules are built (Phase 10)
+//
+// NOTE: Firebase Admin SDK always bypasses these rules on the server side.
+// Phase 10 will do a full security review and rule tightening pass.
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper: require authenticated UCAR user ────────────────────────────
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    // ── daily_metrics ──────────────────────────────────────────────────────
+    // Read: any authenticated user
+    // Write: server-side only (Admin SDK via /api/parse-report)
+    match /daily_metrics/{doc} {
+      allow read:  if isAuthed();
+      allow write: if false;   // Admin SDK only; client writes are blocked
+    }
+
+    // ── event_orders ───────────────────────────────────────────────────────
+    // Read:   any authenticated user (WeeklyOps event library)
+    // Create: any authenticated user (upload via firebase.js uploadEventOrder)
+    // Update/Delete: server-side only
+    match /event_orders/{doc} {
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update, delete: if false;
+    }
+
+    // ── users ──────────────────────────────────────────────────────────────
+    // Each user can only read and write their own profile document.
+    // Document ID == Firebase Auth UID.
+    match /users/{userId} {
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
+
+    // ── weekly_schedules ───────────────────────────────────────────────────
+    // Phase 6 — defined in schema, not yet implemented
+    match /weekly_schedules/{doc} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed(); // will tighten to role check in Phase 10
+    }
+
+    // ── schedule_notes ─────────────────────────────────────────────────────
+    match /schedule_notes/{doc} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed();
+    }
+
+    // ── cafe_specials ──────────────────────────────────────────────────────
+    match /cafe_specials/{doc} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed();
+    }
+
+    // ── cash_drops ─────────────────────────────────────────────────────────
+    match /cash_drops/{doc} {
+      allow read:  if isAuthed();
+      allow create: if isAuthed();
+      allow update, delete: if isAuthed(); // Phase 10: restrict to submitter or admin
+    }
+
+    // ── beos ───────────────────────────────────────────────────────────────
+    match /beos/{doc} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed();
+    }
+
+    // ── event_reports ──────────────────────────────────────────────────────
+    match /event_reports/{doc} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed();
+    }
+
+    // ── setup_reports ──────────────────────────────────────────────────────
+    match /setup_reports/{doc} {
+      allow read:  if isAuthed();
+      allow write: if isAuthed();
+    }
+
+    // ── generated_reports ──────────────────────────────────────────────────
+    match /generated_reports/{doc} {
+      allow read:  if isAuthed();
+      allow create: if isAuthed();
+      allow update, delete: if false; // reports are immutable after generation
+    }
+
+    // ── user_dashboard_prefs ───────────────────────────────────────────────
+    // Document ID == Firebase Auth UID
+    match /user_dashboard_prefs/{userId} {
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
+
+    // ── Catch-all: deny everything not explicitly matched ──────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
