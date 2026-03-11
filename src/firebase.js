@@ -266,6 +266,18 @@ export function subscribeEventReports(callback) {
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
 
+// ── User Dashboard Prefs ──────────────────────────────────────────────────
+// doc ID: Firebase Auth UID
+export function subscribeDashboardPrefs(uid, callback) {
+  const docRef = doc(db, "user_dashboard_prefs", uid);
+  return onSnapshot(docRef, snap => callback(snap.exists() ? snap.data() : null));
+}
+
+export async function saveDashboardPrefs(uid, data) {
+  const docRef = doc(db, "user_dashboard_prefs", uid);
+  await setDoc(docRef, { uid, ...data, updated_at: serverTimestamp() }, { merge: true });
+}
+
 // ── Fetch month-end accounting data for all three campuses ────────────────
 export async function getMonthEndData(year, month) {
   const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];
