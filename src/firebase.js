@@ -183,6 +183,89 @@ export function subscribeRecentCashDrops(campus, callback) {
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
 
+// ── Cafe Charges — daily_metrics for a date range + campus ───────────────
+// campus: specific campus name OR "All Campuses" to fetch all three
+export async function getCafeChargesData(campus, startDate, endDate) {
+  const ALL     = ["Mesa Lab", "Foothills", "Center Green"];
+  const targets = campus === "All Campuses" ? ALL : [campus];
+  const start   = Timestamp.fromDate(new Date(startDate + "T00:00:00"));
+  const end     = Timestamp.fromDate(new Date(endDate   + "T23:59:59"));
+
+  const results = {};
+  await Promise.all(targets.map(async (c) => {
+    const q = query(
+      collection(db, "daily_metrics"),
+      where("campus", "==", c),
+      where("date",   ">=", start),
+      where("date",   "<=", end),
+      orderBy("date", "asc")
+    );
+    const snap = await getDocs(q);
+    results[c] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }));
+  return results;
+}
+
+// ── Shared weekOf helper ──────────────────────────────────────────────────
+function isoMondayOf(dateStr) {
+  const d   = new Date(dateStr + "T12:00:00");
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().slice(0, 10);
+}
+
+// ── Setup Reports ─────────────────────────────────────────────────────────
+export async function saveSetupReport({ title, campus, eventDate, instructions, uid, email }) {
+  await addDoc(collection(db, "setup_reports"), {
+    title,
+    campus,
+    eventDate:    Timestamp.fromDate(new Date(eventDate + "T12:00:00")),
+    weekOf:       isoMondayOf(eventDate),
+    instructions: instructions || "",
+    created_by:     email,
+    created_by_uid: uid,
+    created_at:   serverTimestamp(),
+    updated_at:   serverTimestamp(),
+    status:       "active",
+  });
+}
+
+export function subscribeSetupReports(callback) {
+  const q = query(
+    collection(db, "setup_reports"),
+    orderBy("created_at", "desc"),
+    limit(20)
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+// ── Event Reports ─────────────────────────────────────────────────────────
+export async function saveEventReport({ title, campus, eventDate, attendance, revenue, notes, uid, email }) {
+  await addDoc(collection(db, "event_reports"), {
+    title,
+    campus,
+    eventDate:  Timestamp.fromDate(new Date(eventDate + "T12:00:00")),
+    weekOf:     isoMondayOf(eventDate),
+    attendance: attendance ? Number(attendance) : null,
+    revenue:    revenue    ? Number(revenue)    : null,
+    notes:      notes || "",
+    created_by:     email,
+    created_by_uid: uid,
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+    status:     "submitted",
+  });
+}
+
+export function subscribeEventReports(callback) {
+  const q = query(
+    collection(db, "event_reports"),
+    orderBy("created_at", "desc"),
+    limit(20)
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
 // ── Fetch month-end accounting data for all three campuses ────────────────
 export async function getMonthEndData(year, month) {
   const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];

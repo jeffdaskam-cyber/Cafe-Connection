@@ -1,31 +1,30 @@
 /**
  * ReportsPage — report generation engine.
  *
- * Phase 5: Month-End Report activated (moved from Financials tab).
- * Phase 7: Full report engine with standardized definitions, previews, and export.
+ * Phase 5: Month-End Report activated.
+ * Phase 7: Full report engine — all four reports live.
  *
- * Current live reports:
- *   - Month-End Report ✅
- *
- * Stub reports (Phase 7):
- *   - Cafe Charges
- *   - Set-Up Report
- *   - Event Report
+ * Live reports:
+ *   - Month-End Report    ✅  accounting email generator
+ *   - Cafe Charges        ✅  itemized charge summary by date range + campus
+ *   - Set-Up Report       ✅  event setup sheet builder + history
+ *   - Event Report        ✅  post-event attendance / revenue log
  */
 
 import { useState } from "react";
 import { getMonthEndData } from "../firebase.js";
-import Widget from "../components/Widget.jsx";
+import Widget            from "../components/Widget.jsx";
+import CafeChargesReport from "../components/CafeChargesReport.jsx";
+import SetUpReport       from "../components/SetUpReport.jsx";
+import EventReport       from "../components/EventReport.jsx";
 
 // ── Brand palette ──────────────────────────────────────────────────────────────
 const SPACE    = "#011837";
 const DARKBLUE = "#00357A";
-const PANEL    = "#001f4d";
 const BORDER   = "#003070";
 const TPRI     = "#FFFFFF";
 const TSEC     = "#7aaec8";
 const AQUA     = "#00A2B4";
-const LAQUA    = "#34E1F4";
 const ORANGE   = "#FAA119";
 
 const CAMPUSES     = ["Mesa Lab", "Foothills", "Center Green"];
@@ -43,7 +42,7 @@ function MonthEndReport() {
   const now = new Date();
   const [month,      setMonth]      = useState(now.getMonth() + 1);
   const [year,       setYear]       = useState(now.getFullYear());
-  const [status,     setStatus]     = useState("idle"); // idle | loading | done | error
+  const [status,     setStatus]     = useState("idle");
   const [reportData, setReportData] = useState(null);
   const [copied,     setCopied]     = useState(false);
 
@@ -203,44 +202,6 @@ function MonthEndReport() {
   );
 }
 
-// ── Stub card for Phase 7 reports ──────────────────────────────────────────────
-function StubReportCard({ icon, title, description, inputs, accentColor = AQUA }) {
-  return (
-    <div style={{ background: PANEL, borderRadius: 14,
-      border: `1px solid ${BORDER}`, padding: "24px",
-      opacity: 0.6, position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
-        background: BORDER, borderRadius: "14px 14px 0 0" }} />
-      <div style={{ display: "flex", gap: 14, marginBottom: 16 }}>
-        <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-          background: `${accentColor}14`, border: `1px solid ${accentColor}33`,
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
-          {icon}
-        </div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: TPRI, marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, lineHeight: 1.55 }}>{description}</div>
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
-        {inputs.map(inp => (
-          <span key={inp} style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px",
-            borderRadius: 20, background: DARKBLUE, border: `1px solid ${BORDER}`, color: TSEC }}>
-            {inp}
-          </span>
-        ))}
-      </div>
-      <button disabled
-        style={{ width: "100%", padding: "9px 0", borderRadius: 8,
-          border: `1.5px dashed ${BORDER}`, background: "transparent",
-          color: TSEC, fontFamily: "'Poppins',sans-serif",
-          fontWeight: 700, fontSize: 12, cursor: "not-allowed" }}>
-        Coming in Phase 7
-      </button>
-    </div>
-  );
-}
-
 // ── Reports Page ───────────────────────────────────────────────────────────────
 export default function ReportsPage() {
   return (
@@ -252,40 +213,34 @@ export default function ReportsPage() {
           fontFamily: "'Poppins',sans-serif" }}>Reports</div>
         <div style={{ fontSize: 12, color: TSEC, fontWeight: 500,
           maxWidth: 560, lineHeight: 1.6, fontFamily: "'Poppins',sans-serif" }}>
-          Generate and export operational reports. A full report engine with standardized
-          definitions and print/export actions is coming in Phase 7.
+          Generate, copy, and print operational reports. All four report types are live.
         </div>
       </div>
 
-      {/* ── Live reports ── */}
+      {/* ── Accounting reports ── */}
       <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
         textTransform: "uppercase", marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
-        Available Now
+        Accounting
       </div>
-      <div style={{ marginBottom: 36, animation: "ucar-fadein .5s ease both" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+        marginBottom: 32, animation: "ucar-fadein .5s ease both" }}>
         <MonthEndReport />
+        <CafeChargesReport />
       </div>
 
-      {/* ── Stub reports ── */}
+      {/* ── Operations reports ── */}
       <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
         textTransform: "uppercase", marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
-        Coming in Phase 7
+        Operations
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 16, animation: "ucar-fadein .6s ease both" }}>
-        <StubReportCard icon="💳" title="Cafe Charges"
-          description="Itemized charge summary across all campuses for a selected period."
-          inputs={["Date range", "Campus filter"]} accentColor={AQUA} />
-        <StubReportCard icon="🔧" title="Set-Up Report"
-          description="Event setup instructions and requirements for catering staff."
-          inputs={["Event date", "Event order"]} accentColor={ORANGE} />
-        <StubReportCard icon="🎪" title="Event Report"
-          description="Post-event summary with attendance, revenue, and notes."
-          inputs={["Event date", "Campus"]} accentColor="#9B59B6" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+        marginBottom: 40, animation: "ucar-fadein .6s ease both" }}>
+        <SetUpReport />
+        <EventReport />
       </div>
 
       {/* ── Footer ── */}
-      <div style={{ marginTop: 40, textAlign: "center", fontSize: 10, color: `${TSEC}88`,
+      <div style={{ textAlign: "center", fontSize: 10, color: `${TSEC}88`,
         fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase",
         fontFamily: "'Poppins',sans-serif" }}>
         University Corporation for Atmospheric Research · Internal Tool
