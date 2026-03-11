@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, Timestamp } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 
@@ -50,7 +50,6 @@ export async function uploadEventOrder(file, onProgress) {
   });
 
   // Save metadata to Firestore
-  const { addDoc, serverTimestamp } = await import("firebase/firestore");
   await addDoc(collection(db, "event_orders"), {
     fileName:    file.name,
     downloadURL,
@@ -72,9 +71,11 @@ export async function parseReport(fileUrl, campus, fileName) {
   return res.json();
 }
 
-// ── Fetch current week's schedule from Google Drive ───────────────────────
-export async function fetchSchedule() {
-  const res = await fetch("/api/get-schedule");
+// ── Fetch week's schedule from Google Drive ───────────────────────────────
+// weekOf: ISO Monday string "YYYY-MM-DD" (optional; omit for auto-detect)
+export async function fetchSchedule(weekOf = null) {
+  const url = weekOf ? `/api/get-schedule?weekOf=${weekOf}` : "/api/get-schedule";
+  const res = await fetch(url);
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || "Failed to fetch schedule");
@@ -110,6 +111,74 @@ export function subscribeEventOrders(callback) {
   const q = query(
     collection(db, "event_orders"),
     orderBy("uploadedAt", "desc")
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+// ── Schedule Notes (org-wide, per week) ──────────────────────────────────
+// doc ID: note_{weekOf}  e.g. "note_2026-03-09"
+export function subscribeScheduleNote(weekOf, callback) {
+  const docRef = doc(db, "schedule_notes", `note_${weekOf}`);
+  return onSnapshot(docRef, snap => {
+    callback(snap.exists() ? snap.data() : null);
+  });
+}
+
+export async function saveScheduleNote(weekOf, body, uid, email) {
+  const docRef = doc(db, "schedule_notes", `note_${weekOf}`);
+  await setDoc(docRef, {
+    weekOf,
+    body,
+    updated_by:    email,
+    updated_by_uid: uid,
+    updated_at:    serverTimestamp(),
+  }, { merge: true });
+}
+
+// ── Cafe Specials (per campus + week) ────────────────────────────────────
+// doc ID: specials_{weekOf}_{campus_underscored}  e.g. "specials_2026-03-09_Mesa_Lab"
+function specialsDocId(weekOf, campus) {
+  return `specials_${weekOf}_${campus.replace(/\s+/g, "_")}`;
+}
+
+export function subscribeCafeSpecials(weekOf, campus, callback) {
+  const docRef = doc(db, "cafe_specials", specialsDocId(weekOf, campus));
+  return onSnapshot(docRef, snap => {
+    callback(snap.exists() ? snap.data() : null);
+  });
+}
+
+export async function saveCafeSpecials(weekOf, campus, body, uid, email) {
+  const docRef = doc(db, "cafe_specials", specialsDocId(weekOf, campus));
+  await setDoc(docRef, {
+    weekOf,
+    campus,
+    body,
+    updated_by:    email,
+    updated_by_uid: uid,
+    updated_at:    serverTimestamp(),
+  }, { merge: true });
+}
+
+// ── Cash Drops ────────────────────────────────────────────────────────────
+export async function addCashDrop({ campus, amount, date, notes, uid, email }) {
+  await addDoc(collection(db, "cash_drops"), {
+    campus,
+    amount:     Number(amount),
+    date,
+    notes:      notes || "",
+    created_by: email,
+    created_by_uid: uid,
+    created_at: serverTimestamp(),
+  });
+}
+
+export function subscribeRecentCashDrops(campus, callback) {
+  const q = query(
+    collection(db, "cash_drops"),
+    where("campus", "==", campus),
+    orderBy("created_at", "desc"),
+    limit(10)
   );
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }

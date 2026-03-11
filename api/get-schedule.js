@@ -79,16 +79,22 @@ export default async function handler(req, res) {
     const rootFolderId = process.env.GOOGLE_SCHEDULE_FOLDER_ID;
     if (!rootFolderId) throw new Error("GOOGLE_SCHEDULE_FOLDER_ID env var not set.");
 
-    // Try current week, fall back to previous week
-    const today      = new Date();
-    const monday     = getMondayOf(today);
-    const prevMonday = new Date(monday);
-    prevMonday.setDate(prevMonday.getDate() - 7);
+    // ?weekOf=YYYY-MM-DD → exact week only (user navigated explicitly)
+    // no param           → auto-detect current week, fall back to previous
+    const weekOfParam = req.query.weekOf; // e.g. "2026-03-09"
+
+    const monday = weekOfParam
+      ? getMondayOf(new Date(weekOfParam + "T12:00:00")) // noon avoids DST edge cases
+      : getMondayOf(new Date());
+
+    const weeksToTry = weekOfParam
+      ? [monday]
+      : [monday, new Date(monday.getTime() - 7 * 24 * 60 * 60 * 1000)];
 
     let scheduleFile = null;
     let usedMonday   = null;
 
-    for (const weekMonday of [monday, prevMonday]) {
+    for (const weekMonday of weeksToTry) {
       const monthFolder = formatMonthFolder(weekMonday);
       const fileName    = formatFileDate(weekMonday);
 
@@ -104,7 +110,7 @@ export default async function handler(req, res) {
     if (!scheduleFile) {
       return res.status(404).json({
         error: "Schedule not found. Check that the file exists in Google Drive.",
-        searched: [monday, prevMonday].map(m => ({
+        searched: weeksToTry.map(m => ({
           month: formatMonthFolder(m),
           file:  formatFileDate(m),
         })),
