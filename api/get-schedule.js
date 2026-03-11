@@ -94,12 +94,15 @@ export default async function handler(req, res) {
 
       // Navigate: root → "2026 ES Schedules" → month folder → week file
       const yearDir = await findInFolder(token, rootFolderId, "2026 ES Schedules");
+      console.log("[get-schedule] yearDir:", JSON.stringify(yearDir));
       if (!yearDir) continue;
 
       const monthDir = await findInFolder(token, yearDir.id, monthFolder);
+      console.log("[get-schedule] monthFolder searched:", monthFolder, "monthDir:", JSON.stringify(monthDir));
       if (!monthDir) continue;
 
       const file = await findInFolder(token, monthDir.id, fileName);
+      console.log("[get-schedule] fileName searched:", fileName, "file:", JSON.stringify(file));
       if (file) { scheduleFile = file; usedMonday = weekMonday; break; }
     }
 
