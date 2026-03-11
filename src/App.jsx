@@ -120,28 +120,10 @@ function AppShell() {
             <WaveGraphic color={AQUA} opacity={0.6} width={500} height={64} />
           </div>
 
-          {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, zIndex: 1 }}>
-            <div style={{
-              width: 40, height: 40, borderRadius: "50%",
-              background: `linear-gradient(135deg, ${AQUA}, ${DARKBLUE})`,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: `0 0 16px ${AQUA}44`, flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
-                <ellipse cx="12" cy="12" rx="10" ry="10" stroke="white" strokeWidth="1.2" />
-                <path d="M4 10 Q8 6 12 10 Q16 14 20 10" stroke="white" strokeWidth="1.4" fill="none" />
-                <path d="M4 14 Q8 10 12 14 Q16 18 20 14" stroke="white" strokeWidth="1.4" fill="none" />
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "0.02em", color: TPRI }}>
-                <span style={{ color: AQUA }}>UCAR</span> Cafe Connection
-              </div>
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 500,
-                letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                Catering &amp; Cafe Information Hub
-              </div>
+          {/* Wordmark */}
+          <div style={{ display: "flex", alignItems: "center", zIndex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "0.02em", color: TPRI }}>
+              <span style={{ color: AQUA }}>UCAR</span> Cafe Connection
             </div>
           </div>
 

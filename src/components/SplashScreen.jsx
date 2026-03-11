@@ -121,11 +121,7 @@ export default function SplashScreen({ onDone }) {
           from { opacity: 0; transform: translateY(16px); }
           to   { opacity: 1; transform: translateY(0);   }
         }
-        @keyframes cc-label-in {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0);   }
-        }
-        @keyframes cc-blink {
+@keyframes cc-blink {
           0%, 49% { opacity: 1; }
           50%, 99% { opacity: 0; }
         }
@@ -134,28 +130,12 @@ export default function SplashScreen({ onDone }) {
 
       <div style={{ textAlign: "center", userSelect: "none" }}>
 
-        {/* ── Globe logo ── */}
+        {/* ── UCAR wordmark ── */}
         <div style={{
-          width: 72, height: 72, borderRadius: "50%",
-          background: `linear-gradient(135deg, ${AQUA}, ${DARKBLUE})`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 18px",
-          boxShadow: `0 0 40px ${AQUA}55`,
+          fontSize: 52, fontWeight: 800, color: TPRI,
+          letterSpacing: "0.18em", textTransform: "uppercase",
+          marginBottom: 16,
           animation: "cc-logo-in 420ms cubic-bezier(0.22,1,0.36,1) both",
-        }}>
-          <svg viewBox="0 0 24 24" width="38" height="38" fill="none" aria-hidden="true">
-            <ellipse cx="12" cy="12" rx="10" ry="10" stroke="white" strokeWidth="1.2" />
-            <path d="M4 10 Q8 6 12 10 Q16 14 20 10" stroke="white" strokeWidth="1.4" fill="none" />
-            <path d="M4 14 Q8 10 12 14 Q16 18 20 14" stroke="white" strokeWidth="1.4" fill="none" />
-          </svg>
-        </div>
-
-        {/* ── UCAR label ── */}
-        <div style={{
-          fontSize: 11, fontWeight: 700, color: TSEC,
-          letterSpacing: "0.24em", textTransform: "uppercase",
-          marginBottom: 22,
-          animation: "cc-label-in 420ms cubic-bezier(0.22,1,0.36,1) 80ms both",
         }}>
           UCAR
         </div>
