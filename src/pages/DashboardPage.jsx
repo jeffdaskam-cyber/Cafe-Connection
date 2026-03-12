@@ -8,6 +8,8 @@
  */
 
 import { useState, useEffect } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useDashboardPrefs } from "../hooks/useDashboardPrefs.js";
 import { widgetById, defaultPrefs, WIDGET_REGISTRY } from "../registries/widgetRegistry.js";
@@ -83,12 +85,22 @@ export default function DashboardPage() {
   const [wizardOpen,    setWizardOpen]    = useState(false);
   const [editOpen,      setEditOpen]      = useState(false);
   const [seedAttempted, setSeedAttempted] = useState(false);
+  const [firestoreDisplayName, setFirestoreDisplayName] = useState(null);
 
-  // Derive display name from email  (e.g. "jeff.daskam@ucar.edu" → "Jeff")
-  const firstName = user?.email?.split("@")[0]?.split(".")[0] ?? "";
-  const displayName = firstName
-    ? firstName.charAt(0).toUpperCase() + firstName.slice(1)
-    : "there";
+  // Read displayName from Firestore users doc (written by FirstRunWizard).
+  // Falls back to email-derived name if not yet set.
+  useEffect(() => {
+    if (!user?.uid) return;
+    getDoc(doc(db, "users", user.uid)).then(snap => {
+      if (snap.exists()) setFirestoreDisplayName(snap.data().displayName || null);
+    });
+  }, [user?.uid]);
+
+  const displayName = (() => {
+    if (firestoreDisplayName) return firestoreDisplayName;
+    const firstName = user?.email?.split("@")[0]?.split(".")[0] ?? "";
+    return firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "there";
+  })();
 
   // When prefs finish loading: if no doc exists, seed defaults and open wizard
   useEffect(() => {
