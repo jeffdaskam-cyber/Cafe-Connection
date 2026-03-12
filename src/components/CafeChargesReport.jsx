@@ -10,17 +10,7 @@ import { useState } from "react";
 import { getCafeChargesData } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import { CAMPUS_COLOR } from "./CampusSelector.jsx";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const PANEL    = "#001f4d";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const TMID     = "#b0d0e8";
-const AQUA     = "#00A2B4";
-const ORANGE   = "#FAA119";
+import { COLORS } from "../theme.js";
 
 const CAMPUSES     = ["Mesa Lab", "Foothills", "Center Green"];
 const ALL_CAMPUSES = "All Campuses";
@@ -149,13 +139,12 @@ export default function CafeChargesReport() {
   const targets = campus === ALL_CAMPUSES ? CAMPUSES : [campus];
 
   const inputStyle = {
-    background: `${SPACE}cc`,
-    border: `1px solid ${BORDER}`,
-    borderRadius: 8, color: TPRI,
+    background: COLORS.BG_SURFACE_ALT,
+    border: `1px solid ${COLORS.BORDER}`,
+    borderRadius: 8, color: COLORS.TEXT_PRIMARY,
     fontFamily: "'Poppins',sans-serif",
     fontWeight: 600, fontSize: 12,
     padding: "9px 12px", outline: "none",
-    colorScheme: "dark",
   };
 
   return (
@@ -163,7 +152,7 @@ export default function CafeChargesReport() {
       title="Cafe Charges"
       subtitle="Itemized charge summary"
       icon="💳"
-      accentColor={AQUA}
+      accentColor={COLORS.AQUA}
       loading={status === "loading"}
       error={status === "error" ? "Could not fetch data. Check your Firestore connection." : null}
       onRetry={handleReset}
@@ -174,13 +163,13 @@ export default function CafeChargesReport() {
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           {/* Campus */}
           <div>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.2px", textTransform: "uppercase", marginBottom: 6,
               fontFamily: "'Poppins',sans-serif" }}>Campus</div>
             <select value={campus} onChange={e => { setCampus(e.target.value); handleReset(); }}
               style={{ ...inputStyle, width: "100%", cursor: "pointer" }}>
               {CAMPUS_LIST.map(c => (
-                <option key={c} value={c} style={{ background: DARKBLUE }}>{c}</option>
+                <option key={c} value={c} style={{ background: COLORS.BG_SURFACE }}>{c}</option>
               ))}
             </select>
           </div>
@@ -188,7 +177,7 @@ export default function CafeChargesReport() {
           {/* Date range */}
           <div style={{ display: "flex", gap: 10 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
                 letterSpacing: "1.2px", textTransform: "uppercase", marginBottom: 6,
                 fontFamily: "'Poppins',sans-serif" }}>From</div>
               <input type="date" value={startDate}
@@ -196,7 +185,7 @@ export default function CafeChargesReport() {
                 style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
                 letterSpacing: "1.2px", textTransform: "uppercase", marginBottom: 6,
                 fontFamily: "'Poppins',sans-serif" }}>To</div>
               <input type="date" value={endDate}
@@ -210,7 +199,7 @@ export default function CafeChargesReport() {
         {status === "idle" && (
           <button onClick={handleGenerate}
             style={{ width: "100%", padding: "11px 0", borderRadius: 8, border: "none",
-              background: AQUA, color: SPACE, fontFamily: "'Poppins',sans-serif",
+              background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT, fontFamily: "'Poppins',sans-serif",
               fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
             Generate Report
           </button>
@@ -223,11 +212,11 @@ export default function CafeChargesReport() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
               {targets.map(c => {
                 const d   = reportData[c];
-                const cc  = CAMPUS_COLOR[c] ?? AQUA;
+                const cc  = CAMPUS_COLOR[c] ?? COLORS.AQUA;
                 const src = d?.source;
                 return (
                   <div key={c} style={{
-                    background: `${SPACE}cc`, border: `1px solid ${BORDER}`,
+                    background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
                     borderRadius: 10, padding: "12px 14px",
                     borderLeft: `3px solid ${cc}`,
                   }}>
@@ -241,19 +230,19 @@ export default function CafeChargesReport() {
                         {/* Data source badge */}
                         <div style={{ fontSize: 9, fontWeight: 600, padding: "2px 8px",
                           borderRadius: 20, fontFamily: "'Poppins',sans-serif",
-                          background: src && src !== "none" ? `${cc}22` : `${ORANGE}22`,
-                          border: `1px solid ${src && src !== "none" ? cc : ORANGE}55`,
-                          color: src && src !== "none" ? cc : ORANGE,
+                          background: src && src !== "none" ? `${cc}18` : `${COLORS.ORANGE}18`,
+                          border: `1px solid ${src && src !== "none" ? cc + "44" : COLORS.ORANGE + "44"}`,
+                          color: src && src !== "none" ? cc : COLORS.ORANGE,
                           letterSpacing: "0.04em", textTransform: "uppercase" }}>
                           {src === "period" ? "period" : src === "daily" ? "summed daily" : "no data"}
                         </div>
                         {/* Detail toggle */}
                         {d?.docs?.length > 0 && (
                           <button onClick={() => setExpanded(expanded === c ? null : c)}
-                            style={{ background: "transparent", border: `1px solid ${BORDER}`,
+                            style={{ background: "transparent", border: `1px solid ${COLORS.BORDER}`,
                               borderRadius: 5, padding: "2px 8px", cursor: "pointer",
                               fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-                              fontSize: 9, color: TSEC, letterSpacing: "0.04em",
+                              fontSize: 9, color: COLORS.TEXT_MUTED, letterSpacing: "0.04em",
                               textTransform: "uppercase" }}>
                             {expanded === c ? "▲ Hide" : "▼ Detail"}
                           </button>
@@ -269,10 +258,10 @@ export default function CafeChargesReport() {
                           ? d.total_checks.toLocaleString() : null],
                       ].map(([label, val]) => val != null && (
                         <div key={label}>
-                          <div style={{ fontSize: 9, color: TSEC, fontWeight: 600,
+                          <div style={{ fontSize: 9, color: COLORS.TEXT_MUTED, fontWeight: 600,
                             letterSpacing: "0.08em", textTransform: "uppercase",
                             fontFamily: "'Poppins',sans-serif" }}>{label}</div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: TPRI,
+                          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
                             fontFamily: "'Poppins',sans-serif" }}>
                             {label === "Total Checks" ? val : fmtMoney(val)}
                           </div>
@@ -286,10 +275,10 @@ export default function CafeChargesReport() {
                         <table style={{ width: "100%", borderCollapse: "collapse",
                           fontSize: 10, fontFamily: "'Poppins',sans-serif" }}>
                           <thead>
-                            <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                            <tr style={{ borderBottom: `1px solid ${COLORS.BORDER}` }}>
                               {["Date","Type","Net Rev","Taxes","Cash Drop","Checks"].map(h => (
                                 <th key={h} style={{ padding: "5px 8px", textAlign: "right",
-                                  color: TSEC, fontWeight: 600,
+                                  color: COLORS.TEXT_MUTED, fontWeight: 600,
                                   ...(h === "Date" || h === "Type" ? { textAlign: "left" } : {}) }}>
                                   {h}
                                 </th>
@@ -299,22 +288,22 @@ export default function CafeChargesReport() {
                           <tbody>
                             {d.docs.map((row, i) => (
                               <tr key={i} style={{
-                                borderBottom: `1px solid ${BORDER}44`,
-                                background: i % 2 === 0 ? "transparent" : `${SPACE}88`,
+                                borderBottom: `1px solid ${COLORS.BORDER}`,
+                                background: i % 2 === 0 ? "transparent" : COLORS.BG_SURFACE_ALT,
                               }}>
-                                <td style={{ padding: "5px 8px", color: TMID, whiteSpace: "nowrap" }}>{fmtDate(row.date)}</td>
+                                <td style={{ padding: "5px 8px", color: COLORS.TEXT_SECONDARY, whiteSpace: "nowrap" }}>{fmtDate(row.date)}</td>
                                 <td style={{ padding: "5px 8px" }}>
                                   <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 20,
-                                    background: row.report_type === "period" ? `${AQUA}22` : `${BORDER}88`,
-                                    color: row.report_type === "period" ? AQUA : TSEC,
+                                    background: row.report_type === "period" ? COLORS.AQUA_LIGHT : COLORS.BG_SURFACE_HOVER,
+                                    color: row.report_type === "period" ? COLORS.AQUA : COLORS.TEXT_SECONDARY,
                                     fontWeight: 600 }}>
                                     {row.report_type || "daily"}
                                   </span>
                                 </td>
-                                <td style={{ padding: "5px 8px", textAlign: "right", color: TPRI, fontWeight: 600 }}>{fmtMoney(row.net_revenue)}</td>
-                                <td style={{ padding: "5px 8px", textAlign: "right", color: TMID }}>{fmtMoney(row.total_taxes)}</td>
-                                <td style={{ padding: "5px 8px", textAlign: "right", color: TMID }}>{fmtMoney(row.cash_drop)}</td>
-                                <td style={{ padding: "5px 8px", textAlign: "right", color: TMID }}>{row.total_checks ?? "—"}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "right", color: COLORS.TEXT_PRIMARY, fontWeight: 600 }}>{fmtMoney(row.net_revenue)}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "right", color: COLORS.TEXT_SECONDARY }}>{fmtMoney(row.total_taxes)}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "right", color: COLORS.TEXT_SECONDARY }}>{fmtMoney(row.cash_drop)}</td>
+                                <td style={{ padding: "5px 8px", textAlign: "right", color: COLORS.TEXT_SECONDARY }}>{row.total_checks ?? "—"}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -328,8 +317,8 @@ export default function CafeChargesReport() {
 
             {/* Email preview */}
             <textarea readOnly value={buildEmailText()}
-              style={{ width: "100%", background: `${SPACE}cc`, border: `1px solid ${BORDER}`,
-                borderRadius: 10, color: TPRI, fontFamily: "'Courier New', monospace",
+              style={{ width: "100%", background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: 10, color: COLORS.TEXT_PRIMARY, fontFamily: "'Courier New', monospace",
                 fontSize: 11, lineHeight: 1.7, padding: "12px 14px",
                 resize: "none", outline: "none", boxSizing: "border-box",
                 height: 180, marginBottom: 10 }} />
@@ -338,17 +327,17 @@ export default function CafeChargesReport() {
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={handleCopy}
                 style={{ flex: 1, padding: "10px 0", borderRadius: 8,
-                  background: copied ? `${AQUA}33` : AQUA,
-                  border: copied ? `1px solid ${AQUA}` : "none",
-                  color: copied ? AQUA : SPACE,
+                  background: copied ? COLORS.AQUA_LIGHT : COLORS.AQUA,
+                  border: copied ? `1px solid ${COLORS.AQUA_BORDER}` : "none",
+                  color: copied ? COLORS.AQUA : COLORS.TEXT_ON_ACCENT,
                   fontFamily: "'Poppins',sans-serif", fontWeight: 700,
                   fontSize: 12, cursor: "pointer" }}>
                 {copied ? "✓ Copied!" : "Copy to Clipboard"}
               </button>
               <button onClick={handleReset}
                 style={{ padding: "10px 18px", borderRadius: 8,
-                  border: `1px solid ${BORDER}`, background: "transparent",
-                  color: TSEC, fontFamily: "'Poppins',sans-serif",
+                  border: `1px solid ${COLORS.BORDER}`, background: "transparent",
+                  color: COLORS.TEXT_SECONDARY, fontFamily: "'Poppins',sans-serif",
                   fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
                 ← New
               </button>

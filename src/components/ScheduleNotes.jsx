@@ -12,13 +12,7 @@ import { useState, useEffect, useRef } from "react";
 import { subscribeScheduleNote, saveScheduleNote } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE  = "#011837";
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TSEC   = "#7aaec8";
-const AQUA   = "#00A2B4";
+import { COLORS, RADIUS } from "../theme.js";
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function ScheduleNotes({ weekOf }) {
@@ -80,14 +74,6 @@ export default function ScheduleNotes({ weekOf }) {
     ? [{
         label: hasNote ? "✏️ Edit" : "✏️ Add Note",
         onClick: handleEdit,
-        style: {
-          background: "transparent",
-          border: `1px solid ${BORDER}`,
-          borderRadius: 6, padding: "5px 12px",
-          color: TSEC, cursor: "pointer",
-          fontFamily: "'Poppins',sans-serif",
-          fontWeight: 600, fontSize: 11,
-        },
       }]
     : [];
 
@@ -96,7 +82,7 @@ export default function ScheduleNotes({ weekOf }) {
       title="Schedule Notes"
       subtitle="Org-wide · all campuses"
       icon="📝"
-      accentColor={AQUA}
+      accentColor={COLORS.AQUA}
       loading={loading}
       actions={headerActions}
     >
@@ -109,9 +95,9 @@ export default function ScheduleNotes({ weekOf }) {
             autoFocus
             style={{
               width: "100%", minHeight: 120,
-              background: `${SPACE}cc`,
-              border: `1px solid ${AQUA}66`,
-              borderRadius: 8, color: TPRI,
+              background: COLORS.BG_SURFACE_ALT,
+              border: `1px solid ${COLORS.AQUA_BORDER}`,
+              borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
               fontFamily: "'Poppins',sans-serif",
               fontSize: 12, lineHeight: 1.65,
               padding: "12px 14px",
@@ -124,9 +110,9 @@ export default function ScheduleNotes({ weekOf }) {
             <button onClick={handleCancel}
               style={{
                 background: "transparent",
-                border: `1px solid ${BORDER}`,
-                borderRadius: 6, padding: "7px 16px",
-                color: TSEC, cursor: "pointer",
+                border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, padding: "7px 16px",
+                color: COLORS.TEXT_SECONDARY, cursor: "pointer",
                 fontFamily: "'Poppins',sans-serif",
                 fontWeight: 600, fontSize: 11,
               }}>
@@ -134,10 +120,11 @@ export default function ScheduleNotes({ weekOf }) {
             </button>
             <button onClick={handleSave} disabled={saving}
               style={{
-                background: saving ? `${AQUA}55` : AQUA,
+                background: saving ? `${COLORS.AQUA}55` : COLORS.AQUA,
                 border: "none",
-                borderRadius: 6, padding: "7px 18px",
-                color: SPACE, cursor: saving ? "not-allowed" : "pointer",
+                borderRadius: RADIUS.SM, padding: "7px 18px",
+                color: COLORS.TEXT_ON_ACCENT,
+                cursor: saving ? "not-allowed" : "pointer",
                 fontFamily: "'Poppins',sans-serif",
                 fontWeight: 700, fontSize: 11,
               }}>
@@ -149,7 +136,7 @@ export default function ScheduleNotes({ weekOf }) {
         <div>
           <div style={{
             whiteSpace: "pre-wrap",
-            color: TPRI,
+            color: COLORS.TEXT_PRIMARY,
             fontSize: 12,
             fontFamily: "'Poppins',sans-serif",
             lineHeight: 1.7,
@@ -158,7 +145,7 @@ export default function ScheduleNotes({ weekOf }) {
             {noteData.body}
           </div>
           {noteData.updated_by && (
-            <div style={{ fontSize: 10, color: `${TSEC}99`, fontFamily: "'Poppins',sans-serif" }}>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontFamily: "'Poppins',sans-serif" }}>
               Last edited by {noteData.updated_by}
               {savedTick && " · ✓ Saved"}
             </div>
@@ -167,7 +154,7 @@ export default function ScheduleNotes({ weekOf }) {
       ) : (
         <div style={{
           textAlign: "center", padding: "24px 0",
-          color: `${TSEC}88`, fontSize: 12,
+          color: COLORS.TEXT_MUTED, fontSize: 12,
           fontFamily: "'Poppins',sans-serif",
         }}>
           No notes for this week.
@@ -176,9 +163,9 @@ export default function ScheduleNotes({ weekOf }) {
             style={{
               marginTop: 10,
               background: "transparent",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 6, padding: "6px 14px",
-              color: TSEC, cursor: "pointer",
+              border: `1px solid ${COLORS.BORDER}`,
+              borderRadius: RADIUS.SM, padding: "6px 14px",
+              color: COLORS.TEXT_SECONDARY, cursor: "pointer",
               fontFamily: "'Poppins',sans-serif",
               fontWeight: 600, fontSize: 11,
             }}>

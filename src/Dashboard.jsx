@@ -18,6 +18,7 @@ import { subscribeToCampus, subscribeAllReports } from "./firebase.js";
 import Widget from "./components/Widget.jsx";
 import CampusSelector, { CAMPUS_COLOR } from "./components/CampusSelector.jsx";
 import { useWidgetSubscription } from "./hooks/useWidget.js";
+import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 function getMonthKey(date) {
@@ -70,20 +71,6 @@ function buildAnnualData(monthlyData) {
   return Object.values(byFY).sort((a, b) => a.fy - b.fy);
 }
 
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const PANEL    = "#001f4d";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const TMID     = "#b0d0e8";
-const AQUA     = "#00A2B4";
-const LAQUA    = "#34E1F4";
-const ORANGE   = "#FAA119";
-const MONTH_NAMES = ["January","February","March","April","May","June",
-                     "July","August","September","October","November","December"];
-
 function fmt(d) {
   if (!d) return "";
   const dt = d.toDate ? d.toDate() : new Date(d);
@@ -94,8 +81,8 @@ function fmtMoney(n) {
   return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// ── Stat Card ──────────────────────────────────────────────────────────────────
-function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 }) {
+// ── Wave graphic ───────────────────────────────────────────────────────────────
+function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}
       style={{ position: "absolute", pointerEvents: "none" }} aria-hidden="true">
@@ -108,20 +95,22 @@ function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 })
   );
 }
 
+// ── Stat Card ──────────────────────────────────────────────────────────────────
 function StatCard({ label, value, delta, accentColor }) {
   const pos = delta >= 0;
   return (
-    <div style={{ flex: 1, background: PANEL, borderRadius: 14, padding: "20px 22px",
-      border: `1px solid ${BORDER}`, position: "relative", overflow: "hidden" }}>
+    <div style={{ flex: 1, background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG,
+      padding: "20px 22px", border: `1px solid ${COLORS.BORDER}`,
+      boxShadow: SHADOWS.SM, position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
         background: `linear-gradient(90deg, ${accentColor}, transparent)`,
-        borderRadius: "14px 14px 0 0" }} />
-      <div style={{ color: TSEC, fontSize: 10, fontFamily: "'Poppins',sans-serif",
+        borderRadius: `${RADIUS.LG} ${RADIUS.LG} 0 0` }} />
+      <div style={{ color: COLORS.TEXT_MUTED, fontSize: 10, fontFamily: "'Poppins',sans-serif",
         fontWeight: 600, textTransform: "uppercase", letterSpacing: "1.2px" }}>{label}</div>
-      <div style={{ color: TPRI, fontSize: 28, fontWeight: 700, margin: "8px 0 6px",
+      <div style={{ color: COLORS.TEXT_PRIMARY, fontSize: 28, fontWeight: 700, margin: "8px 0 6px",
         fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.5px" }}>{value}</div>
       <div style={{ fontSize: 11, fontFamily: "'Poppins',sans-serif", fontWeight: 500,
-        color: pos ? AQUA : ORANGE }}>
+        color: pos ? COLORS.SUCCESS : COLORS.WARNING }}>
         {pos ? "▲" : "▼"} {Math.abs(delta)}% vs last period
       </div>
       <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.07 }}>
@@ -135,10 +124,10 @@ function StatCard({ label, value, delta, accentColor }) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: DARKBLUE, border: `1px solid ${AQUA}44`, borderRadius: 10,
-      padding: "10px 14px", fontSize: 12, fontFamily: "'Poppins',sans-serif",
-      boxShadow: `0 4px 20px ${AQUA}22` }}>
-      <div style={{ color: TMID, marginBottom: 6, fontSize: 11 }}>{label}</div>
+    <div style={{ background: COLORS.BG_SURFACE, border: `1px solid ${COLORS.BORDER}`,
+      borderRadius: 10, padding: "10px 14px", fontSize: 12, fontFamily: "'Poppins',sans-serif",
+      boxShadow: SHADOWS.MD }}>
+      <div style={{ color: COLORS.TEXT_MUTED, marginBottom: 6, fontSize: 11 }}>{label}</div>
       {payload.map(p => (
         <div key={p.dataKey} style={{ color: p.color, fontWeight: 600 }}>
           {p.name}: {p.dataKey === "cafe_sales" ? `$${Number(p.value).toLocaleString()}` : p.value}
@@ -169,7 +158,7 @@ export default function FinancialsPage() {
   const safeAllDocs = allDocs  ?? [];
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const color       = CAMPUS_COLOR[campus] ?? AQUA;
+  const color       = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
   const monthlyData = buildMonthlyData(safeAllDocs);
   const annualData  = buildAnnualData(monthlyData);
   const fiscalYears = annualData.map(d => d.label);
@@ -224,7 +213,7 @@ export default function FinancialsPage() {
 
         {/* Campus */}
         <div>
-          <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
+          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
             textTransform: "uppercase", marginBottom: 10 }}>Campus</div>
           <CampusSelector value={campus} onChange={setCampus} />
         </div>
@@ -232,17 +221,18 @@ export default function FinancialsPage() {
         {/* Fiscal year (hidden in annual view — FY is the axis itself) */}
         {period !== "annual" && fiscalYears.length > 0 && (
           <div>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
               textTransform: "uppercase", marginBottom: 10 }}>Fiscal Year</div>
             <select value={fiscalYear || ""} onChange={e => setFiscalYear(e.target.value)}
-              style={{ background: `${SPACE}cc`, border: `1px solid ${BORDER}`, borderRadius: 8,
-                color: TPRI, fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
+              style={{ background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
+                fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
                 padding: "9px 32px 9px 14px", cursor: "pointer",
                 appearance: "none", WebkitAppearance: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237aaec8'/%3E%3C/svg%3E")`,
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A91'/%3E%3C/svg%3E")`,
                 backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}>
               {fiscalYears.map(fy => (
-                <option key={fy} value={fy} style={{ background: DARKBLUE }}>{fy}</option>
+                <option key={fy} value={fy}>{fy}</option>
               ))}
             </select>
           </div>
@@ -250,10 +240,10 @@ export default function FinancialsPage() {
 
         {/* Period toggle */}
         <div>
-          <div style={{ fontSize: 10, color: TSEC, fontWeight: 600, letterSpacing: "1.5px",
+          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
             textTransform: "uppercase", marginBottom: 10 }}>Period</div>
-          <div style={{ display: "flex", background: `${SPACE}cc`, border: `1px solid ${BORDER}`,
-            borderRadius: 8, padding: 3, gap: 2 }}>
+          <div style={{ display: "flex", background: COLORS.BG_SURFACE_ALT,
+            border: `1px solid ${COLORS.BORDER}`, borderRadius: RADIUS.SM, padding: 3, gap: 2 }}>
             {[["daily", "Daily"], ["monthly", "Monthly"], ["annual", "Annual"]].map(([val, label]) => {
               const active = period === val;
               return (
@@ -261,9 +251,9 @@ export default function FinancialsPage() {
                   style={{ padding: "7px 18px", borderRadius: 6, border: "none", cursor: "pointer",
                     fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
                     letterSpacing: "0.03em", transition: "all .2s ease",
-                    background: active ? AQUA : "transparent",
-                    color: active ? SPACE : TSEC,
-                    boxShadow: active ? `0 0 12px ${AQUA}55` : "none" }}>
+                    background: active ? COLORS.AQUA : "transparent",
+                    color: active ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_SECONDARY,
+                    boxShadow: active ? `0 0 10px ${COLORS.AQUA}33` : "none" }}>
                   {label}
                 </button>
               );
@@ -278,11 +268,11 @@ export default function FinancialsPage() {
         <StatCard
           label={period === "daily" ? "Net Revenue (30d)" : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
-          delta={4.2} accentColor={AQUA} />
+          delta={4.2} accentColor={COLORS.AQUA} />
         <StatCard
           label={period === "daily" ? "Avg Daily Checks" : period === "monthly" ? "Avg Monthly Checks" : "Avg Annual Checks"}
           value={loading ? "—" : (avgVolume || "—")}
-          delta={-1.8} accentColor={LAQUA} />
+          delta={-1.8} accentColor={COLORS.LAQUA} />
         <StatCard
           label={period === "daily" ? "Avg Lunch Checks" : "Total Lunch Checks"}
           value={loading ? "—" : (totalEvents || "—")}
@@ -298,7 +288,7 @@ export default function FinancialsPage() {
           title="Cafe Sales"
           subtitle={chartSubtitle}
           icon="💰"
-          accentColor={AQUA}
+          accentColor={COLORS.AQUA}
           loading={loading}
           empty={!loading && chartData.length === 0}
           emptyMessage={`No ${period} data yet for ${campus}`}
@@ -308,17 +298,17 @@ export default function FinancialsPage() {
         >
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={chartData} barSize={7}>
-              <CartesianGrid strokeDasharray="3 3" stroke={`${BORDER}88`} vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.CHART_GRID} vertical={false} />
+              <XAxis dataKey="date" tick={{ fill: COLORS.CHART_AXIS, fontSize: 9, fontFamily: "'Poppins'" }}
                 tickLine={false} axisLine={false} interval={period === "daily" ? 4 : 0} />
-              <YAxis tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
+              <YAxis tick={{ fill: COLORS.CHART_AXIS, fontSize: 9, fontFamily: "'Poppins'" }}
                 tickLine={false} axisLine={false}
                 tickFormatter={v => `$${(v / 1000).toFixed(1)}k`} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="cafe_sales" name="Cafe Sales" fill={AQUA} radius={[4, 4, 0, 0]}
+              <Bar dataKey="cafe_sales" name="Cafe Sales" fill={COLORS.AQUA} radius={[4, 4, 0, 0]}
                 label={{ position: "top",
                   formatter: v => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`,
-                  fill: TSEC, fontSize: 8, fontFamily: "'Poppins'" }} />
+                  fill: COLORS.CHART_AXIS, fontSize: 8, fontFamily: "'Poppins'" }} />
             </BarChart>
           </ResponsiveContainer>
         </Widget>
@@ -328,7 +318,7 @@ export default function FinancialsPage() {
           title="Total Cafe Volume"
           subtitle={`Total checks · ${campus}`}
           icon="📈"
-          accentColor={LAQUA}
+          accentColor={COLORS.LAQUA}
           loading={loading}
           empty={!loading && chartData.length === 0}
           emptyMessage={`No ${period} data yet for ${campus}`}
@@ -338,21 +328,21 @@ export default function FinancialsPage() {
         >
           <ResponsiveContainer width="100%" height={210}>
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={`${BORDER}88`} vertical={false} />
-              <XAxis dataKey="date" tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
+              <CartesianGrid strokeDasharray="3 3" stroke={COLORS.CHART_GRID} vertical={false} />
+              <XAxis dataKey="date" tick={{ fill: COLORS.CHART_AXIS, fontSize: 9, fontFamily: "'Poppins'" }}
                 tickLine={false} axisLine={false} interval={period === "daily" ? 4 : 0} />
-              <YAxis tick={{ fill: TSEC, fontSize: 9, fontFamily: "'Poppins'" }}
+              <YAxis tick={{ fill: COLORS.CHART_AXIS, fontSize: 9, fontFamily: "'Poppins'" }}
                 tickLine={false} axisLine={false} />
               <Tooltip content={<CustomTooltip />} />
               <Line type="monotone" dataKey="cafe_volume" name="Cafe Volume"
-                stroke={AQUA} strokeWidth={2} dot={false} />
+                stroke={COLORS.AQUA} strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </Widget>
       </div>
 
       {/* ── Footer ── */}
-      <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: `${TSEC}88`,
+      <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,
         fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
         University Corporation for Atmospheric Research · Internal Tool
       </div>

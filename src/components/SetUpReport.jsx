@@ -12,14 +12,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useWidgetSubscription } from "../hooks/useWidget.js";
 import Widget from "./Widget.jsx";
 import { CAMPUS_COLOR, CAMPUSES } from "./CampusSelector.jsx";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const ORANGE   = "#FAA119";
+import { COLORS } from "../theme.js";
 
 const ACCENT = "#FAA119"; // orange accent for set-up reports
 
@@ -93,13 +86,12 @@ export default function SetUpReport() {
 
   const inputStyle = {
     width: "100%", boxSizing: "border-box",
-    background: `${SPACE}cc`,
-    border: `1px solid ${BORDER}`,
-    borderRadius: 8, color: TPRI,
+    background: COLORS.BG_SURFACE_ALT,
+    border: `1px solid ${COLORS.BORDER}`,
+    borderRadius: 8, color: COLORS.TEXT_PRIMARY,
     fontFamily: "'Poppins',sans-serif",
     fontSize: 12, fontWeight: 500,
     padding: "9px 12px", outline: "none",
-    colorScheme: "dark",
   };
 
   const headerActions = !showForm
@@ -122,41 +114,41 @@ export default function SetUpReport() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
             {/* Title */}
             <div style={{ gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
                 letterSpacing: "1.1px", textTransform: "uppercase",
                 marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Event Name</div>
               <input type="text" value={title} onChange={e => { setTitle(e.target.value); setFormError(null); }}
                 placeholder="e.g. Board Meeting Luncheon"
-                style={{ ...inputStyle, borderColor: formError && !title ? `${ORANGE}88` : BORDER }} />
+                style={{ ...inputStyle, borderColor: formError && !title ? `${COLORS.WARNING}88` : COLORS.BORDER }} />
             </div>
 
             {/* Campus */}
             <div>
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
                 letterSpacing: "1.1px", textTransform: "uppercase",
                 marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Campus</div>
               <select value={campus} onChange={e => setCampus(e.target.value)}
                 style={{ ...inputStyle, cursor: "pointer" }}>
                 {CAMPUSES.map(c => (
-                  <option key={c} value={c} style={{ background: DARKBLUE }}>{c}</option>
+                  <option key={c} value={c} style={{ background: COLORS.BG_SURFACE }}>{c}</option>
                 ))}
               </select>
             </div>
 
             {/* Event date */}
             <div>
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
                 letterSpacing: "1.1px", textTransform: "uppercase",
                 marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Event Date</div>
               <input type="date" value={eventDate}
                 onChange={e => { setEventDate(e.target.value); setFormError(null); }}
-                style={{ ...inputStyle, borderColor: formError && !eventDate ? `${ORANGE}88` : BORDER }} />
+                style={{ ...inputStyle, borderColor: formError && !eventDate ? `${COLORS.WARNING}88` : COLORS.BORDER }} />
             </div>
           </div>
 
           {/* Instructions */}
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.1px", textTransform: "uppercase",
               marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>
               Setup Instructions &amp; Requirements
@@ -168,7 +160,7 @@ export default function SetUpReport() {
           </div>
 
           {formError && (
-            <div style={{ fontSize: 11, color: ORANGE, marginBottom: 8,
+            <div style={{ fontSize: 11, color: COLORS.WARNING, marginBottom: 8,
               fontFamily: "'Poppins',sans-serif" }}>{formError}</div>
           )}
 
@@ -176,15 +168,15 @@ export default function SetUpReport() {
             <button onClick={handleSave} disabled={saving}
               style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none",
                 background: saving ? `${ACCENT}77` : ACCENT,
-                color: SPACE, fontFamily: "'Poppins',sans-serif",
+                color: COLORS.TEXT_ON_ACCENT, fontFamily: "'Poppins',sans-serif",
                 fontWeight: 700, fontSize: 12,
                 cursor: saving ? "not-allowed" : "pointer" }}>
               {saving ? "Saving…" : "Save Setup Sheet"}
             </button>
             <button onClick={handleCancel}
               style={{ padding: "10px 18px", borderRadius: 8,
-                border: `1px solid ${BORDER}`, background: "transparent",
-                color: TSEC, fontFamily: "'Poppins',sans-serif",
+                border: `1px solid ${COLORS.BORDER}`, background: "transparent",
+                color: COLORS.TEXT_SECONDARY, fontFamily: "'Poppins',sans-serif",
                 fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
               Cancel
             </button>
@@ -195,7 +187,7 @@ export default function SetUpReport() {
       {/* ── Saved tick ── */}
       {savedTick && !showForm && (
         <div style={{ fontSize: 11, color: ACCENT, marginBottom: 10,
-          fontFamily: "'Poppins',sans-serif', fontWeight: 600" }}>
+          fontFamily: "'Poppins',sans-serif", fontWeight: 600 }}>
           ✓ Setup sheet saved.
         </div>
       )}
@@ -205,14 +197,14 @@ export default function SetUpReport() {
         <>
           {!reports || reports.length === 0 ? (
             <div style={{ textAlign: "center", padding: "28px 0",
-              color: `${TSEC}88`, fontSize: 12,
+              color: COLORS.TEXT_MUTED, fontSize: 12,
               fontFamily: "'Poppins',sans-serif" }}>
               No setup sheets on file yet.
               <br />
               <button onClick={() => setShowForm(true)}
                 style={{ marginTop: 10, background: "transparent",
-                  border: `1px solid ${BORDER}`, borderRadius: 6,
-                  padding: "6px 14px", color: TSEC, cursor: "pointer",
+                  border: `1px solid ${COLORS.BORDER}`, borderRadius: 6,
+                  padding: "6px 14px", color: COLORS.TEXT_SECONDARY, cursor: "pointer",
                   fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 11 }}>
                 Create the first one
               </button>
@@ -223,30 +215,30 @@ export default function SetUpReport() {
                 const cc = CAMPUS_COLOR[r.campus] ?? ACCENT;
                 return (
                   <div key={r.id} style={{
-                    background: `${SPACE}cc`, borderRadius: 10,
-                    border: `1px solid ${BORDER}`, padding: "12px 14px",
+                    background: COLORS.BG_SURFACE_ALT, borderRadius: 10,
+                    border: `1px solid ${COLORS.BORDER}`, padding: "12px 14px",
                     borderLeft: `3px solid ${cc}55`,
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between",
                       alignItems: "flex-start", gap: 8 }}>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: TPRI,
+                        <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
                           fontFamily: "'Poppins',sans-serif",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {r.title}
                         </div>
-                        <div style={{ fontSize: 10, color: TSEC,
+                        <div style={{ fontSize: 10, color: COLORS.TEXT_SECONDARY,
                           fontFamily: "'Poppins',sans-serif", marginTop: 2 }}>
                           {r.campus} · {fmtEventDate(r.eventDate)}
                         </div>
                       </div>
-                      <div style={{ fontSize: 10, color: `${TSEC}88`,
+                      <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED,
                         fontFamily: "'Poppins',sans-serif", flexShrink: 0 }}>
                         {fmtAge(r.created_at)}
                       </div>
                     </div>
                     {r.instructions && (
-                      <div style={{ marginTop: 8, fontSize: 11, color: TSEC,
+                      <div style={{ marginTop: 8, fontSize: 11, color: COLORS.TEXT_SECONDARY,
                         fontFamily: "'Poppins',sans-serif", lineHeight: 1.55,
                         whiteSpace: "pre-wrap",
                         maxHeight: 60, overflow: "hidden",

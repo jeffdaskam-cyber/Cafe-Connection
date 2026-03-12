@@ -17,6 +17,7 @@
  */
 
 import { useState } from "react";
+import { COLORS } from "../theme.js";
 
 // ── Campus constants (exported for use in other modules) ──────────────────────
 export const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
@@ -25,9 +26,6 @@ export const CAMPUS_COLOR = {
   "Foothills":    "#34E1F4",
   "Center Green": "#00818F",
 };
-
-const BORDER = "#003070";
-const TSEC   = "#7aaec8";
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function CampusSelector({
@@ -46,7 +44,7 @@ export default function CampusSelector({
     <div style={{ display: "flex", gap: 8 }}>
       {campuses.map(campus => {
         const active = campus === value;
-        const cc     = CAMPUS_COLOR[campus] ?? TSEC;
+        const cc     = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
         const isHov  = hovered === campus && !disabled;
 
         return (
@@ -61,17 +59,17 @@ export default function CampusSelector({
               borderRadius: 6,
               border: active
                 ? `1.5px solid ${cc}`
-                : `1.5px solid ${isHov ? cc + "88" : BORDER}`,
+                : `1.5px solid ${isHov ? cc + "88" : COLORS.BORDER}`,
               cursor: disabled ? "not-allowed" : "pointer",
               fontFamily: "'Poppins',sans-serif",
               fontWeight: 600,
               fontSize: fsize,
               letterSpacing: "0.03em",
               background: active
-                ? `${cc}22`
+                ? `${cc}18`
                 : isHov ? `${cc}0f` : "transparent",
-              color: active ? cc : isHov ? cc : TSEC,
-              boxShadow: active ? `0 0 16px ${cc}33` : "none",
+              color: active ? cc : isHov ? cc : COLORS.TEXT_SECONDARY,
+              boxShadow: active ? `0 0 12px ${cc}22` : "none",
               transition: "all .2s ease",
               opacity: disabled ? 0.5 : 1,
             }}>

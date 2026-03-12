@@ -6,17 +6,9 @@ import ReportsPage  from "./pages/ReportsPage.jsx";
 import FinancialsPage from "./Dashboard.jsx";
 import WeeklyOps    from "./WeeklyOps.jsx";
 import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
+import { COLORS, SHADOWS } from "./theme.js";
 
-// ── Brand Palette ─────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const AQUA     = "#00A2B4";
-const LAQUA    = "#34E1F4";
-
-function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 }) {
+function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}
       style={{ position: "absolute", pointerEvents: "none" }} aria-hidden="true">
@@ -34,17 +26,17 @@ function LoadingScreen() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: `linear-gradient(160deg, ${SPACE} 0%, #001230 100%)`,
+      background: COLORS.BG_PAGE,
       display: "flex", alignItems: "center", justifyContent: "center",
       fontFamily: "'Poppins',sans-serif",
     }}>
       <div style={{ textAlign: "center" }}>
         <div style={{
           width: 52, height: 52, borderRadius: "50%",
-          background: `linear-gradient(135deg, ${AQUA}, ${DARKBLUE})`,
+          background: `linear-gradient(135deg, ${COLORS.AQUA}, ${COLORS.AQUA_DARK})`,
           display: "flex", alignItems: "center", justifyContent: "center",
           margin: "0 auto 20px",
-          boxShadow: `0 0 24px ${AQUA}44`,
+          boxShadow: `0 0 24px ${COLORS.AQUA}44`,
           animation: "ucar-pulse 1.6s ease-in-out infinite",
         }}>
           <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
@@ -53,7 +45,7 @@ function LoadingScreen() {
             <path d="M4 14 Q8 10 12 14 Q16 18 20 14" stroke="white" strokeWidth="1.4" fill="none" />
           </svg>
         </div>
-        <div style={{ color: TSEC, fontSize: 12, fontWeight: 500, letterSpacing: "0.08em",
+        <div style={{ color: COLORS.TEXT_MUTED, fontSize: 12, fontWeight: 500, letterSpacing: "0.08em",
           textTransform: "uppercase" }}>
           Loading…
         </div>
@@ -83,47 +75,47 @@ function AppShell() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: ${SPACE}; }
+        body { background: ${COLORS.BG_PAGE}; }
         @keyframes ucar-slide   { from{transform:translateX(-120%)} to{transform:translateX(220%)} }
         @keyframes ucar-pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
         @keyframes ucar-fadein  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes ucar-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
         .ucar-tab-btn   { transition: all .2s ease; }
-        .ucar-tab-btn:hover { color: ${TPRI} !important; }
+        .ucar-tab-btn:hover { color: ${COLORS.TEXT_PRIMARY} !important; }
         .ucar-campus-btn { transition: all .22s ease; }
         .ucar-campus-btn:hover { filter: brightness(1.15); }
         .ucar-monthend-btn { transition: all .22s ease; }
-        .ucar-monthend-btn:hover { background: ${AQUA}22 !important; color: ${AQUA} !important; }
+        .ucar-monthend-btn:hover { background: ${COLORS.AQUA}22 !important; color: ${COLORS.AQUA} !important; }
       `}</style>
 
       <div style={{
         minHeight: "100vh",
-        background: `linear-gradient(160deg, ${SPACE} 0%, #001230 100%)`,
-        color: TPRI,
+        background: COLORS.BG_PAGE,
+        color: COLORS.TEXT_PRIMARY,
         fontFamily: "'Poppins',sans-serif",
         paddingBottom: 48,
       }}>
 
         {/* ── Sticky Header ── */}
         <div style={{
-          borderBottom: `1px solid ${BORDER}`,
+          borderBottom: `1px solid ${COLORS.NAV_BORDER}`,
           padding: "0 36px",
-          background: `${SPACE}f0`,
+          background: COLORS.NAV_BG,
           position: "sticky", top: 0, zIndex: 20,
-          backdropFilter: "blur(12px)",
+          boxShadow: SHADOWS.SM,
           display: "flex", alignItems: "center",
           justifyContent: "space-between",
           height: 64, overflow: "hidden",
         }}>
           {/* Wave decoration */}
-          <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.25 }}>
-            <WaveGraphic color={AQUA} opacity={0.6} width={500} height={64} />
+          <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.12 }}>
+            <WaveGraphic color={COLORS.AQUA} opacity={0.6} width={500} height={64} />
           </div>
 
           {/* Wordmark */}
           <div style={{ display: "flex", alignItems: "center", zIndex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "0.02em", color: TPRI }}>
-              <span style={{ color: AQUA }}>UCAR</span> Cafe Connection
+            <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "0.02em", color: COLORS.TEXT_PRIMARY }}>
+              <span style={{ color: COLORS.AQUA }}>UCAR</span> Cafe Connection
             </div>
           </div>
 
@@ -139,9 +131,9 @@ function AppShell() {
                     padding: "8px 20px", borderRadius: 0, border: "none",
                     cursor: "pointer", fontFamily: "'Poppins',sans-serif",
                     fontWeight: 600, fontSize: 12, letterSpacing: "0.03em",
-                    background: active ? `${AQUA}22` : "transparent",
-                    color: active ? AQUA : TSEC,
-                    borderBottom: active ? `2px solid ${AQUA}` : "2px solid transparent",
+                    background: active ? `${COLORS.AQUA}12` : "transparent",
+                    color: active ? COLORS.NAV_TEXT_ACTIVE : COLORS.NAV_TEXT,
+                    borderBottom: active ? `2px solid ${COLORS.NAV_INDICATOR}` : "2px solid transparent",
                     transition: "all .2s ease",
                   }}>
                   <span style={{ fontSize: 14 }}>{tab.icon}</span>
@@ -153,12 +145,12 @@ function AppShell() {
 
           {/* Date + user info */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, zIndex: 1 }}>
-            <div style={{ fontSize: 11, color: TSEC, fontWeight: 500, letterSpacing: "0.04em" }}>
+            <div style={{ fontSize: 11, color: COLORS.TEXT_MUTED, fontWeight: 500, letterSpacing: "0.04em" }}>
               {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{
-                fontSize: 10, color: TSEC, fontWeight: 500,
+                fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
                 maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}>
@@ -168,10 +160,10 @@ function AppShell() {
                 onClick={logout}
                 title="Sign out"
                 style={{
-                  background: "transparent", border: `1px solid ${BORDER}`,
+                  background: "transparent", border: `1px solid ${COLORS.BORDER}`,
                   borderRadius: 6, padding: "4px 10px", cursor: "pointer",
                   fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-                  fontSize: 10, color: TSEC, letterSpacing: "0.04em",
+                  fontSize: 10, color: COLORS.TEXT_MUTED, letterSpacing: "0.04em",
                   transition: "all .2s",
                 }}>
                 Sign out

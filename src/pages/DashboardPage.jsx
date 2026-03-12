@@ -12,6 +12,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useDashboardPrefs } from "../hooks/useDashboardPrefs.js";
 import { widgetById, defaultPrefs, WIDGET_REGISTRY } from "../registries/widgetRegistry.js";
 import FirstRunWizard from "../components/dashboard/FirstRunWizard.jsx";
+import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
 // ── Mini widget components ────────────────────────────────────────────────────
 import SalesSummaryWidget  from "../components/dashboard/SalesSummaryWidget.jsx";
@@ -20,15 +21,6 @@ import ScheduleNoteWidget  from "../components/dashboard/ScheduleNoteWidget.jsx"
 import CashDropWidget      from "../components/dashboard/CashDropWidget.jsx";
 import CafeSpecialsWidget  from "../components/dashboard/CafeSpecialsWidget.jsx";
 import RecentReportsWidget from "../components/dashboard/RecentReportsWidget.jsx";
-
-// ── Brand palette ─────────────────────────────────────────────────────────────
-const SPACE  = "#011837";
-const PANEL  = "#001f4d";
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TSEC   = "#7aaec8";
-const AQUA   = "#00A2B4";
-const LAQUA  = "#34E1F4";
 
 // ── Widget component map ──────────────────────────────────────────────────────
 const WIDGET_COMPONENTS = {
@@ -41,7 +33,7 @@ const WIDGET_COMPONENTS = {
 };
 
 // ── Wave decoration ───────────────────────────────────────────────────────────
-function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 }) {
+function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}
       style={{ position: "absolute", pointerEvents: "none" }} aria-hidden="true">
@@ -58,18 +50,24 @@ function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 })
 function PageSkeleton() {
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
-      <div style={{ background: PANEL, borderRadius: 16, border: `1px solid ${BORDER}`,
-        height: 100, marginBottom: 32, animation: "ucar-shimmer 1.6s ease-in-out infinite",
+      <div style={{
+        background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG,
+        border: `1px solid ${COLORS.BORDER}`,
+        height: 100, marginBottom: 32,
+        animation: "ucar-shimmer 1.6s ease-in-out infinite",
         backgroundSize: "200% 100%",
-        backgroundImage: `linear-gradient(90deg, ${BORDER} 25%, #00357Acc 50%, ${BORDER} 75%)`,
+        backgroundImage: `linear-gradient(90deg, ${COLORS.BG_SURFACE_HOVER} 25%, ${COLORS.BG_SURFACE_ALT} 50%, ${COLORS.BG_SURFACE_HOVER} 75%)`,
       }} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
         {[...Array(3)].map((_, i) => (
-          <div key={i} style={{ background: PANEL, borderRadius: 14, border: `1px solid ${BORDER}`,
-            height: 160, animation: "ucar-shimmer 1.6s ease-in-out infinite",
+          <div key={i} style={{
+            background: COLORS.BG_SURFACE, borderRadius: RADIUS.MD,
+            border: `1px solid ${COLORS.BORDER}`,
+            height: 160,
+            animation: "ucar-shimmer 1.6s ease-in-out infinite",
             animationDelay: `${i * 0.1}s`,
             backgroundSize: "200% 100%",
-            backgroundImage: `linear-gradient(90deg, ${BORDER} 25%, #00357Acc 50%, ${BORDER} 75%)`,
+            backgroundImage: `linear-gradient(90deg, ${COLORS.BG_SURFACE_HOVER} 25%, ${COLORS.BG_SURFACE_ALT} 50%, ${COLORS.BG_SURFACE_HOVER} 75%)`,
           }} />
         ))}
       </div>
@@ -152,31 +150,32 @@ export default function DashboardPage() {
 
       {/* ── Welcome Banner ── */}
       <div style={{
-        background: PANEL, borderRadius: 16,
-        border: `1px solid ${BORDER}`,
+        background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG,
+        border: `1px solid ${COLORS.BORDER}`,
+        boxShadow: SHADOWS.SM,
         padding: "28px 36px", marginBottom: 32,
         position: "relative", overflow: "hidden",
         animation: "ucar-fadein .5s ease both",
       }}>
-        <div style={{ position: "absolute", top: 0, right: 0, opacity: 0.08 }}>
-          <WaveGraphic color={AQUA} opacity={1} width={600} height={100} />
+        <div style={{ position: "absolute", top: 0, right: 0, opacity: 0.07 }}>
+          <WaveGraphic color={COLORS.AQUA} opacity={1} width={600} height={100} />
         </div>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
-          background: `linear-gradient(90deg, ${AQUA}, ${LAQUA}, transparent)`,
-          borderRadius: "16px 16px 0 0" }} />
+          background: `linear-gradient(90deg, ${COLORS.AQUA}, ${COLORS.LAQUA}, transparent)`,
+          borderRadius: `${RADIUS.LG} ${RADIUS.LG} 0 0` }} />
 
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
-            <div style={{ fontSize: 21, fontWeight: 800, color: TPRI, marginBottom: 6 }}>
+            <div style={{ fontSize: 21, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 6 }}>
               Welcome back, {displayName}.
             </div>
-            <div style={{ fontSize: 12, color: TSEC, fontWeight: 500, lineHeight: 1.65 }}>
+            <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, fontWeight: 500, lineHeight: 1.65 }}>
               {enabledWidgets.length > 0
                 ? `Your dashboard — ${enabledWidgets.length} widget${enabledWidgets.length !== 1 ? "s" : ""} active · Primary campus: ${primaryCampus}`
                 : "No widgets enabled. Click Edit Dashboard to choose what to show here."}
             </div>
             {saveErr && (
-              <div style={{ fontSize: 11, color: "#FAA119", marginTop: 8 }}>
+              <div style={{ fontSize: 11, color: COLORS.WARNING, marginTop: 8 }}>
                 ⚠ {saveErr}
               </div>
             )}
@@ -188,12 +187,12 @@ export default function DashboardPage() {
             title="Edit your dashboard widgets"
             style={{
               background: "transparent",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 8, padding: "8px 18px",
+              border: `1px solid ${COLORS.BORDER}`,
+              borderRadius: RADIUS.SM, padding: "8px 18px",
               cursor: "pointer",
               fontFamily: "'Poppins',sans-serif",
               fontWeight: 600, fontSize: 11,
-              color: TSEC, letterSpacing: "0.03em",
+              color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
               transition: "all .18s",
               flexShrink: 0,
               display: "flex", alignItems: "center", gap: 6,
@@ -207,23 +206,23 @@ export default function DashboardPage() {
       {enabledWidgets.length === 0 ? (
         <div style={{
           textAlign: "center", padding: "64px 32px",
-          border: `1.5px dashed ${BORDER}`, borderRadius: 16,
+          border: `1.5px dashed ${COLORS.BORDER}`, borderRadius: RADIUS.LG,
           animation: "ucar-fadein .6s ease both",
         }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🧩</div>
-          <div style={{ fontSize: 14, color: TSEC, fontWeight: 600, marginBottom: 8 }}>
+          <div style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, fontWeight: 600, marginBottom: 8 }}>
             No widgets enabled
           </div>
-          <div style={{ fontSize: 12, color: `${TSEC}88`, marginBottom: 24 }}>
-            Click <span style={{ color: AQUA }}>Edit Dashboard</span> to add widgets to your home page.
+          <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 24 }}>
+            Click <span style={{ color: COLORS.AQUA }}>Edit Dashboard</span> to add widgets to your home page.
           </div>
           <button onClick={() => setEditOpen(true)} style={{
-            background: `linear-gradient(135deg, ${AQUA}, #007a8a)`,
-            border: "none", borderRadius: 10,
+            background: COLORS.AQUA,
+            border: "none", borderRadius: RADIUS.MD,
             padding: "10px 24px", cursor: "pointer",
             fontFamily: "'Poppins',sans-serif",
-            fontWeight: 700, fontSize: 12, color: TPRI,
-            boxShadow: `0 4px 16px ${AQUA}44`,
+            fontWeight: 700, fontSize: 12, color: COLORS.TEXT_ON_ACCENT,
+            boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
           }}>
             ✦ Edit Dashboard
           </button>
@@ -252,7 +251,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Footer ── */}
-      <div style={{ textAlign: "center", fontSize: 10, color: `${TSEC}88`,
+      <div style={{ textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,
         fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase",
         marginTop: 40 }}>
         University Corporation for Atmospheric Research · Internal Tool

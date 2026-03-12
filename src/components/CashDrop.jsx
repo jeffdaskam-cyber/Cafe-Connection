@@ -13,14 +13,7 @@ import { addCashDrop, subscribeRecentCashDrops } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
 import { CAMPUS_COLOR } from "./CampusSelector.jsx";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE  = "#011837";
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TSEC   = "#7aaec8";
-const AQUA   = "#00A2B4";
-const ORANGE = "#FAA119";
+import { COLORS, RADIUS } from "../theme.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtMoney(n) {
@@ -36,7 +29,7 @@ function fmtTimestamp(ts) {
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function CashDrop({ campus }) {
   const { user } = useAuth();
-  const accent = CAMPUS_COLOR[campus] ?? AQUA;
+  const accent = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
 
   // Form state
   const [amount, setAmount] = useState("");
@@ -92,9 +85,9 @@ export default function CashDrop({ campus }) {
 
   const inputStyle = {
     width: "100%", boxSizing: "border-box",
-    background: `${SPACE}cc`,
-    border: `1px solid ${BORDER}`,
-    borderRadius: 8, color: TPRI,
+    background: COLORS.BG_SURFACE_ALT,
+    border: `1px solid ${COLORS.BORDER}`,
+    borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
     fontFamily: "'Poppins',sans-serif",
     fontSize: 12, fontWeight: 500,
     padding: "9px 12px", outline: "none",
@@ -112,7 +105,7 @@ export default function CashDrop({ campus }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           {/* Amount */}
           <div>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.1px", textTransform: "uppercase",
               marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Amount ($)</div>
             <input
@@ -122,29 +115,30 @@ export default function CashDrop({ campus }) {
               placeholder="0.00"
               value={amount}
               onChange={e => { setAmount(e.target.value); setError(null); }}
-              style={{ ...inputStyle,
-                borderColor: error ? `${ORANGE}88` : BORDER,
+              style={{
+                ...inputStyle,
+                borderColor: error ? `${COLORS.WARNING}88` : COLORS.BORDER,
               }}
             />
           </div>
 
           {/* Date */}
           <div>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.1px", textTransform: "uppercase",
               marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Date</div>
             <input
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              style={{ ...inputStyle, colorScheme: "dark" }}
+              style={inputStyle}
             />
           </div>
         </div>
 
         {/* Notes */}
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
             letterSpacing: "1.1px", textTransform: "uppercase",
             marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Notes (optional)</div>
           <input
@@ -157,16 +151,16 @@ export default function CashDrop({ campus }) {
         </div>
 
         {error && (
-          <div style={{ fontSize: 11, color: ORANGE, marginBottom: 8,
+          <div style={{ fontSize: 11, color: COLORS.WARNING, marginBottom: 8,
             fontFamily: "'Poppins',sans-serif" }}>{error}</div>
         )}
 
         <button type="submit" disabled={saving}
           style={{
-            width: "100%", padding: "10px 0", borderRadius: 8, border: "none",
-            background: saved ? `${accent}44` : saving ? `${accent}77` : accent,
-            color: saved ? accent : SPACE,
-            border: saved ? `1px solid ${accent}` : "none",
+            width: "100%", padding: "10px 0", borderRadius: RADIUS.SM,
+            background: saved ? COLORS.AQUA_LIGHT : saving ? `${accent}77` : accent,
+            color: saved ? accent : COLORS.TEXT_ON_ACCENT,
+            border: saved ? `1px solid ${COLORS.AQUA_BORDER}` : "none",
             fontFamily: "'Poppins',sans-serif",
             fontWeight: 700, fontSize: 12,
             cursor: saving ? "not-allowed" : "pointer",
@@ -178,18 +172,18 @@ export default function CashDrop({ campus }) {
 
       {/* ── Recent Drops ── */}
       <div style={{ marginTop: 20 }}>
-        <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+        <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
           letterSpacing: "1.2px", textTransform: "uppercase",
           marginBottom: 10, fontFamily: "'Poppins',sans-serif" }}>
           Recent Drops
         </div>
 
         {loadingDrops ? (
-          <div style={{ height: 40, background: `${BORDER}44`, borderRadius: 8,
+          <div style={{ height: 40, background: COLORS.BG_SURFACE_HOVER, borderRadius: 8,
             animation: "ucar-shimmer 1.4s ease-in-out infinite" }} />
         ) : drops.length === 0 ? (
           <div style={{ textAlign: "center", padding: "16px 0",
-            color: `${TSEC}88`, fontSize: 11,
+            color: COLORS.TEXT_DISABLED, fontSize: 11,
             fontFamily: "'Poppins',sans-serif" }}>
             No drops recorded yet.
           </div>
@@ -199,23 +193,23 @@ export default function CashDrop({ campus }) {
               <div key={drop.id} style={{
                 display: "flex", alignItems: "center",
                 justifyContent: "space-between",
-                padding: "8px 12px", borderRadius: 8,
-                background: `${SPACE}cc`,
-                border: `1px solid ${BORDER}`,
+                padding: "8px 12px", borderRadius: RADIUS.SM,
+                background: COLORS.BG_SURFACE_ALT,
+                border: `1px solid ${COLORS.BORDER}`,
               }}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: TPRI,
+                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
                     fontFamily: "'Poppins',sans-serif" }}>
                     {fmtMoney(drop.amount)}
                   </div>
-                  <div style={{ fontSize: 10, color: TSEC,
+                  <div style={{ fontSize: 10, color: COLORS.TEXT_SECONDARY,
                     fontFamily: "'Poppins',sans-serif", marginTop: 1 }}>
                     {drop.date && new Date(drop.date + "T12:00:00").toLocaleDateString("en-US",
                       { month: "short", day: "numeric", year: "numeric" })}
                     {drop.notes ? ` · ${drop.notes}` : ""}
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: `${TSEC}88`,
+                <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED,
                   fontFamily: "'Poppins',sans-serif", textAlign: "right" }}>
                   {fmtTimestamp(drop.created_at)}
                   <br />

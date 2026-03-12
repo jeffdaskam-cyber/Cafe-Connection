@@ -10,10 +10,7 @@
 import Widget from "../Widget.jsx";
 import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeScheduleNote } from "../../firebase.js";
-
-const AQUA = "#00A2B4";
-const TSEC = "#7aaec8";
-const TPRI = "#FFFFFF";
+import { COLORS } from "../../theme.js";
 
 function currentMonday() {
   const d   = new Date();
@@ -38,7 +35,7 @@ export default function ScheduleNoteWidget({ config = {} }) {
       title="Manager's Note"
       subtitle={`Week of ${weekOf}`}
       icon="📝"
-      accentColor={AQUA}
+      accentColor={COLORS.AQUA}
       loading={loading}
       error={error}
       empty={!loading && !error && !body}
@@ -48,15 +45,15 @@ export default function ScheduleNoteWidget({ config = {} }) {
       {body && (
         <div>
           <div style={{
-            fontSize: 12, color: TPRI, lineHeight: 1.65, fontWeight: 400,
+            fontSize: 12, color: COLORS.TEXT_PRIMARY, lineHeight: 1.65, fontWeight: 400,
             whiteSpace: "pre-wrap", wordBreak: "break-word",
             maxHeight: 160, overflowY: "auto",
           }}>
             {body}
           </div>
           {author && (
-            <div style={{ fontSize: 10, color: `${TSEC}88`, marginTop: 10,
-              borderTop: "1px solid #003070", paddingTop: 8 }}>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, marginTop: 10,
+              borderTop: `1px solid ${COLORS.BORDER}`, paddingTop: 8 }}>
               Posted by {author}
             </div>
           )}

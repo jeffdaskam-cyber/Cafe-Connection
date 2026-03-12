@@ -13,20 +13,9 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
-// ── Brand constants ────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const PANEL    = "#001f4d";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const TMID     = "#b0d0e8";
-const AQUA     = "#00A2B4";
-const LAQUA    = "#34E1F4";
-const ORANGE   = "#FAA119";
-
-function WaveGraphic({ color = AQUA, opacity = 0.18, width = 420, height = 80 }) {
+function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height}
       style={{ position: "absolute", pointerEvents: "none" }} aria-hidden="true">
@@ -45,7 +34,7 @@ function SkeletonBar({ width = "100%", height = 12, marginBottom = 10 }) {
     <div style={{
       width, height, marginBottom,
       borderRadius: 6,
-      background: `linear-gradient(90deg, ${BORDER} 25%, ${DARKBLUE}cc 50%, ${BORDER} 75%)`,
+      background: `linear-gradient(90deg, ${COLORS.BG_SURFACE_HOVER} 25%, ${COLORS.BG_SURFACE_ALT} 50%, ${COLORS.BG_SURFACE_HOVER} 75%)`,
       backgroundSize: "200% 100%",
       animation: "ucar-shimmer 1.6s ease-in-out infinite",
     }} />
@@ -75,20 +64,20 @@ function WidgetError({ message, onRetry }) {
     }}>
       <div style={{
         width: 40, height: 40, borderRadius: "50%",
-        background: `${ORANGE}18`, border: `1px solid ${ORANGE}44`,
+        background: `${COLORS.WARNING}18`, border: `1px solid ${COLORS.WARNING}44`,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 18,
       }}>⚠️</div>
-      <div style={{ fontSize: 12, color: TMID, fontFamily: "'Poppins',sans-serif",
+      <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, fontFamily: "'Poppins',sans-serif",
         textAlign: "center", maxWidth: 280, lineHeight: 1.55 }}>
         {message || "Something went wrong."}
       </div>
       {onRetry && (
         <button onClick={onRetry} style={{
-          background: "transparent", border: `1px solid ${BORDER}`,
+          background: "transparent", border: `1px solid ${COLORS.BORDER}`,
           borderRadius: 8, padding: "7px 20px", cursor: "pointer",
           fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-          fontSize: 11, color: TSEC, transition: "all .2s",
+          fontSize: 11, color: COLORS.TEXT_SECONDARY, transition: "all .2s",
         }}>
           ↻ Try Again
         </button>
@@ -106,11 +95,11 @@ function WidgetEmpty({ icon = "📭", message = "No data available" }) {
     }}>
       <div style={{
         width: 48, height: 48, borderRadius: "50%",
-        background: `${AQUA}12`, border: `1px solid ${AQUA}33`,
+        background: COLORS.AQUA_LIGHT, border: `1px solid ${COLORS.AQUA_BORDER}`,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 20,
       }}>{icon}</div>
-      <div style={{ fontSize: 12, color: TSEC, fontFamily: "'Poppins',sans-serif",
+      <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, fontFamily: "'Poppins',sans-serif",
         textAlign: "center", maxWidth: 260, lineHeight: 1.55 }}>
         {message}
       </div>
@@ -128,12 +117,12 @@ function ActionBtn({ icon, label, onClick, disabled = false }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: hovered ? `${AQUA}18` : "transparent",
-        border: `1px solid ${hovered ? AQUA + "55" : BORDER}`,
+        background: hovered ? COLORS.AQUA_LIGHT : "transparent",
+        border: `1px solid ${hovered ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
         borderRadius: 6, padding: "4px 8px",
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "'Poppins',sans-serif", fontSize: 13,
-        color: disabled ? BORDER : hovered ? AQUA : TSEC,
+        color: disabled ? COLORS.TEXT_DISABLED : hovered ? COLORS.AQUA : COLORS.TEXT_MUTED,
         transition: "all .18s", lineHeight: 1,
         opacity: disabled ? 0.4 : 1,
         display: "flex", alignItems: "center", gap: 5,
@@ -166,21 +155,21 @@ function ExpandModal({ title, subtitle, accentColor, children, onClose, printabl
       onClick={onClose}
       style={{
         position: "fixed", inset: 0,
-        background: "rgba(1,14,33,0.88)",
+        background: "rgba(1,24,55,0.5)",
         zIndex: 200,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24,
-        backdropFilter: "blur(8px)",
+        backdropFilter: "blur(6px)",
       }}>
       <div
         onClick={e => e.stopPropagation()}
         style={{
           width: "100%", maxWidth: 960,
           maxHeight: "90vh",
-          background: PANEL,
-          borderRadius: 18,
-          border: `1px solid ${BORDER}`,
-          boxShadow: `0 32px 80px rgba(0,0,0,0.6), 0 0 60px ${accentColor}0a`,
+          background: COLORS.BG_SURFACE,
+          borderRadius: RADIUS.LG,
+          border: `1px solid ${COLORS.BORDER}`,
+          boxShadow: `${SHADOWS.XL}, 0 0 60px ${accentColor}10`,
           display: "flex", flexDirection: "column",
           overflow: "hidden",
           position: "relative",
@@ -188,21 +177,21 @@ function ExpandModal({ title, subtitle, accentColor, children, onClose, printabl
         {/* Top accent bar */}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
           background: `linear-gradient(90deg, ${accentColor}, ${accentColor}88, transparent)`,
-          borderRadius: "18px 18px 0 0", zIndex: 1 }} />
+          borderRadius: `${RADIUS.LG} ${RADIUS.LG} 0 0`, zIndex: 1 }} />
 
         {/* Modal header */}
         <div style={{
           display: "flex", alignItems: "center",
           justifyContent: "space-between",
           padding: "20px 24px 16px",
-          borderBottom: `1px solid ${BORDER}`,
+          borderBottom: `1px solid ${COLORS.BORDER}`,
           flexShrink: 0,
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: TPRI,
+            <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
               fontFamily: "'Poppins',sans-serif" }}>{title}</div>
             {subtitle && (
-              <div style={{ fontSize: 10, color: TSEC, fontWeight: 500,
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
                 letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 2 }}>
                 {subtitle}
               </div>
@@ -214,9 +203,9 @@ function ExpandModal({ title, subtitle, accentColor, children, onClose, printabl
             )}
             <button onClick={onClose}
               style={{
-                background: "transparent", border: `1px solid ${BORDER}`,
+                background: "transparent", border: `1px solid ${COLORS.BORDER}`,
                 borderRadius: 6, padding: "5px 10px", cursor: "pointer",
-                color: TSEC, fontSize: 16, lineHeight: 1,
+                color: COLORS.TEXT_MUTED, fontSize: 16, lineHeight: 1,
                 transition: "all .18s",
               }}>✕</button>
           </div>
@@ -257,7 +246,7 @@ export default function Widget({
   title,
   subtitle,
   icon,
-  accentColor = AQUA,
+  accentColor = COLORS.AQUA,
   loading = false,
   error = null,
   onRetry,
@@ -287,9 +276,10 @@ export default function Widget({
   return (
     <>
       <div style={{
-        background: PANEL,
-        borderRadius: 14,
-        border: `1px solid ${BORDER}`,
+        background: COLORS.BG_SURFACE,
+        borderRadius: RADIUS.LG,
+        border: `1px solid ${COLORS.BORDER}`,
+        boxShadow: SHADOWS.SM,
         position: "relative",
         overflow: "hidden",
         animation: "ucar-fadein .5s ease both",
@@ -299,11 +289,11 @@ export default function Widget({
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, height: 3,
           background: `linear-gradient(90deg, ${accentColor}, ${accentColor}66, transparent)`,
-          borderRadius: "14px 14px 0 0",
+          borderRadius: `${RADIUS.LG} ${RADIUS.LG} 0 0`,
         }} />
 
         {/* Background wave watermark */}
-        <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.04, pointerEvents: "none" }}>
+        <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.06, pointerEvents: "none" }}>
           <WaveGraphic color={accentColor} opacity={1} width={300} height={80} />
         </div>
 
@@ -319,18 +309,18 @@ export default function Widget({
             {icon && (
               <div style={{
                 width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                background: `${accentColor}18`, border: `1px solid ${accentColor}33`,
+                background: `${accentColor}14`, border: `1px solid ${accentColor}30`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 14,
               }}>{icon}</div>
             )}
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: TPRI,
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
                 fontFamily: "'Poppins',sans-serif",
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
               }}>{title}</div>
               {subtitle && (
-                <div style={{ fontSize: 10, color: TSEC, fontWeight: 500,
+                <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
                   letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 1 }}>
                   {subtitle}
                 </div>
@@ -353,7 +343,7 @@ export default function Widget({
         </div>
 
         {/* Divider between header and content */}
-        <div style={{ height: 1, background: BORDER, margin: "0 20px", opacity: 0.6 }} />
+        <div style={{ height: 1, background: COLORS.BORDER, margin: "0 20px" }} />
 
         {/* Content area */}
         <div style={contentStyle}>

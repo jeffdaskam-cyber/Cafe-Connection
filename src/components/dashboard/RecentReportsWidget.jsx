@@ -10,16 +10,12 @@
 import Widget from "../Widget.jsx";
 import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeEventReports, subscribeSetupReports } from "../../firebase.js";
-import { useState, useEffect } from "react";
-
-const AQUA = "#00A2B4";
-const TSEC = "#7aaec8";
-const TPRI = "#FFFFFF";
+import { COLORS } from "../../theme.js";
 
 const CAMPUS_BADGE = {
-  "Mesa Lab":     { bg: "#00A2B422", color: "#00A2B4" },
-  "Foothills":    { bg: "#34E1F422", color: "#34E1F4" },
-  "Center Green": { bg: "#00818F22", color: "#00818F" },
+  "Mesa Lab":     { bg: "#00A2B418", color: "#00A2B4" },
+  "Foothills":    { bg: "#34E1F418", color: "#34E1F4" },
+  "Center Green": { bg: "#00818F18", color: "#00818F" },
 };
 
 function fmtDate(ts) {
@@ -54,14 +50,12 @@ export default function RecentReportsWidget({ config = {} }) {
   const error   = ee || se;
   const reports = mergeReports(events ?? [], setups ?? []);
 
-  const badge = CAMPUS_BADGE;
-
   return (
     <Widget
       title="Recent Reports"
       subtitle="All campuses"
       icon="📁"
-      accentColor={AQUA}
+      accentColor={COLORS.AQUA}
       loading={loading}
       error={error}
       empty={!loading && !error && reports.length === 0}
@@ -71,16 +65,16 @@ export default function RecentReportsWidget({ config = {} }) {
       {reports.length > 0 && (
         <div>
           {reports.map((r, i) => {
-            const b = badge[r.campus] ?? { bg: "#00A2B422", color: AQUA };
+            const b = CAMPUS_BADGE[r.campus] ?? { bg: `${COLORS.AQUA}18`, color: COLORS.AQUA };
             return (
               <div key={r.id ?? i} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "flex-start",
                 padding: "8px 0",
-                borderBottom: i < reports.length - 1 ? "1px solid #00307044" : "none",
+                borderBottom: i < reports.length - 1 ? `1px solid ${COLORS.BORDER}` : "none",
                 gap: 8,
               }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: TPRI, fontWeight: 600,
+                  <div style={{ fontSize: 12, color: COLORS.TEXT_PRIMARY, fontWeight: 600,
                     overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                     maxWidth: 180 }}>
                     {r.title || "(untitled)"}
@@ -92,12 +86,12 @@ export default function RecentReportsWidget({ config = {} }) {
                       {r.campus}
                     </span>
                     <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.04em",
-                      color: TSEC }}>
+                      color: COLORS.TEXT_SECONDARY }}>
                       {r._type}
                     </span>
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: TSEC, flexShrink: 0 }}>
+                <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, flexShrink: 0 }}>
                   {fmtDate(r.created_at)}
                 </div>
               </div>

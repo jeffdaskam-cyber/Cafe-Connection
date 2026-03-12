@@ -13,14 +13,7 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { uploadReport, parseReport } from "../firebase.js";
 import Widget from "./Widget.jsx";
-
-// ── Brand constants ────────────────────────────────────────────────────────────
-const SPACE  = "#011837";
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TMID   = "#b0d0e8";
-const AQUA   = "#00A2B4";
-const ORANGE = "#FAA119";
+import { COLORS } from "../theme.js";
 
 const CAMPUS_COLOR = {
   "Mesa Lab":     "#00A2B4",
@@ -44,7 +37,7 @@ function UploadZone({ onDrop, uploadState }) {
   });
 
   const { status, campus, errorMsg } = uploadState;
-  const accentColor = (status === "SUCCESS" && campus) ? (CAMPUS_COLOR[campus] ?? AQUA) : AQUA;
+  const accentColor = (status === "SUCCESS" && campus) ? (CAMPUS_COLOR[campus] ?? COLORS.AQUA) : COLORS.AQUA;
 
   const icon = isProcessing        ? "⏳"
     : status === "SUCCESS"         ? "✓"
@@ -63,10 +56,10 @@ function UploadZone({ onDrop, uploadState }) {
 
   return (
     <div {...getRootProps()} style={{
-      border: `1.5px dashed ${isDragActive ? accentColor : BORDER}`,
+      border: `1.5px dashed ${isDragActive ? accentColor : COLORS.BORDER}`,
       borderRadius: 10, padding: "28px 20px",
       cursor: isProcessing ? "default" : "pointer",
-      background: isDragActive ? `${accentColor}14` : `${SPACE}cc`,
+      background: isDragActive ? `${accentColor}0e` : COLORS.BG_SURFACE_ALT,
       transition: "all 0.22s", textAlign: "center",
       position: "relative", overflow: "hidden",
     }}>
@@ -79,16 +72,16 @@ function UploadZone({ onDrop, uploadState }) {
       {/* Icon circle */}
       <div style={{
         width: 44, height: 44, borderRadius: "50%",
-        background: `${accentColor}20`, border: `1px solid ${accentColor}55`,
+        background: `${accentColor}14`, border: `1px solid ${accentColor}40`,
         display: "flex", alignItems: "center", justifyContent: "center",
         margin: "0 auto 12px", fontSize: 20, color: accentColor, fontWeight: 700,
       }}>{icon}</div>
 
-      <div style={{ color: TPRI, fontSize: 13, fontFamily: "'Poppins',sans-serif",
+      <div style={{ color: COLORS.TEXT_PRIMARY, fontSize: 13, fontFamily: "'Poppins',sans-serif",
         fontWeight: 600, marginBottom: 6 }}>
         Upload Sales Report
       </div>
-      <div style={{ color: TMID, fontSize: 11, fontFamily: "'Poppins',sans-serif",
+      <div style={{ color: COLORS.TEXT_SECONDARY, fontSize: 11, fontFamily: "'Poppins',sans-serif",
         fontWeight: 500 }}>
         {message}
       </div>
@@ -98,9 +91,9 @@ function UploadZone({ onDrop, uploadState }) {
         <div style={{
           display: "inline-block", marginTop: 12, padding: "4px 14px",
           borderRadius: 20,
-          background: `${CAMPUS_COLOR[campus] ?? AQUA}22`,
-          border: `1px solid ${CAMPUS_COLOR[campus] ?? AQUA}55`,
-          color: CAMPUS_COLOR[campus] ?? AQUA,
+          background: `${CAMPUS_COLOR[campus] ?? COLORS.AQUA}18`,
+          border: `1px solid ${CAMPUS_COLOR[campus] ?? COLORS.AQUA}55`,
+          color: CAMPUS_COLOR[campus] ?? COLORS.AQUA,
           fontSize: 11, fontWeight: 700,
           fontFamily: "'Poppins',sans-serif",
           letterSpacing: "0.04em", textTransform: "uppercase",
@@ -113,8 +106,8 @@ function UploadZone({ onDrop, uploadState }) {
       {status === "ERROR" && (
         <div style={{
           display: "inline-block", marginTop: 12, padding: "4px 14px",
-          borderRadius: 20, background: `${ORANGE}18`,
-          border: `1px solid ${ORANGE}44`, color: ORANGE,
+          borderRadius: 20, background: `${COLORS.WARNING}15`,
+          border: `1px solid ${COLORS.WARNING}44`, color: COLORS.WARNING,
           fontSize: 11, fontWeight: 700,
           fontFamily: "'Poppins',sans-serif", letterSpacing: "0.04em",
         }}>
@@ -124,7 +117,7 @@ function UploadZone({ onDrop, uploadState }) {
 
       {/* Progress bar during processing */}
       {isProcessing && (
-        <div style={{ marginTop: 14, height: 2, background: BORDER,
+        <div style={{ marginTop: 14, height: 2, background: COLORS.BORDER,
           borderRadius: 4, overflow: "hidden", maxWidth: 200, margin: "14px auto 0" }}>
           <div style={{ height: "100%", width: "55%", background: accentColor,
             borderRadius: 4, animation: "ucar-slide 1.4s ease-in-out infinite alternate" }} />
@@ -158,7 +151,7 @@ export default function DropBox() {
       title="Sales Report Drop Box"
       subtitle="PDF or Excel · campus auto-detected"
       icon="📥"
-      accentColor={AQUA}
+      accentColor={COLORS.AQUA}
     >
       <UploadZone onDrop={handleDrop} uploadState={uploadState} />
     </Widget>

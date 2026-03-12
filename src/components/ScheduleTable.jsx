@@ -9,16 +9,14 @@
  *   colorMap  {object}     — "row,col" → { r, g, b } background color map
  */
 
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const PANEL    = "#001f4d";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const TMID     = "#b0d0e8";
-const LAQUA    = "#34E1F4";
-const YELLOW   = "#FFDD31";
+import { COLORS } from "../theme.js";
+
+// Schedule section headers intentionally keep dark-blue backgrounds
+// (they reflect the actual color-coded structure from Google Sheets)
+const SCHED_HEADER_BG   = "#00357A";
+const SCHED_SUBHEAD_BG  = "#1a4a7a";
+const SCHED_SUBHEAD_ALT = "#0a2a5a";
+const YELLOW = "#FFDD31";
 
 // ── Color classifier ───────────────────────────────────────────────────────────
 // Maps RGB values from Google Sheets cell backgrounds to semantic meanings.
@@ -30,10 +28,10 @@ export function classifyColor(rgb) {
   if (r < 100 && g > 180 && b > 200) return { label: "WFH",       bg: "#00BCD422", border: "#00BCD4", text: "#00BCD4" };
   // Yellow — PTO / Sick
   if (r > 200 && g > 200 && b < 80)  return { label: "PTO",       bg: "#FFDD3122", border: YELLOW,    text: YELLOW   };
-  // Dark blue — section header rows
-  if (r < 60  && g < 100 && b > 120) return { label: "header",    bg: DARKBLUE,    border: DARKBLUE,  text: TPRI     };
+  // Dark blue — section header rows (intentionally dark on the schedule)
+  if (r < 60  && g < 100 && b > 120) return { label: "header",    bg: SCHED_HEADER_BG,  border: SCHED_HEADER_BG,  text: "#FFFFFF" };
   // Medium blue — sub-header rows (e.g. "Café Thru Line")
-  if (r < 100 && g < 140 && b > 150) return { label: "subheader", bg: "#1a4a7a",   border: "#1a4a7a", text: TPRI     };
+  if (r < 100 && g < 140 && b > 150) return { label: "subheader", bg: SCHED_SUBHEAD_BG, border: SCHED_SUBHEAD_BG, text: "#FFFFFF" };
   return null;
 }
 
@@ -89,16 +87,18 @@ export default function ScheduleTable({ rows, colorMap }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {sections.map((section, si) => (
         <div key={si} style={{
-          background: PANEL, borderRadius: 12,
-          border: `1px solid ${BORDER}`, overflow: "hidden",
+          background: COLORS.BG_SURFACE, borderRadius: 12,
+          border: `1px solid ${COLORS.BORDER}`,
+          boxShadow: "0 1px 4px rgba(1,24,55,0.06)",
+          overflow: "hidden",
         }}>
-          {/* Section header bar */}
+          {/* Section header bar — intentionally dark-blue (schedule branding) */}
           <div style={{
-            background: DARKBLUE, padding: "10px 18px",
+            background: SCHED_HEADER_BG, padding: "10px 18px",
             display: "flex", alignItems: "center", gap: 10,
           }}>
             <div style={{
-              fontSize: 13, fontWeight: 700, color: TPRI,
+              fontSize: 13, fontWeight: 700, color: "#FFFFFF",
               fontFamily: "'Poppins',sans-serif", letterSpacing: "0.03em",
             }}>{section.title}</div>
           </div>
@@ -108,16 +108,18 @@ export default function ScheduleTable({ rows, colorMap }) {
             <table style={{ width: "100%", borderCollapse: "collapse",
               fontSize: 11, fontFamily: "'Poppins',sans-serif" }}>
               <thead>
-                <tr>
-                  <th style={{ padding: "8px 14px", textAlign: "left", color: TSEC,
-                    fontWeight: 600, borderBottom: `1px solid ${BORDER}`,
+                <tr style={{ background: COLORS.BG_SURFACE_ALT }}>
+                  <th style={{ padding: "8px 14px", textAlign: "left",
+                    color: COLORS.TEXT_MUTED,
+                    fontWeight: 600, borderBottom: `1px solid ${COLORS.BORDER}`,
                     whiteSpace: "nowrap", minWidth: 100 }}>Staff</th>
                   {dayCols.map((h, i) => (
                     <th key={i} style={{ padding: "8px 10px", textAlign: "center",
-                      color: TSEC, fontWeight: 600, borderBottom: `1px solid ${BORDER}`,
+                      color: COLORS.TEXT_MUTED, fontWeight: 600,
+                      borderBottom: `1px solid ${COLORS.BORDER}`,
                       whiteSpace: "nowrap", minWidth: 110 }}>
-                      <div style={{ color: TPRI, fontWeight: 700 }}>{h.day}</div>
-                      <div style={{ color: TSEC, fontSize: 10 }}>{h.date}</div>
+                      <div style={{ color: COLORS.TEXT_PRIMARY, fontWeight: 700 }}>{h.day}</div>
+                      <div style={{ color: COLORS.TEXT_MUTED, fontSize: 10 }}>{h.date}</div>
                     </th>
                   ))}
                 </tr>
@@ -132,8 +134,8 @@ export default function ScheduleTable({ rows, colorMap }) {
                     return (
                       <tr key={rowIdx}>
                         <td colSpan={dayCols.length + 1} style={{
-                          padding: "6px 14px", background: "#0a2a5a",
-                          color: LAQUA, fontWeight: 600, fontSize: 10,
+                          padding: "6px 14px", background: SCHED_SUBHEAD_ALT,
+                          color: COLORS.LAQUA, fontWeight: 600, fontSize: 10,
                           letterSpacing: "0.08em", textTransform: "uppercase",
                         }}>{nameCell}</td>
                       </tr>
@@ -142,11 +144,14 @@ export default function ScheduleTable({ rows, colorMap }) {
 
                   return (
                     <tr key={rowIdx} style={{
-                      borderBottom: `1px solid ${BORDER}44`,
-                      background: rowIdx % 2 === 0 ? "transparent" : `${SPACE}88`,
+                      borderBottom: `1px solid ${COLORS.BORDER}`,
+                      background: rowIdx % 2 === 0 ? "transparent" : COLORS.BG_SURFACE_ALT,
                     }}>
-                      <td style={{ padding: "7px 14px", color: nameCell ? TPRI : TSEC,
-                        fontWeight: nameCell ? 600 : 400, whiteSpace: "nowrap" }}>
+                      <td style={{
+                        padding: "7px 14px",
+                        color: nameCell ? COLORS.TEXT_PRIMARY : COLORS.TEXT_MUTED,
+                        fontWeight: nameCell ? 600 : 400, whiteSpace: "nowrap",
+                      }}>
                         {nameCell || "—"}
                       </td>
                       {dayCols.map((_, ci) => {
@@ -166,7 +171,7 @@ export default function ScheduleTable({ rows, colorMap }) {
                                 padding: info ? "2px 8px" : "0",
                                 borderRadius: info ? 20 : 0,
                                 border: info ? `1px solid ${info.border}44` : "none",
-                                color: info ? info.text : TMID,
+                                color: info ? info.text : COLORS.TEXT_SECONDARY,
                                 fontWeight: info ? 700 : 400,
                                 fontSize: 10, whiteSpace: "nowrap",
                               }}>
@@ -178,7 +183,7 @@ export default function ScheduleTable({ rows, colorMap }) {
                                 )}
                               </span>
                             ) : (
-                              <span style={{ color: `${TSEC}44`, fontSize: 10 }}>—</span>
+                              <span style={{ color: COLORS.TEXT_DISABLED, fontSize: 10 }}>—</span>
                             )}
                           </td>
                         );

@@ -21,22 +21,12 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { WIDGET_REGISTRY, defaultPrefs } from "../../registries/widgetRegistry.js";
 import { CAMPUSES } from "../../schemas/firestore.js";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const PANEL    = "#001f4d";
-const BORDER   = "#003070";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
-const TMID     = "#b0d0e8";
-const AQUA     = "#00A2B4";
-const LAQUA    = "#34E1F4";
+import { COLORS, SHADOWS, RADIUS } from "../../theme.js";
 
 const CAMPUS_COLOR = {
-  "Mesa Lab":     AQUA,
-  "Foothills":    LAQUA,
-  "Center Green": "#00818F",
+  "Mesa Lab":     COLORS.AQUA,
+  "Foothills":    COLORS.LAQUA,
+  "Center Green": COLORS.AQUA_DARK,
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -61,7 +51,7 @@ function StepDots({ total, current }) {
         <div key={i} style={{
           width: i === current ? 20 : 6,
           height: 6, borderRadius: 3,
-          background: i === current ? AQUA : BORDER,
+          background: i === current ? COLORS.AQUA : COLORS.BORDER,
           transition: "all .25s ease",
         }} />
       ))}
@@ -73,28 +63,28 @@ function StepDots({ total, current }) {
 function StepWelcome({ campus, setCampus, onNext }) {
   return (
     <div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: TPRI, marginBottom: 8 }}>
+      <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 8 }}>
         Welcome to your Dashboard
       </div>
-      <div style={{ fontSize: 13, color: TSEC, lineHeight: 1.65, marginBottom: 28, maxWidth: 440 }}>
+      <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY, lineHeight: 1.65, marginBottom: 28, maxWidth: 440 }}>
         Let's personalize your home page. Pick your primary campus and choose
         the widgets you'd like to see every day.
       </div>
 
-      <div style={{ fontSize: 10, fontWeight: 700, color: TSEC, letterSpacing: "1.2px",
+      <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.TEXT_MUTED, letterSpacing: "1.2px",
         textTransform: "uppercase", marginBottom: 12 }}>
         Primary Campus
       </div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 32 }}>
         {CAMPUSES.map(c => {
           const active = campus === c;
-          const color  = CAMPUS_COLOR[c] ?? AQUA;
+          const color  = CAMPUS_COLOR[c] ?? COLORS.AQUA;
           return (
             <button key={c} onClick={() => setCampus(c)} style={{
-              padding: "10px 20px", borderRadius: 10,
-              border: `1.5px solid ${active ? color : BORDER}`,
-              background: active ? `${color}18` : "transparent",
-              color: active ? color : TSEC,
+              padding: "10px 20px", borderRadius: RADIUS.MD,
+              border: `1.5px solid ${active ? color : COLORS.BORDER}`,
+              background: active ? `${color}14` : "transparent",
+              color: active ? color : COLORS.TEXT_SECONDARY,
               fontFamily: "'Poppins',sans-serif",
               fontWeight: 600, fontSize: 12, cursor: "pointer",
               transition: "all .18s",
@@ -107,12 +97,12 @@ function StepWelcome({ campus, setCampus, onNext }) {
       </div>
 
       <button onClick={onNext} style={{
-        background: `linear-gradient(135deg, ${AQUA}, #007a8a)`,
-        border: "none", borderRadius: 10,
+        background: COLORS.AQUA,
+        border: "none", borderRadius: RADIUS.MD,
         padding: "11px 28px", cursor: "pointer",
         fontFamily: "'Poppins',sans-serif",
-        fontWeight: 700, fontSize: 13, color: TPRI,
-        boxShadow: `0 4px 16px ${AQUA}44`,
+        fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
+        boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
         transition: "all .18s",
       }}>
         Next →
@@ -133,10 +123,10 @@ function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
 
   return (
     <div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: TPRI, marginBottom: 6 }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 6 }}>
         {isEdit ? "Edit Your Dashboard" : "Choose Your Widgets"}
       </div>
-      <div style={{ fontSize: 12, color: TSEC, marginBottom: 24, lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, marginBottom: 24, lineHeight: 1.6 }}>
         {isEdit
           ? "Toggle widgets on or off. Changes are saved immediately."
           : "Pick the widgets to show on your dashboard. You can always change these later."}
@@ -151,39 +141,39 @@ function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
               key={meta.widgetId}
               onClick={() => toggle(meta.widgetId)}
               style={{
-                background: enabled ? `${AQUA}12` : "transparent",
-                border: `1.5px solid ${enabled ? AQUA + "66" : BORDER}`,
-                borderRadius: 10, padding: "12px 14px",
+                background: enabled ? COLORS.AQUA_LIGHT : "transparent",
+                border: `1.5px solid ${enabled ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
+                borderRadius: RADIUS.MD, padding: "12px 14px",
                 cursor: "pointer", textAlign: "left",
                 transition: "all .18s",
                 display: "flex", alignItems: "flex-start", gap: 10,
               }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                background: enabled ? `${AQUA}22` : `${BORDER}44`,
-                border: `1px solid ${enabled ? AQUA + "44" : BORDER}`,
+                background: enabled ? `${COLORS.AQUA}18` : COLORS.BG_SURFACE_HOVER,
+                border: `1px solid ${enabled ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 15,
               }}>{meta.icon}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 12, fontWeight: 700,
-                  color: enabled ? TPRI : TSEC,
+                  color: enabled ? COLORS.TEXT_PRIMARY : COLORS.TEXT_SECONDARY,
                   fontFamily: "'Poppins',sans-serif",
                   display: "flex", alignItems: "center", gap: 6 }}>
                   {meta.label}
                   {enabled && (
-                    <span style={{ fontSize: 9, background: `${AQUA}22`,
-                      color: AQUA, border: `1px solid ${AQUA}44`,
+                    <span style={{ fontSize: 9, background: COLORS.AQUA_LIGHT,
+                      color: COLORS.AQUA, border: `1px solid ${COLORS.AQUA_BORDER}`,
                       borderRadius: 20, padding: "1px 7px",
                       fontWeight: 700, letterSpacing: "0.06em",
                       textTransform: "uppercase" }}>On</span>
                   )}
                 </div>
-                <div style={{ fontSize: 10, color: TSEC, marginTop: 3, lineHeight: 1.5 }}>
+                <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, marginTop: 3, lineHeight: 1.5 }}>
                   {meta.description}
                 </div>
                 {meta.needsCampus && (
-                  <div style={{ fontSize: 9, color: `${TSEC}88`, marginTop: 4 }}>
+                  <div style={{ fontSize: 9, color: COLORS.TEXT_DISABLED, marginTop: 4 }}>
                     Campus: {campus}
                   </div>
                 )}
@@ -196,28 +186,28 @@ function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         {!isEdit && (
           <button onClick={onBack} style={{
-            background: "transparent", border: `1px solid ${BORDER}`,
-            borderRadius: 10, padding: "10px 22px", cursor: "pointer",
+            background: "transparent", border: `1px solid ${COLORS.BORDER}`,
+            borderRadius: RADIUS.MD, padding: "10px 22px", cursor: "pointer",
             fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-            fontSize: 12, color: TSEC, transition: "all .18s",
+            fontSize: 12, color: COLORS.TEXT_SECONDARY, transition: "all .18s",
           }}>
             ← Back
           </button>
         )}
         <button onClick={onNext} disabled={enabledCount === 0} style={{
-          background: enabledCount > 0 ? `linear-gradient(135deg, ${AQUA}, #007a8a)` : BORDER,
-          border: "none", borderRadius: 10,
+          background: enabledCount > 0 ? COLORS.AQUA : COLORS.BORDER,
+          border: "none", borderRadius: RADIUS.MD,
           padding: "11px 28px", cursor: enabledCount > 0 ? "pointer" : "not-allowed",
           fontFamily: "'Poppins',sans-serif",
-          fontWeight: 700, fontSize: 13, color: TPRI,
-          boxShadow: enabledCount > 0 ? `0 4px 16px ${AQUA}44` : "none",
+          fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
+          boxShadow: enabledCount > 0 ? `0 4px 16px ${COLORS.AQUA}33` : "none",
           transition: "all .18s",
           opacity: enabledCount > 0 ? 1 : 0.5,
         }}>
           {isEdit ? "Save Changes" : `Finish (${enabledCount} widget${enabledCount !== 1 ? "s" : ""})`}
         </button>
         {enabledCount === 0 && (
-          <span style={{ fontSize: 11, color: TSEC }}>Select at least one widget</span>
+          <span style={{ fontSize: 11, color: COLORS.TEXT_MUTED }}>Select at least one widget</span>
         )}
       </div>
     </div>
@@ -230,31 +220,31 @@ function StepDone({ enabledCount, saving, saveErr, onDone }) {
     <div style={{ textAlign: "center", paddingTop: 16 }}>
       <div style={{
         width: 60, height: 60, borderRadius: "50%",
-        background: `linear-gradient(135deg, ${AQUA}, #007a8a)`,
+        background: COLORS.AQUA,
         display: "flex", alignItems: "center", justifyContent: "center",
         margin: "0 auto 20px",
-        boxShadow: `0 0 24px ${AQUA}44`,
-        fontSize: 26,
+        boxShadow: `0 0 24px ${COLORS.AQUA}33`,
+        fontSize: 26, color: COLORS.TEXT_ON_ACCENT,
       }}>✓</div>
-      <div style={{ fontSize: 20, fontWeight: 800, color: TPRI, marginBottom: 8 }}>
+      <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 8 }}>
         Dashboard Ready!
       </div>
-      <div style={{ fontSize: 13, color: TSEC, lineHeight: 1.65, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>
+      <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY, lineHeight: 1.65, marginBottom: 28, maxWidth: 380, margin: "0 auto 28px" }}>
         {enabledCount} widget{enabledCount !== 1 ? "s" : ""} enabled on your dashboard.
-        You can edit this anytime using the <span style={{ color: AQUA }}>Edit Dashboard</span> button.
+        You can edit this anytime using the <span style={{ color: COLORS.AQUA }}>Edit Dashboard</span> button.
       </div>
       {saveErr && (
-        <div style={{ fontSize: 11, color: "#FAA119", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: COLORS.WARNING, marginBottom: 12 }}>
           ⚠ Save failed: {saveErr} — please try again.
         </div>
       )}
       <button onClick={onDone} disabled={saving} style={{
-        background: saving ? BORDER : `linear-gradient(135deg, ${AQUA}, #007a8a)`,
-        border: "none", borderRadius: 10,
+        background: saving ? COLORS.BORDER : COLORS.AQUA,
+        border: "none", borderRadius: RADIUS.MD,
         padding: "11px 32px", cursor: saving ? "not-allowed" : "pointer",
         fontFamily: "'Poppins',sans-serif",
-        fontWeight: 700, fontSize: 13, color: TPRI,
-        boxShadow: saving ? "none" : `0 4px 16px ${AQUA}44`,
+        fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
+        boxShadow: saving ? "none" : `0 4px 16px ${COLORS.AQUA}33`,
         opacity: saving ? 0.6 : 1,
         transition: "all .18s",
       }}>
@@ -334,34 +324,34 @@ export default function FirstRunWizard({
   return createPortal(
     <div style={{
       position: "fixed", inset: 0,
-      background: "rgba(1,14,33,0.92)",
+      background: "rgba(1,24,55,0.5)",
       zIndex: 300,
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: 24,
-      backdropFilter: "blur(8px)",
+      backdropFilter: "blur(6px)",
     }}>
       <div style={{
         width: "100%", maxWidth: 580,
-        background: PANEL,
-        borderRadius: 20,
-        border: `1px solid ${BORDER}`,
-        boxShadow: `0 40px 100px rgba(0,0,0,0.7), 0 0 80px ${AQUA}0a`,
+        background: COLORS.BG_SURFACE,
+        borderRadius: RADIUS.XL,
+        border: `1px solid ${COLORS.BORDER}`,
+        boxShadow: SHADOWS.XL,
         padding: "36px 40px 40px",
         position: "relative",
         animation: "ucar-fadein .3s ease both",
       }}>
         {/* Top accent bar */}
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
-          background: `linear-gradient(90deg, ${AQUA}, ${LAQUA}, transparent)`,
-          borderRadius: "20px 20px 0 0" }} />
+          background: `linear-gradient(90deg, ${COLORS.AQUA}, ${COLORS.LAQUA}, transparent)`,
+          borderRadius: `${RADIUS.XL} ${RADIUS.XL} 0 0` }} />
 
         {/* Close button (only when allowClose is true) */}
         {allowClose && (
           <button onClick={onClose} style={{
             position: "absolute", top: 16, right: 16,
-            background: "transparent", border: `1px solid ${BORDER}`,
+            background: "transparent", border: `1px solid ${COLORS.BORDER}`,
             borderRadius: 6, padding: "4px 9px",
-            cursor: "pointer", color: TSEC, fontSize: 16, lineHeight: 1,
+            cursor: "pointer", color: COLORS.TEXT_MUTED, fontSize: 16, lineHeight: 1,
           }}>✕</button>
         )}
 

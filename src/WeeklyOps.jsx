@@ -28,16 +28,7 @@ import ScheduleNotes   from "./components/ScheduleNotes.jsx";
 import CafeSpecials    from "./components/CafeSpecials.jsx";
 import CashDrop        from "./components/CashDrop.jsx";
 import DropBox         from "./components/DropBox.jsx";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE  = "#011837";
-const PANEL  = "#001f4d";
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TSEC   = "#7aaec8";
-const TMID   = "#b0d0e8";
-const AQUA   = "#00A2B4";
-const ORANGE = "#FAA119";
+import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
 // ── Event Order Upload Zone ────────────────────────────────────────────────────
 function EventOrderUpload({ onUpload, uploadState }) {
@@ -61,23 +52,24 @@ function EventOrderUpload({ onUpload, uploadState }) {
 
   return (
     <div {...getRootProps()} style={{
-      border: `1.5px dashed ${isDragActive ? AQUA : BORDER}`,
+      border: `1.5px dashed ${isDragActive ? COLORS.AQUA : COLORS.BORDER}`,
       borderRadius: 12, padding: "20px 16px", cursor: "pointer",
-      background: isDragActive ? `${AQUA}18` : `${SPACE}cc`,
+      background: isDragActive ? COLORS.AQUA_LIGHT : COLORS.BG_SURFACE_ALT,
       transition: "all 0.25s", textAlign: "center",
       position: "relative", overflow: "hidden",
     }}>
       <input {...getInputProps()} />
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3,
-        background: AQUA, borderRadius: "12px 12px 0 0" }} />
+        background: COLORS.AQUA, borderRadius: "12px 12px 0 0" }} />
       <div style={{ width: 36, height: 36, borderRadius: "50%",
-        background: `${AQUA}22`, border: `1px solid ${AQUA}55`,
+        background: `${COLORS.AQUA}14`, border: `1px solid ${COLORS.AQUA_BORDER}`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        margin: "0 auto 8px", fontSize: 16, color: AQUA, fontWeight: 700 }}>{icon}</div>
-      <div style={{ color: TMID, fontSize: 11, fontFamily: "'Poppins',sans-serif", fontWeight: 500 }}>{sub}</div>
+        margin: "0 auto 8px", fontSize: 16, color: COLORS.AQUA, fontWeight: 700 }}>{icon}</div>
+      <div style={{ color: COLORS.TEXT_SECONDARY, fontSize: 11, fontFamily: "'Poppins',sans-serif",
+        fontWeight: 500 }}>{sub}</div>
       {isProcessing && (
-        <div style={{ marginTop: 10, height: 2, background: BORDER, borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: "55%", background: AQUA,
+        <div style={{ marginTop: 10, height: 2, background: COLORS.BORDER, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: "55%", background: COLORS.AQUA,
             borderRadius: 4, animation: "ucar-slide 1.4s ease-in-out infinite alternate" }} />
         </div>
       )}
@@ -157,7 +149,7 @@ export default function WeeklyOps() {
           title="Staff Schedule"
           subtitle={scheduleData?.weekLabel ?? `Week of ${weekOf}`}
           icon="📅"
-          accentColor={AQUA}
+          accentColor={COLORS.AQUA}
           loading={scheduleLoading}
           error={scheduleError}
           onRetry={reloadSchedule}
@@ -168,14 +160,6 @@ export default function WeeklyOps() {
           actions={[{
             label: "↻ Refresh",
             onClick: reloadSchedule,
-            style: {
-              background: "transparent",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 6, padding: "5px 12px",
-              color: TSEC, cursor: "pointer",
-              fontFamily: "'Poppins',sans-serif",
-              fontWeight: 600, fontSize: 11,
-            },
           }]}
         >
           {scheduleData && (
@@ -209,7 +193,7 @@ export default function WeeklyOps() {
 
       {/* ── Row 4: Event Orders ── */}
       <div style={{ animation: "ucar-fadein .65s ease both" }}>
-        <div style={{ fontSize: 10, color: TSEC, fontWeight: 600,
+        <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
           letterSpacing: "1.5px", textTransform: "uppercase",
           marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
           Event Orders
@@ -217,13 +201,13 @@ export default function WeeklyOps() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 20 }}>
 
           {/* Upload zone */}
-          <div style={{ background: PANEL, borderRadius: 16, padding: "24px",
-            border: `1px solid ${BORDER}` }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: TPRI,
+          <div style={{ background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG, padding: "24px",
+            border: `1px solid ${COLORS.BORDER}`, boxShadow: SHADOWS.SM }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
               fontFamily: "'Poppins',sans-serif", marginBottom: 4 }}>
               Upload Event Order
             </div>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 500,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
               letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 18 }}>
               PDF only
             </div>
@@ -231,20 +215,20 @@ export default function WeeklyOps() {
           </div>
 
           {/* Event order library */}
-          <div style={{ background: PANEL, borderRadius: 16, padding: "24px",
-            border: `1px solid ${BORDER}` }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: TPRI,
+          <div style={{ background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG, padding: "24px",
+            border: `1px solid ${COLORS.BORDER}`, boxShadow: SHADOWS.SM }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
               fontFamily: "'Poppins',sans-serif", marginBottom: 4 }}>
               Event Order Library
             </div>
-            <div style={{ fontSize: 10, color: TSEC, fontWeight: 500,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
               letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 18 }}>
               Click to open · most recent first
             </div>
 
             {!eventOrders || eventOrders.length === 0 ? (
               <div style={{ textAlign: "center", padding: "32px 0",
-                color: TSEC, fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>
+                color: COLORS.TEXT_MUTED, fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>
                 No event orders uploaded yet
               </div>
             ) : (
@@ -253,28 +237,28 @@ export default function WeeklyOps() {
                   <a key={order.id} href={order.downloadURL} target="_blank" rel="noreferrer"
                     style={{ display: "flex", alignItems: "center",
                       justifyContent: "space-between",
-                      padding: "10px 16px", borderRadius: 10,
-                      background: `${SPACE}cc`,
-                      border: `1px solid ${BORDER}`,
+                      padding: "10px 16px", borderRadius: RADIUS.MD,
+                      background: COLORS.BG_SURFACE_ALT,
+                      border: `1px solid ${COLORS.BORDER}`,
                       textDecoration: "none", transition: "all .2s", cursor: "pointer" }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = `${AQUA}88`}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}>
+                    onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.AQUA_BORDER}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.BORDER}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 32, height: 32, borderRadius: 8,
-                        background: `${ORANGE}22`, border: `1px solid ${ORANGE}44`,
+                        background: `${COLORS.ORANGE}15`, border: `1px solid ${COLORS.ORANGE}33`,
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 14, flexShrink: 0 }}>📄</div>
                       <div>
-                        <div style={{ color: TPRI, fontSize: 12, fontWeight: 600,
+                        <div style={{ color: COLORS.TEXT_PRIMARY, fontSize: 12, fontWeight: 600,
                           fontFamily: "'Poppins',sans-serif" }}>{order.fileName}</div>
-                        <div style={{ color: TSEC, fontSize: 10,
+                        <div style={{ color: COLORS.TEXT_MUTED, fontSize: 10,
                           fontFamily: "'Poppins',sans-serif" }}>
                           {formatUploadDate(order.uploadedAt)}
                           {order.size ? ` · ${formatFileSize(order.size)}` : ""}
                         </div>
                       </div>
                     </div>
-                    <div style={{ color: AQUA, fontSize: 11, fontWeight: 600,
+                    <div style={{ color: COLORS.AQUA, fontSize: 11, fontWeight: 600,
                       fontFamily: "'Poppins',sans-serif", whiteSpace: "nowrap" }}>
                       View →
                     </div>
@@ -288,7 +272,7 @@ export default function WeeklyOps() {
 
       {/* ── Footer ── */}
       <div style={{ marginTop: 40, textAlign: "center", fontSize: 10,
-        color: `${TSEC}88`, fontWeight: 500, letterSpacing: "0.08em",
+        color: COLORS.TEXT_DISABLED, fontWeight: 500, letterSpacing: "0.08em",
         textTransform: "uppercase", fontFamily: "'Poppins',sans-serif" }}>
         University Corporation for Atmospheric Research · Internal Tool
       </div>

@@ -15,11 +15,7 @@
  */
 
 import { useState } from "react";
-
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TSEC   = "#7aaec8";
-const AQUA   = "#00A2B4";
+import { COLORS } from "../theme.js";
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
@@ -70,13 +66,13 @@ export default function WeekSelector({ weekOf, onChange, disabled = false }) {
 
   const navBtnBase = {
     background: "transparent",
-    border: `1px solid ${BORDER}`,
+    border: `1px solid ${COLORS.BORDER}`,
     borderRadius: 6,
     padding: "6px 10px",
     cursor: disabled ? "not-allowed" : "pointer",
     fontFamily: "'Poppins',sans-serif",
     fontWeight: 700, fontSize: 13,
-    color: TSEC,
+    color: COLORS.TEXT_SECONDARY,
     transition: "all .18s",
     opacity: disabled ? 0.4 : 1,
     lineHeight: 1,
@@ -92,9 +88,9 @@ export default function WeekSelector({ weekOf, onChange, disabled = false }) {
         title="Previous week"
         style={{
           ...navBtnBase,
-          background: hoveredPrev && !disabled ? `${AQUA}18` : "transparent",
-          border: `1px solid ${hoveredPrev && !disabled ? AQUA + "55" : BORDER}`,
-          color: hoveredPrev && !disabled ? AQUA : TSEC,
+          background: hoveredPrev && !disabled ? COLORS.AQUA_LIGHT : "transparent",
+          border: `1px solid ${hoveredPrev && !disabled ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
+          color: hoveredPrev && !disabled ? COLORS.AQUA : COLORS.TEXT_SECONDARY,
         }}>
         ←
       </button>
@@ -102,14 +98,14 @@ export default function WeekSelector({ weekOf, onChange, disabled = false }) {
       {/* Week label */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
-        background: `${BORDER}55`,
-        border: `1px solid ${BORDER}`,
+        background: COLORS.BG_SURFACE_ALT,
+        border: `1px solid ${COLORS.BORDER}`,
         borderRadius: 8,
         padding: "6px 14px",
         minWidth: 200, justifyContent: "center",
       }}>
         <span style={{
-          fontSize: 12, fontWeight: 600, color: TPRI,
+          fontSize: 12, fontWeight: 600, color: COLORS.TEXT_PRIMARY,
           fontFamily: "'Poppins',sans-serif",
           whiteSpace: "nowrap",
         }}>
@@ -117,9 +113,9 @@ export default function WeekSelector({ weekOf, onChange, disabled = false }) {
         </span>
         {isCurrent && (
           <span style={{
-            fontSize: 9, fontWeight: 700, color: AQUA,
-            background: `${AQUA}22`,
-            border: `1px solid ${AQUA}44`,
+            fontSize: 9, fontWeight: 700, color: COLORS.AQUA,
+            background: COLORS.AQUA_LIGHT,
+            border: `1px solid ${COLORS.AQUA_BORDER}`,
             borderRadius: 20, padding: "2px 7px",
             letterSpacing: "0.06em", textTransform: "uppercase",
             flexShrink: 0,
@@ -137,9 +133,9 @@ export default function WeekSelector({ weekOf, onChange, disabled = false }) {
         title="Next week"
         style={{
           ...navBtnBase,
-          background: hoveredNext && !disabled ? `${AQUA}18` : "transparent",
-          border: `1px solid ${hoveredNext && !disabled ? AQUA + "55" : BORDER}`,
-          color: hoveredNext && !disabled ? AQUA : TSEC,
+          background: hoveredNext && !disabled ? COLORS.AQUA_LIGHT : "transparent",
+          border: `1px solid ${hoveredNext && !disabled ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
+          color: hoveredNext && !disabled ? COLORS.AQUA : COLORS.TEXT_SECONDARY,
         }}>
         →
       </button>
@@ -154,9 +150,9 @@ export default function WeekSelector({ weekOf, onChange, disabled = false }) {
           style={{
             ...navBtnBase,
             fontSize: 10, padding: "6px 10px",
-            background: hoveredCur && !disabled ? `${AQUA}18` : "transparent",
-            border: `1px solid ${hoveredCur && !disabled ? AQUA + "55" : BORDER}`,
-            color: hoveredCur && !disabled ? AQUA : TSEC,
+            background: hoveredCur && !disabled ? COLORS.AQUA_LIGHT : "transparent",
+            border: `1px solid ${hoveredCur && !disabled ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
+            color: hoveredCur && !disabled ? COLORS.AQUA : COLORS.TEXT_SECONDARY,
             letterSpacing: "0.03em",
           }}>
           Today

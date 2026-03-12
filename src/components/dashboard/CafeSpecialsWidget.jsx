@@ -11,10 +11,7 @@ import Widget from "../Widget.jsx";
 import { CAMPUS_COLOR } from "../CampusSelector.jsx";
 import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeCafeSpecials } from "../../firebase.js";
-
-const AQUA = "#00A2B4";
-const TSEC = "#7aaec8";
-const TPRI = "#FFFFFF";
+import { COLORS } from "../../theme.js";
 
 function currentMonday() {
   const d   = new Date();
@@ -25,7 +22,7 @@ function currentMonday() {
 
 export default function CafeSpecialsWidget({ config = {} }) {
   const campus      = config.campus ?? "Mesa Lab";
-  const accentColor = CAMPUS_COLOR[campus] ?? AQUA;
+  const accentColor = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
   const weekOf      = currentMonday();
 
   const { data: specials, loading, error } = useWidgetSubscription(
@@ -49,7 +46,7 @@ export default function CafeSpecialsWidget({ config = {} }) {
     >
       {body && (
         <div style={{
-          fontSize: 12, color: TPRI, lineHeight: 1.65,
+          fontSize: 12, color: COLORS.TEXT_PRIMARY, lineHeight: 1.65,
           whiteSpace: "pre-wrap", wordBreak: "break-word",
           maxHeight: 180, overflowY: "auto",
         }}>

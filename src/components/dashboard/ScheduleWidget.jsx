@@ -12,12 +12,7 @@ import Widget from "../Widget.jsx";
 import { useWidget } from "../../hooks/useWidget.js";
 import { fetchSchedule } from "../../firebase.js";
 import { useCallback } from "react";
-
-const AQUA  = "#00A2B4";
-const LAQUA = "#34E1F4";
-const TPRI  = "#FFFFFF";
-const TSEC  = "#7aaec8";
-const TMID  = "#b0d0e8";
+import { COLORS } from "../../theme.js";
 
 // Derive the current week's Monday as "YYYY-MM-DD"
 function currentMonday() {
@@ -58,7 +53,7 @@ export default function ScheduleWidget({ config = {} }) {
       title="Staff Schedule"
       subtitle={weekLabel(weekOf)}
       icon="📋"
-      accentColor={AQUA}
+      accentColor={COLORS.AQUA}
       loading={loading}
       error={error}
       onRetry={reload}
@@ -70,14 +65,15 @@ export default function ScheduleWidget({ config = {} }) {
         <div>
           {nameLines.map((name, i) => (
             <div key={i} style={{
-              fontSize: 12, color: i === 0 ? TMID : TSEC,
+              fontSize: 12,
+              color: i === 0 ? COLORS.TEXT_PRIMARY : COLORS.TEXT_SECONDARY,
               fontWeight: i === 0 ? 600 : 400,
               padding: "4px 0",
-              borderBottom: i < nameLines.length - 1 ? `1px solid #00307044` : "none",
+              borderBottom: i < nameLines.length - 1 ? `1px solid ${COLORS.BORDER}` : "none",
             }}>{name}</div>
           ))}
           {dataRows.length > 7 && (
-            <div style={{ fontSize: 10, color: `${TSEC}88`, marginTop: 8 }}>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_DISABLED, marginTop: 8 }}>
               + {dataRows.length - 7} more — see Weekly Ops for full schedule
             </div>
           )}

@@ -14,17 +14,12 @@ import { subscribeCafeSpecials, saveCafeSpecials } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
 import { CAMPUS_COLOR } from "./CampusSelector.jsx";
-
-// ── Brand palette ──────────────────────────────────────────────────────────────
-const SPACE  = "#011837";
-const BORDER = "#003070";
-const TPRI   = "#FFFFFF";
-const TSEC   = "#7aaec8";
+import { COLORS, RADIUS } from "../theme.js";
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function CafeSpecials({ weekOf, campus }) {
   const { user } = useAuth();
-  const accent = CAMPUS_COLOR[campus] ?? "#00A2B4";
+  const accent = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
 
   const [specialsData, setSpecialsData] = useState(null);
   const [loading,      setLoading]      = useState(true);
@@ -79,14 +74,6 @@ export default function CafeSpecials({ weekOf, campus }) {
     ? [{
         label: hasSpecials ? "✏️ Edit" : "✏️ Add",
         onClick: handleEdit,
-        style: {
-          background: "transparent",
-          border: `1px solid ${BORDER}`,
-          borderRadius: 6, padding: "5px 12px",
-          color: TSEC, cursor: "pointer",
-          fontFamily: "'Poppins',sans-serif",
-          fontWeight: 600, fontSize: 11,
-        },
       }]
     : [];
 
@@ -109,9 +96,9 @@ export default function CafeSpecials({ weekOf, campus }) {
             autoFocus
             style={{
               width: "100%", minHeight: 110,
-              background: `${SPACE}cc`,
+              background: COLORS.BG_SURFACE_ALT,
               border: `1px solid ${accent}66`,
-              borderRadius: 8, color: TPRI,
+              borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
               fontFamily: "'Poppins',sans-serif",
               fontSize: 12, lineHeight: 1.65,
               padding: "12px 14px",
@@ -124,9 +111,9 @@ export default function CafeSpecials({ weekOf, campus }) {
             <button onClick={handleCancel}
               style={{
                 background: "transparent",
-                border: `1px solid ${BORDER}`,
-                borderRadius: 6, padding: "7px 16px",
-                color: TSEC, cursor: "pointer",
+                border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, padding: "7px 16px",
+                color: COLORS.TEXT_SECONDARY, cursor: "pointer",
                 fontFamily: "'Poppins',sans-serif",
                 fontWeight: 600, fontSize: 11,
               }}>
@@ -136,8 +123,9 @@ export default function CafeSpecials({ weekOf, campus }) {
               style={{
                 background: saving ? `${accent}55` : accent,
                 border: "none",
-                borderRadius: 6, padding: "7px 18px",
-                color: SPACE, cursor: saving ? "not-allowed" : "pointer",
+                borderRadius: RADIUS.SM, padding: "7px 18px",
+                color: COLORS.TEXT_ON_ACCENT,
+                cursor: saving ? "not-allowed" : "pointer",
                 fontFamily: "'Poppins',sans-serif",
                 fontWeight: 700, fontSize: 11,
               }}>
@@ -149,7 +137,7 @@ export default function CafeSpecials({ weekOf, campus }) {
         <div>
           <div style={{
             whiteSpace: "pre-wrap",
-            color: TPRI,
+            color: COLORS.TEXT_PRIMARY,
             fontSize: 12,
             fontFamily: "'Poppins',sans-serif",
             lineHeight: 1.7,
@@ -158,7 +146,7 @@ export default function CafeSpecials({ weekOf, campus }) {
             {specialsData.body}
           </div>
           {specialsData.updated_by && (
-            <div style={{ fontSize: 10, color: `${TSEC}99`, fontFamily: "'Poppins',sans-serif" }}>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontFamily: "'Poppins',sans-serif" }}>
               Last edited by {specialsData.updated_by}
             </div>
           )}
@@ -166,7 +154,7 @@ export default function CafeSpecials({ weekOf, campus }) {
       ) : (
         <div style={{
           textAlign: "center", padding: "24px 0",
-          color: `${TSEC}88`, fontSize: 12,
+          color: COLORS.TEXT_MUTED, fontSize: 12,
           fontFamily: "'Poppins',sans-serif",
         }}>
           No specials posted for this week.
@@ -175,9 +163,9 @@ export default function CafeSpecials({ weekOf, campus }) {
             style={{
               marginTop: 10,
               background: "transparent",
-              border: `1px solid ${BORDER}`,
-              borderRadius: 6, padding: "6px 14px",
-              color: TSEC, cursor: "pointer",
+              border: `1px solid ${COLORS.BORDER}`,
+              borderRadius: RADIUS.SM, padding: "6px 14px",
+              color: COLORS.TEXT_SECONDARY, cursor: "pointer",
               fontFamily: "'Poppins',sans-serif",
               fontWeight: 600, fontSize: 11,
             }}>
