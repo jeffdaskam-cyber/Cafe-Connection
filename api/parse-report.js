@@ -23,6 +23,33 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
+// ─── Auth verification ────────────────────────────────────────────────────────
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    const err = new Error("Missing or invalid Authorization header.");
+    err.status = 401;
+    throw err;
+  }
+  return admin.auth().verifyIdToken(authHeader.slice(7));
+}
+
+// ─── SSRF protection: only allow files from our Firebase Storage bucket ───────
+const ALLOWED_STORAGE_HOST    = "firebasestorage.googleapis.com";
+const ALLOWED_STORAGE_BUCKET  = "cafe-connection-ed6c7.firebasestorage.app";
+
+function isValidStorageUrl(url) {
+  try {
+    const { hostname, pathname } = new URL(url);
+    return (
+      hostname === ALLOWED_STORAGE_HOST &&
+      pathname.includes(ALLOWED_STORAGE_BUCKET)
+    );
+  } catch {
+    return false;
+  }
+}
+
 // ─── Campus detection from Profit Center label ───────────────────────────────
 const PROFIT_CENTER_MAP = {
   "ucar foothills lab": "Foothills",
@@ -45,10 +72,27 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // ── Require authenticated UCAR user ────────────────────────────────────────
+  try {
+    await verifyAuth(req);
+  } catch (err) {
+    return res.status(err.status || 401).json({ error: err.message });
+  }
+
   const { fileUrl, campus: campusFallback, fileName } = req.body;
 
   if (!fileUrl || !fileName) {
     return res.status(400).json({ error: "Missing required fields: fileUrl, fileName" });
+  }
+
+  // ── Validate fileUrl is a Firebase Storage URL for this project ────────────
+  if (!isValidStorageUrl(fileUrl)) {
+    return res.status(400).json({ error: "Invalid fileUrl: must be a Firebase Storage URL for this project." });
+  }
+
+  // ── Validate fileName length ───────────────────────────────────────────────
+  if (typeof fileName !== "string" || fileName.length > 255) {
+    return res.status(400).json({ error: "Invalid fileName." });
   }
 
   try {

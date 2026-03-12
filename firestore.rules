@@ -1,109 +1,135 @@
 // Cafe Connection — Firestore Security Rules
 // ─────────────────────────────────────────────────────────────────────────────
 // Deploy with: firebase deploy --only firestore:rules
-// Requires firebase.json in the project root (see firebase.json).
+// Requires firebase.json in the project root.
 //
-// Current policy (Phase 2):
+// Policy (Phase 10 — hardened):
 //   - All data requires authentication (UCAR magic-link sign-in)
-//   - Users can only read/write their own profile document
-//   - daily_metrics and event_orders are readable by any authenticated user
-//   - Client-side writes are restricted; most writes go via Admin SDK (serverless)
-//   - New operational collections (weekly_schedules, cash_drops, etc.) will
-//     tighten write rules to campus + role as those modules are built (Phase 10)
+//   - Defense in depth: rules also verify @ucar.edu email domain
+//   - Operational writes validate campus and owned fields
+//   - cash_drops: update/delete restricted to the submitter or an admin
+//   - daily_metrics, generated_reports: client writes blocked (Admin SDK only)
+//   - users, user_dashboard_prefs: scoped to own document only
 //
 // NOTE: Firebase Admin SDK always bypasses these rules on the server side.
-// Phase 10 will do a full security review and rule tightening pass.
 
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helper: require authenticated UCAR user ────────────────────────────
-    function isAuthed() {
-      return request.auth != null;
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    // Require authenticated user with @ucar.edu email (defense in depth)
+    function isAuthedUCAR() {
+      return request.auth != null &&
+             request.auth.token.email != null &&
+             request.auth.token.email.matches('.*@ucar\\.edu$');
+    }
+
+    // Look up role from the /users/{uid} document
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '');
+    }
+    function isAdmin() {
+      return isAuthedUCAR() && userRole() == 'admin';
+    }
+
+    // Valid campus values
+    function isValidCampus(campus) {
+      return campus in ['Mesa Lab', 'Foothills', 'Center Green'];
     }
 
     // ── daily_metrics ──────────────────────────────────────────────────────
-    // Read: any authenticated user
+    // Read: any authenticated UCAR user
     // Write: server-side only (Admin SDK via /api/parse-report)
     match /daily_metrics/{doc} {
-      allow read:  if isAuthed();
-      allow write: if false;   // Admin SDK only; client writes are blocked
+      allow read:  if isAuthedUCAR();
+      allow write: if false;
     }
 
     // ── event_orders ───────────────────────────────────────────────────────
-    // Read:   any authenticated user (WeeklyOps event library)
-    // Create: any authenticated user (upload via firebase.js uploadEventOrder)
-    // Update/Delete: server-side only
+    // Read:   any authenticated UCAR user
+    // Create: any authenticated UCAR user (upload via firebase.js)
+    // Update/Delete: blocked — files are immutable after upload
     match /event_orders/{doc} {
-      allow read:   if isAuthed();
-      allow create: if isAuthed();
+      allow read:   if isAuthedUCAR();
+      allow create: if isAuthedUCAR();
       allow update, delete: if false;
     }
 
     // ── users ──────────────────────────────────────────────────────────────
-    // Each user can only read and write their own profile document.
-    // Document ID == Firebase Auth UID.
+    // Own profile only. Document ID == Firebase Auth UID.
     match /users/{userId} {
-      allow read, write: if isAuthed() && request.auth.uid == userId;
+      allow read, write: if isAuthedUCAR() && request.auth.uid == userId;
     }
 
     // ── weekly_schedules ───────────────────────────────────────────────────
-    // Phase 6 — defined in schema, not yet implemented
     match /weekly_schedules/{doc} {
-      allow read:  if isAuthed();
-      allow write: if isAuthed(); // will tighten to role check in Phase 10
+      allow read:  if isAuthedUCAR();
+      allow write: if isAuthedUCAR();
     }
 
     // ── schedule_notes ─────────────────────────────────────────────────────
     match /schedule_notes/{doc} {
-      allow read:  if isAuthed();
-      allow write: if isAuthed();
+      allow read:  if isAuthedUCAR();
+      allow write: if isAuthedUCAR();
     }
 
     // ── cafe_specials ──────────────────────────────────────────────────────
     match /cafe_specials/{doc} {
-      allow read:  if isAuthed();
-      allow write: if isAuthed();
+      allow read:  if isAuthedUCAR();
+      allow write: if isAuthedUCAR() &&
+                      isValidCampus(request.resource.data.campus);
     }
 
     // ── cash_drops ─────────────────────────────────────────────────────────
+    // Create: any authenticated UCAR user; created_by_uid must match their UID
+    // Update/Delete: submitter only, or an admin
     match /cash_drops/{doc} {
-      allow read:  if isAuthed();
-      allow create: if isAuthed();
-      allow update, delete: if isAuthed(); // Phase 10: restrict to submitter or admin
+      allow read:   if isAuthedUCAR();
+      allow create: if isAuthedUCAR() &&
+                       isValidCampus(request.resource.data.campus) &&
+                       request.resource.data.created_by_uid == request.auth.uid &&
+                       request.resource.data.amount is number;
+      allow update, delete: if isAuthedUCAR() &&
+                               (resource.data.created_by_uid == request.auth.uid ||
+                                isAdmin());
     }
 
     // ── beos ───────────────────────────────────────────────────────────────
     match /beos/{doc} {
-      allow read:  if isAuthed();
-      allow write: if isAuthed();
+      allow read:  if isAuthedUCAR();
+      allow write: if isAuthedUCAR() &&
+                      isValidCampus(request.resource.data.campus);
     }
 
     // ── event_reports ──────────────────────────────────────────────────────
     match /event_reports/{doc} {
-      allow read:  if isAuthed();
-      allow write: if isAuthed();
+      allow read:  if isAuthedUCAR();
+      allow write: if isAuthedUCAR() &&
+                      isValidCampus(request.resource.data.campus);
     }
 
     // ── setup_reports ──────────────────────────────────────────────────────
     match /setup_reports/{doc} {
-      allow read:  if isAuthed();
-      allow write: if isAuthed();
+      allow read:  if isAuthedUCAR();
+      allow write: if isAuthedUCAR() &&
+                      isValidCampus(request.resource.data.campus);
     }
 
     // ── generated_reports ──────────────────────────────────────────────────
+    // Immutable after creation — no updates or deletes from the client
     match /generated_reports/{doc} {
-      allow read:  if isAuthed();
-      allow create: if isAuthed();
-      allow update, delete: if false; // reports are immutable after generation
+      allow read:   if isAuthedUCAR();
+      allow create: if isAuthedUCAR();
+      allow update, delete: if false;
     }
 
     // ── user_dashboard_prefs ───────────────────────────────────────────────
-    // Document ID == Firebase Auth UID
+    // Own document only. Document ID == Firebase Auth UID.
     match /user_dashboard_prefs/{userId} {
-      allow read, write: if isAuthed() && request.auth.uid == userId;
+      allow read, write: if isAuthedUCAR() && request.auth.uid == userId;
     }
 
     // ── Catch-all: deny everything not explicitly matched ──────────────────

@@ -6,7 +6,33 @@
 // GET /api/get-schedule
 // Returns: { success: true, weekLabel: string, rows: string[][], colorMap: object }
 
+import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";
+
+// ─── Firebase Admin Init (singleton) ────────────────────────────────────────
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    }),
+  });
+}
+
+// ─── Auth verification ────────────────────────────────────────────────────────
+async function verifyAuth(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    const err = new Error("Unauthorized.");
+    err.status = 401;
+    throw err;
+  }
+  return admin.auth().verifyIdToken(authHeader.slice(7));
+}
+
+// ─── weekOf format validation ─────────────────────────────────────────────────
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // ─── Google OAuth2 token via service account ─────────────────────────────────
 async function getAccessToken() {
@@ -74,6 +100,19 @@ function formatMonthFolder(date) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
+  // ── Require authenticated UCAR user ──────────────────────────────────────
+  try {
+    await verifyAuth(req);
+  } catch (err) {
+    return res.status(err.status || 401).json({ error: err.message });
+  }
+
+  // ── Validate weekOf query param ───────────────────────────────────────────
+  const weekOfParam = req.query.weekOf;
+  if (weekOfParam !== undefined && !ISO_DATE_RE.test(weekOfParam)) {
+    return res.status(400).json({ error: "Invalid weekOf parameter. Expected YYYY-MM-DD." });
+  }
+
   try {
     const token        = await getAccessToken();
     const rootFolderId = process.env.GOOGLE_SCHEDULE_FOLDER_ID;
@@ -81,8 +120,7 @@ export default async function handler(req, res) {
 
     // ?weekOf=YYYY-MM-DD → exact week only (user navigated explicitly)
     // no param           → auto-detect current week, fall back to previous
-    const weekOfParam = req.query.weekOf; // e.g. "2026-03-09"
-
+    // (weekOfParam validated above, before the try block)
     const monday = weekOfParam
       ? getMondayOf(new Date(weekOfParam + "T12:00:00")) // noon avoids DST edge cases
       : getMondayOf(new Date());

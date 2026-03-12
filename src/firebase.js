@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { getAuth, getIdToken, setPersistence, browserLocalPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
@@ -61,12 +61,22 @@ export async function uploadEventOrder(file, onProgress) {
   return downloadURL;
 }
 
+// ── Helper: get Firebase ID token for authenticated API calls ─────────────
+async function getAuthToken() {
+  if (!auth.currentUser) throw new Error("Not authenticated.");
+  return getIdToken(auth.currentUser);
+}
+
 // ── Call the Vercel serverless parse function ─────────────────────────────
 export async function parseReport(fileUrl, campus, fileName) {
+  const token = await getAuthToken();
   const res = await fetch("/api/parse-report", {
     method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ fileUrl, campus, fileName }),
+    headers: {
+      "Content-Type":  "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ fileUrl, campus, fileName }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -75,8 +85,11 @@ export async function parseReport(fileUrl, campus, fileName) {
 // ── Fetch week's schedule from Google Drive ───────────────────────────────
 // weekOf: ISO Monday string "YYYY-MM-DD" (optional; omit for auto-detect)
 export async function fetchSchedule(weekOf = null) {
-  const url = weekOf ? `/api/get-schedule?weekOf=${weekOf}` : "/api/get-schedule";
-  const res = await fetch(url);
+  const token = await getAuthToken();
+  const url   = weekOf ? `/api/get-schedule?weekOf=${weekOf}` : "/api/get-schedule";
+  const res   = await fetch(url, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || "Failed to fetch schedule");
