@@ -1,13 +1,15 @@
 /**
  * FirstRunWizard — Phase 8 dashboard personalization setup wizard.
  *
- * A 3-step modal shown on first login after Phase 8 deployment:
- *   Step 1 — Welcome + primary campus selection
+ * A 4-step modal shown on first login after Phase 8 deployment:
+ *   Step 0 — Display name entry (first run only)
+ *   Step 1 — Welcome + primary campus selection (first run only)
  *   Step 2 — Widget picker (toggle which widgets to display)
- *   Step 3 — All set (confirmation before saving)
+ *   Step 3 — All set (confirmation before saving; first run only)
  *
  * Also used as the "Edit Dashboard" picker (startAtStep=1) by passing
- * the current prefs as initialPrefs.
+ * the current prefs as initialPrefs. In edit mode only the widget picker
+ * is shown; the name and campus steps are skipped entirely.
  *
  * Props:
  *   initialPrefs   {object|null}  — current prefs (null = brand new user)
@@ -22,6 +24,7 @@ import { createPortal } from "react-dom";
 import { WIDGET_REGISTRY, defaultPrefs } from "../../registries/widgetRegistry.js";
 import { CAMPUSES } from "../../schemas/firestore.js";
 import { COLORS, SHADOWS, RADIUS } from "../../theme.js";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 
 const CAMPUS_COLOR = {
   "Mesa Lab":     COLORS.AQUA,
@@ -59,8 +62,55 @@ function StepDots({ total, current }) {
   );
 }
 
-// ── Step 0: Welcome + campus ───────────────────────────────────────────────────
-function StepWelcome({ campus, setCampus, onNext }) {
+// ── Step 0: Display name ───────────────────────────────────────────────────────
+function StepName({ name, setName, onNext }) {
+  const trimmed = name.trim();
+  return (
+    <div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 8 }}>
+        What's your name?
+      </div>
+      <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY, lineHeight: 1.65, marginBottom: 28, maxWidth: 440 }}>
+        This is how you'll appear in Cafe Connection.
+      </div>
+
+      <input
+        type="text"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Your name"
+        autoFocus
+        onKeyDown={e => { if (e.key === "Enter" && trimmed) onNext(); }}
+        style={{
+          width: "100%", boxSizing: "border-box",
+          background: COLORS.BG_SURFACE_ALT,
+          border: `1px solid ${COLORS.BORDER}`,
+          borderRadius: RADIUS.MD, color: COLORS.TEXT_PRIMARY,
+          fontFamily: "'Poppins',sans-serif",
+          fontWeight: 600, fontSize: 14,
+          padding: "11px 14px", outline: "none",
+          marginBottom: 28,
+        }}
+      />
+
+      <button onClick={onNext} disabled={!trimmed} style={{
+        background: trimmed ? COLORS.AQUA : COLORS.BORDER,
+        border: "none", borderRadius: RADIUS.MD,
+        padding: "11px 28px", cursor: trimmed ? "pointer" : "not-allowed",
+        fontFamily: "'Poppins',sans-serif",
+        fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
+        boxShadow: trimmed ? `0 4px 16px ${COLORS.AQUA}33` : "none",
+        transition: "all .18s",
+        opacity: trimmed ? 1 : 0.5,
+      }}>
+        Next →
+      </button>
+    </div>
+  );
+}
+
+// ── Step 1: Welcome + campus ───────────────────────────────────────────────────
+function StepWelcome({ campus, setCampus, onBack, onNext }) {
   return (
     <div>
       <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 8 }}>
@@ -96,22 +146,32 @@ function StepWelcome({ campus, setCampus, onNext }) {
         })}
       </div>
 
-      <button onClick={onNext} style={{
-        background: COLORS.AQUA,
-        border: "none", borderRadius: RADIUS.MD,
-        padding: "11px 28px", cursor: "pointer",
-        fontFamily: "'Poppins',sans-serif",
-        fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
-        boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
-        transition: "all .18s",
-      }}>
-        Next →
-      </button>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={onBack} style={{
+          background: "transparent", border: `1px solid ${COLORS.BORDER}`,
+          borderRadius: RADIUS.MD, padding: "10px 22px", cursor: "pointer",
+          fontFamily: "'Poppins',sans-serif", fontWeight: 600,
+          fontSize: 12, color: COLORS.TEXT_SECONDARY, transition: "all .18s",
+        }}>
+          ← Back
+        </button>
+        <button onClick={onNext} style={{
+          background: COLORS.AQUA,
+          border: "none", borderRadius: RADIUS.MD,
+          padding: "11px 28px", cursor: "pointer",
+          fontFamily: "'Poppins',sans-serif",
+          fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
+          boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
+          transition: "all .18s",
+        }}>
+          Next →
+        </button>
+      </div>
     </div>
   );
 }
 
-// ── Step 1: Widget picker ──────────────────────────────────────────────────────
+// ── Step 2: Widget picker ──────────────────────────────────────────────────────
 function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
   function toggle(widgetId) {
     setWidgets(prev => prev.map(w =>
@@ -214,7 +274,7 @@ function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
   );
 }
 
-// ── Step 2: All set ────────────────────────────────────────────────────────────
+// ── Step 3: All set ────────────────────────────────────────────────────────────
 function StepDone({ enabledCount, saving, saveErr, onDone }) {
   return (
     <div style={{ textAlign: "center", paddingTop: 16 }}>
@@ -262,6 +322,7 @@ export default function FirstRunWizard({
   allowClose = false,
   startAtStep = 0,
 }) {
+  const { user } = useAuth();
   const isEdit = startAtStep > 0;
 
   // Derive initial state from existing prefs
@@ -273,29 +334,30 @@ export default function FirstRunWizard({
     return first?.config?.campus ?? "Mesa Lab";
   })();
 
-  const [step,    setStep]    = useState(startAtStep);
-  const [campus,  setCampus]  = useState(initialCampus);
-  const [widgets, setWidgets] = useState(() =>
+  const [step,        setStep]        = useState(startAtStep);
+  const [displayName, setDisplayName] = useState(user?.displayName || "");
+  const [campus,      setCampus]      = useState(initialCampus);
+  const [widgets,     setWidgets]     = useState(() =>
     initialPrefs?.widgets ?? buildDefaultWidgets(initialCampus)
   );
   const [saving,  setSaving]  = useState(false);
   const [saveErr, setSaveErr] = useState(null);
 
-  // When campus changes (Step 0), reapply campus to campus-aware widgets
+  // When campus changes (Step 1), reapply campus to campus-aware widgets
   function handleCampusChange(c) {
     setCampus(c);
     setWidgets(prev => applyCampus(prev, c));
   }
 
   function handleBack() {
-    setStep(s => Math.max(0, s - 1));
+    setStep(s => s - 1);
   }
 
   function handleWidgetsDone() {
     if (isEdit) {
       handleSave();
     } else {
-      setStep(2);
+      setStep(3);
     }
   }
 
@@ -306,6 +368,7 @@ export default function FirstRunWizard({
       const finalPrefs = {
         ...(initialPrefs ?? {}),
         widgets,
+        displayName,
         setupDone: true,
         updated_at: null, // firebase.js will set serverTimestamp()
       };
@@ -318,8 +381,8 @@ export default function FirstRunWizard({
     }
   }
 
-  const TOTAL_STEPS = isEdit ? 1 : 3;
-  const enabledCount = widgets.filter(w => w.enabled).length;
+  const TOTAL_STEPS   = isEdit ? 1 : 4;
+  const enabledCount  = widgets.filter(w => w.enabled).length;
 
   return createPortal(
     <div style={{
@@ -364,13 +427,21 @@ export default function FirstRunWizard({
 
         {/* Step content */}
         {step === 0 && !isEdit && (
-          <StepWelcome
-            campus={campus}
-            setCampus={handleCampusChange}
+          <StepName
+            name={displayName}
+            setName={setDisplayName}
             onNext={() => setStep(1)}
           />
         )}
-        {(step === 1 || (isEdit && step === 0)) && (
+        {step === 1 && !isEdit && (
+          <StepWelcome
+            campus={campus}
+            setCampus={handleCampusChange}
+            onBack={handleBack}
+            onNext={() => setStep(2)}
+          />
+        )}
+        {(step === 2 || (isEdit && step === 1)) && (
           <StepWidgets
             widgets={widgets}
             setWidgets={setWidgets}
@@ -380,7 +451,7 @@ export default function FirstRunWizard({
             isEdit={isEdit}
           />
         )}
-        {step === 2 && !isEdit && (
+        {step === 3 && !isEdit && (
           <StepDone
             enabledCount={enabledCount}
             saving={saving}

@@ -7,11 +7,18 @@
  *
  * The caller is responsible for seeding defaultPrefs when prefs === null
  * and loading === false (i.e. the Firestore doc doesn't exist yet).
+ *
+ * When prefs include a displayName field, savePrefs also:
+ *   - writes it to users/{uid} in Firestore (merge)
+ *   - calls Firebase Auth updateProfile so auth.currentUser.displayName is updated
  */
 
 import { useState, useEffect } from "react";
+import { doc, setDoc } from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { subscribeDashboardPrefs, saveDashboardPrefs } from "../firebase.js";
+import { auth, db } from "../firebase.js";
 
 export function useDashboardPrefs() {
   const { user } = useAuth();
@@ -34,6 +41,16 @@ export function useDashboardPrefs() {
     setSaveErr(null);
     try {
       await saveDashboardPrefs(user.uid, data);
+
+      // If a displayName was included, persist it to the user profile docs
+      if (data.displayName !== undefined) {
+        const name = data.displayName;
+        await setDoc(doc(db, "users", user.uid), { displayName: name }, { merge: true });
+        if (auth.currentUser) {
+          await updateProfile(auth.currentUser, { displayName: name });
+        }
+      }
+
       // Optimistically update local state — snapshot will also fire and confirm
       setPrefs(prev => ({ ...(prev ?? {}), ...data }));
     } catch (err) {

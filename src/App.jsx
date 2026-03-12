@@ -154,7 +154,7 @@ function AppShell() {
                 maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}>
-                {user.email}
+                {user.displayName || user.email}
               </div>
               <button
                 onClick={logout}
