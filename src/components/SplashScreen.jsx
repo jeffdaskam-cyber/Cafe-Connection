@@ -132,7 +132,7 @@ export default function SplashScreen({ onDone }) {
 
         {/* ── UCAR wordmark ── */}
         <div style={{
-          fontSize: 52, fontWeight: 800, color: TPRI,
+          fontSize: 70, fontWeight: 800, color: TPRI,
           letterSpacing: "0.18em", textTransform: "uppercase",
           marginBottom: 16,
           animation: "cc-logo-in 420ms cubic-bezier(0.22,1,0.36,1) both",
@@ -142,9 +142,9 @@ export default function SplashScreen({ onDone }) {
 
         {/* ── Typed headline + cursor ── */}
         <div style={{
-          fontSize: 34, fontWeight: 800, color: TPRI,
+          fontSize: 46, fontWeight: 800, color: TPRI,
           letterSpacing: "0.01em",
-          height: 46,
+          height: 62,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <span style={{ letterSpacing: "-0.01em" }}>{displayText}</span>
@@ -169,7 +169,7 @@ export default function SplashScreen({ onDone }) {
 
         {/* ── Subtitle — fades in when typing is done ── */}
         <div style={{
-          fontSize: 10, fontWeight: 600, color: TSEC,
+          fontSize: 20, fontWeight: 600, color: TSEC,
           letterSpacing: "0.14em", textTransform: "uppercase",
           marginTop: 14,
           opacity: showSubtitle ? 1 : 0,
