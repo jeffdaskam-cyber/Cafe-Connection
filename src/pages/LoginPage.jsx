@@ -132,27 +132,13 @@ export default function LoginPage() {
         </div>
 
         {/* Logo mark */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: "50%",
-            background: `linear-gradient(135deg, ${COLORS.AQUA}, ${COLORS.AQUA_DARK})`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: `0 0 20px ${COLORS.AQUA}33`, flexShrink: 0,
-          }}>
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none">
-              <ellipse cx="12" cy="12" rx="10" ry="10" stroke="white" strokeWidth="1.2" />
-              <path d="M4 10 Q8 6 12 10 Q16 14 20 10" stroke="white" strokeWidth="1.4" fill="none" />
-              <path d="M4 14 Q8 10 12 14 Q16 18 20 14" stroke="white" strokeWidth="1.4" fill="none" />
-            </svg>
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.TEXT_PRIMARY }}>
+            <span style={{ color: COLORS.AQUA }}>UCAR</span> Cafe Connection
           </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.TEXT_PRIMARY }}>
-              <span style={{ color: COLORS.AQUA }}>UCAR</span> Cafe Connection
-            </div>
-            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
-              letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              Internal Operations Hub
-            </div>
+          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
+            letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Internal Operations Hub
           </div>
         </div>
 
