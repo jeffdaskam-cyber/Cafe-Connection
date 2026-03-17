@@ -10,8 +10,11 @@ import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
-if (!admin.apps.length) {
-  admin.initializeApp({
+let adminApp;
+try {
+  adminApp = admin.app();
+} catch {
+  adminApp = admin.initializeApp({
     credential: admin.credential.cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
@@ -28,8 +31,7 @@ async function verifyAuth(req) {
     err.status = 401;
     throw err;
   }
-  return admin.auth().verifyIdToken(authHeader.slice(7));
-}
+  return adminApp.auth().verifyIdToken(authHeader.slice(7));
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
