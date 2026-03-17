@@ -97,6 +97,20 @@ export async function fetchSchedule(weekOf = null) {
   return res.json();
 }
 
+// ── Fetch week's cafe specials from Google Drive ───────────────────────────
+export async function fetchSpecials(weekOf = null) {
+  const token = await getAuthToken();
+  const url   = weekOf ? `/api/get-specials?weekOf=${weekOf}` : "/api/get-specials";
+  const res   = await fetch(url, {
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to fetch specials");
+  }
+  return res.json();
+}
+
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────
 export function subscribeToCampus(campus, callback) {
   const thirtyDaysAgo = new Date();
