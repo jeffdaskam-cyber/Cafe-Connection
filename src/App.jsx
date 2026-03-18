@@ -56,10 +56,10 @@ function LoadingScreen() {
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
 const TABS = [
-  { id: "dashboard",  label: "Dashboard",  icon: "🏠" },
-  { id: "weeklyops",  label: "Weekly Ops", icon: "📋" },
-  { id: "financials", label: "Financials", icon: "📊" },
-  { id: "reports",    label: "Reports",    icon: "📑" },
+  { id: "dashboard",  label: "Dashboard"  },
+  { id: "weeklyops",  label: "Weekly Ops" },
+  { id: "financials", label: "Financials" },
+  { id: "reports",    label: "Reports"    },
 ];
 
 // ── Main App Shell ─────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ function AppShell() {
                 <button key={tab.id} className="ucar-tab-btn"
                   onClick={() => setActiveTab(tab.id)}
                   style={{
-                    display: "flex", alignItems: "center", gap: 7,
+                    display: "flex", alignItems: "center",
                     padding: "8px 20px", borderRadius: 0, border: "none",
                     cursor: "pointer", fontFamily: "'Poppins',sans-serif",
                     fontWeight: 600, fontSize: 12, letterSpacing: "0.03em",
@@ -136,7 +136,6 @@ function AppShell() {
                     borderBottom: active ? `2px solid ${COLORS.NAV_INDICATOR}` : "2px solid transparent",
                     transition: "all .2s ease",
                   }}>
-                  <span style={{ fontSize: 14 }}>{tab.icon}</span>
                   {tab.label}
                 </button>
               );
