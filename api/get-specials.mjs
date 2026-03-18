@@ -88,12 +88,15 @@ function getMondayOf(date) {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+// Hardcoded to avoid Node.js ICU locale inconsistencies across environments
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 function formatYearFolder(date) {
   return `${date.getFullYear()}`;
 }
 function formatMonthFolder(date) {
   const mm        = String(date.getMonth() + 1).padStart(2, "0");
-  const monthName = date.toLocaleDateString("en-US", { month: "short" });
+  const monthName = MONTHS_SHORT[date.getMonth()];
   return `${mm} - ${monthName}`;
 }
 function ordinal(n) {
@@ -104,8 +107,8 @@ function ordinal(n) {
 function formatWeekFolder(monday) {
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
-  const monLabel = monday.toLocaleDateString("en-US", { month: "short" });
-  const friLabel = friday.toLocaleDateString("en-US", { month: "short" });
+  const monLabel = MONTHS_SHORT[monday.getMonth()];
+  const friLabel = MONTHS_SHORT[friday.getMonth()];
   return `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
 }
 
