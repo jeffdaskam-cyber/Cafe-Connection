@@ -3,6 +3,7 @@
  *
  * Mirrors the Staff Schedule pattern: fetches a Google Doc via
  * /api/get-specials and displays the plain text content.
+ * Read-only — edit the source Google Doc in Drive to update.
  *
  * Props:
  *   weekOf  {string} — ISO Monday "YYYY-MM-DD"
@@ -20,33 +21,29 @@ export default function CafeSpecials({ weekOf, campus }) {
 
   const {
     data:    specialsData,
-    loading: specialsLoading,
-    error:   specialsError,
-    reload:  reloadSpecials,
+    loading,
+    error,
+    reload,
   } = useWidget(() => fetchSpecials(weekOf), [weekOf]);
+
+  const body = specialsData?.body ?? "";
 
   return (
     <Widget
-      title="Cafe Specials"
-      subtitle={specialsData?.weekLabel ?? `Week of ${weekOf}`}
+      title={`${campus} Specials`}
+      subtitle={specialsData?.weekLabel ?? "Weekly menu specials"}
       icon="🍽️"
       accentColor={accent}
-      loading={specialsLoading}
-      error={specialsError}
-      onRetry={reloadSpecials}
+      loading={loading}
+      error={error}
+      onRetry={reload}
+      empty={!loading && !error && !body}
+      emptyIcon="🍽️"
+      emptyMessage="No specials found for this week."
       expandable
-      actions={[{ label: "↻ Refresh", onClick: reloadSpecials }]}
+      actions={[{ label: "↻ Refresh", onClick: reload }]}
     >
-      {!specialsLoading && !specialsError && !specialsData?.body && (
-        <div style={{
-          textAlign: "center", padding: "24px 0",
-          color: COLORS.TEXT_MUTED, fontSize: 12,
-          fontFamily: "'Poppins',sans-serif",
-        }}>
-          No specials posted for this week.
-        </div>
-      )}
-      {specialsData?.body && (
+      {body && (
         <div style={{
           whiteSpace: "pre-wrap",
           color: COLORS.TEXT_PRIMARY,
@@ -54,7 +51,7 @@ export default function CafeSpecials({ weekOf, campus }) {
           fontFamily: "'Poppins',sans-serif",
           lineHeight: 1.7,
         }}>
-          {specialsData.body}
+          {body}
         </div>
       )}
     </Widget>

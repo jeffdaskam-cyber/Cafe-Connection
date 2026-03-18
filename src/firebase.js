@@ -97,7 +97,8 @@ export async function fetchSchedule(weekOf = null) {
   return res.json();
 }
 
-// ── Fetch week's cafe specials from Google Drive ───────────────────────────
+// ── Fetch week's cafe specials from Google Drive ──────────────────────────
+// weekOf: ISO Monday string "YYYY-MM-DD" (optional; omit for auto-detect)
 export async function fetchSpecials(weekOf = null) {
   const token = await getAuthToken();
   const url   = weekOf ? `/api/get-specials?weekOf=${weekOf}` : "/api/get-specials";

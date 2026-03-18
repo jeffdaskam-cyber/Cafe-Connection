@@ -1,7 +1,8 @@
 /**
  * CafeSpecialsWidget — dashboard mini-widget
  *
- * Shows this week's cafe specials for the configured campus.
+ * Shows this week's cafe specials for the configured campus,
+ * fetched from Google Drive via /api/get-specials.
  *
  * Props:
  *   config  { campus: string }
@@ -9,8 +10,8 @@
 
 import Widget from "../Widget.jsx";
 import { CAMPUS_COLOR } from "../CampusSelector.jsx";
-import { useWidgetSubscription } from "../../hooks/useWidget.js";
-import { subscribeCafeSpecials } from "../../firebase.js";
+import { useWidget } from "../../hooks/useWidget.js";
+import { fetchSpecials } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
 
 function currentMonday() {
@@ -25,8 +26,8 @@ export default function CafeSpecialsWidget({ config = {} }) {
   const accentColor = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
   const weekOf      = currentMonday();
 
-  const { data: specials, loading, error } = useWidgetSubscription(
-    (cb) => subscribeCafeSpecials(weekOf, campus, cb),
+  const { data: specials, loading, error, reload } = useWidget(
+    () => fetchSpecials(weekOf),
     [weekOf, campus]
   );
 
@@ -40,6 +41,7 @@ export default function CafeSpecialsWidget({ config = {} }) {
       accentColor={accentColor}
       loading={loading}
       error={error}
+      onRetry={reload}
       empty={!loading && !error && !body}
       emptyIcon="🍽️"
       emptyMessage="No specials posted for this week."

@@ -113,6 +113,7 @@ export default function WeeklyOps() {
     } catch (err) {
       console.error("[WeeklyOps] Event order upload failed:", err);
       setUploadState("ERROR");
+      setTimeout(() => setUploadState("IDLE"), 3000);
     }
   }, []);
 
@@ -124,7 +125,7 @@ export default function WeeklyOps() {
   }
 
   function formatUploadDate(ts) {
-    if (!ts) return "";
+    if (!ts) return "Just now";
     const d = ts.toDate ? ts.toDate() : new Date(ts);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
