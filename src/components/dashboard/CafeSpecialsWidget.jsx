@@ -1,15 +1,17 @@
 /**
  * CafeSpecialsWidget — dashboard mini-widget
  *
- * Shows this week's cafe specials for the configured campus,
+ * Shows this week's cafe specials for the selected campus,
  * fetched from Google Drive via /api/get-specials.
+ * Includes an inline campus switcher.
  *
  * Props:
  *   config  { campus: string }
  */
 
+import { useState } from "react";
 import Widget from "../Widget.jsx";
-import { CAMPUS_COLOR } from "../CampusSelector.jsx";
+import { CAMPUS_COLOR, CAMPUSES } from "../CampusSelector.jsx";
 import { useWidget } from "../../hooks/useWidget.js";
 import { fetchSpecials } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
@@ -21,14 +23,45 @@ function currentMonday() {
   return d.toISOString().slice(0, 10);
 }
 
+function CampusPills({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
+      {CAMPUSES.map(c => {
+        const active = c === value;
+        const color  = CAMPUS_COLOR[c] ?? COLORS.AQUA;
+        return (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            style={{
+              padding: "3px 9px",
+              borderRadius: 4,
+              border: `1px solid ${active ? color : COLORS.BORDER}`,
+              background: active ? `${color}18` : "transparent",
+              color: active ? color : COLORS.TEXT_MUTED,
+              fontFamily: "'Poppins',sans-serif",
+              fontWeight: 600,
+              fontSize: 9,
+              letterSpacing: "0.03em",
+              cursor: "pointer",
+              transition: "all .15s",
+            }}>
+            {c}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CafeSpecialsWidget({ config = {} }) {
-  const campus      = config.campus ?? "Mesa Lab";
-  const accentColor = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
+  const [activeCampus, setActiveCampus] = useState(config.campus ?? "Mesa Lab");
+  const accentColor = CAMPUS_COLOR[activeCampus] ?? COLORS.AQUA;
   const weekOf      = currentMonday();
 
   const { data: specials, loading, error, reload } = useWidget(
-    () => fetchSpecials(weekOf, campus),
-    [weekOf, campus]
+    () => fetchSpecials(weekOf, activeCampus),
+    [weekOf, activeCampus]
   );
 
   const body = specials?.body ?? "";
@@ -36,17 +69,20 @@ export default function CafeSpecialsWidget({ config = {} }) {
   return (
     <Widget
       title="Cafe Specials"
-      subtitle={campus}
+      subtitle={activeCampus}
       icon="🍽️"
       accentColor={accentColor}
       loading={loading}
       error={error}
       onRetry={reload}
-      empty={!loading && !error && !body}
-      emptyIcon="🍽️"
-      emptyMessage="No specials posted for this week."
     >
-      {body && (
+      <CampusPills value={activeCampus} onChange={setActiveCampus} />
+      {!body ? (
+        <div style={{ textAlign: "center", padding: "20px 0 8px",
+          fontSize: 12, color: COLORS.TEXT_MUTED }}>
+          No specials posted for this week.
+        </div>
+      ) : (
         <div style={{
           fontSize: 12, color: COLORS.TEXT_PRIMARY, lineHeight: 1.65,
           whiteSpace: "pre-wrap", wordBreak: "break-word",

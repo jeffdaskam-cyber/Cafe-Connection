@@ -83,10 +83,7 @@ async function findInFolder(token, parentId, name) {
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   const data = await res.json();
-  if (data.error) {
-    console.error(`[get-specials] Drive error for parentId="${parentId}" name="${name}": ${JSON.stringify(data.error)}`);
-    throw new Error(`Drive API error: ${data.error.message}`);
-  }
+  if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
   return data.files?.[0] || null;
 }
 
@@ -156,8 +153,7 @@ export default async function handler(req, res) {
 
   try {
     const token        = await getAccessToken();
-    const rootFolderId = process.env.GOOGLE_SPECIALS_FOLDER_ID;
-    console.error(`[get-specials] rootFolderId="${rootFolderId}"`);
+    const rootFolderId = process.env.GOOGLE_SPECIALS_FOLDER_ID?.trim();
     if (!rootFolderId) throw new Error("GOOGLE_SPECIALS_FOLDER_ID env var not set.");
 
     const monday = weekOfParam

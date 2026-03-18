@@ -117,9 +117,29 @@ export async function fetchSpecials(weekOf = null, campus = "Mesa Lab") {
 }
 
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────
+// campus: specific campus name OR "All Campuses" to merge all three live
 export function subscribeToCampus(campus, callback) {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  if (campus === "All Campuses") {
+    const ALL   = ["Mesa Lab", "Foothills", "Center Green"];
+    const cache = {};
+    const unsubs = ALL.map(c => {
+      const q = query(
+        collection(db, "daily_metrics"),
+        where("campus", "==", c),
+        where("date",   ">=", thirtyDaysAgo),
+        orderBy("date", "asc")
+      );
+      return onSnapshot(q, snap => {
+        cache[c] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        callback(Object.values(cache).flat());
+      });
+    });
+    return () => unsubs.forEach(u => u());
+  }
+
   const q = query(
     collection(db, "daily_metrics"),
     where("campus", "==", campus),
