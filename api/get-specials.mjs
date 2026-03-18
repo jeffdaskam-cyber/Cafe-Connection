@@ -154,6 +154,7 @@ export default async function handler(req, res) {
   try {
     const token        = await getAccessToken();
     const rootFolderId = process.env.GOOGLE_SPECIALS_FOLDER_ID;
+    console.log(`[get-specials] rootFolderId="${rootFolderId}"`);
     if (!rootFolderId) throw new Error("GOOGLE_SPECIALS_FOLDER_ID env var not set.");
 
     const monday = weekOfParam
