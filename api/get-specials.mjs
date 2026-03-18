@@ -93,7 +93,7 @@ function formatYearFolder(date) {
 }
 function formatMonthFolder(date) {
   const mm        = String(date.getMonth() + 1).padStart(2, "0");
-  const monthName = date.toLocaleDateString("en-US", { month: "long" });
+  const monthName = date.toLocaleDateString("en-US", { month: "short" });
   return `${mm} - ${monthName}`;
 }
 function ordinal(n) {
