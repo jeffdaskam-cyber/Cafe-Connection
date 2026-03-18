@@ -105,6 +105,7 @@ export async function fetchSpecials(weekOf = null) {
   const res   = await fetch(url, {
     headers: { "Authorization": `Bearer ${token}` },
   });
+  if (res.status === 404) return null; // No specials posted yet — show empty state
   if (!res.ok) {
     const err = await res.json();
     throw new Error(err.error || "Failed to fetch specials");
