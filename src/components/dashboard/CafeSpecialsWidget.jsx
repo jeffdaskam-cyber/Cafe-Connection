@@ -27,7 +27,7 @@ export default function CafeSpecialsWidget({ config = {} }) {
   const weekOf      = currentMonday();
 
   const { data: specials, loading, error, reload } = useWidget(
-    () => fetchSpecials(weekOf),
+    () => fetchSpecials(weekOf, campus),
     [weekOf, campus]
   );
 

@@ -99,10 +99,13 @@ export async function fetchSchedule(weekOf = null) {
 
 // ── Fetch week's cafe specials from Google Drive ──────────────────────────
 // weekOf: ISO Monday string "YYYY-MM-DD" (optional; omit for auto-detect)
-export async function fetchSpecials(weekOf = null) {
-  const token = await getAuthToken();
-  const url   = weekOf ? `/api/get-specials?weekOf=${weekOf}` : "/api/get-specials";
-  const res   = await fetch(url, {
+// campus: e.g. "Mesa Lab" — used to select the campus-specific Drive file
+export async function fetchSpecials(weekOf = null, campus = "Mesa Lab") {
+  const token  = await getAuthToken();
+  const params = new URLSearchParams({ campus });
+  if (weekOf) params.set("weekOf", weekOf);
+  const url = `/api/get-specials?${params}`;
+  const res = await fetch(url, {
     headers: { "Authorization": `Bearer ${token}` },
   });
   if (res.status === 404) return null; // No specials posted yet — show empty state

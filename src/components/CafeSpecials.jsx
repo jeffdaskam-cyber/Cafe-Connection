@@ -24,7 +24,7 @@ export default function CafeSpecials({ weekOf, campus }) {
     loading,
     error,
     reload,
-  } = useWidget(() => fetchSpecials(weekOf), [weekOf]);
+  } = useWidget(() => fetchSpecials(weekOf, campus), [weekOf, campus]);
 
   const body = specialsData?.body ?? "";
 

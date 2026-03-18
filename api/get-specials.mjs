@@ -3,7 +3,7 @@
 // Fetches the current week's Cafe Specials from Google Drive / Google Docs.
 // Uses Google REST APIs directly via fetch — no googleapis npm package needed.
 //
-// GET /api/get-specials?weekOf=YYYY-MM-DD  (weekOf optional)
+// GET /api/get-specials?weekOf=YYYY-MM-DD&campus=Mesa+Lab  (both optional)
 // Returns: { success: true, weekLabel: string, body: string }
 
 import admin from "firebase-admin";
@@ -35,6 +35,13 @@ async function verifyAuth(req) {
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// ─── Campus → filename suffix ─────────────────────────────────────────────────
+const CAMPUS_SUFFIX = {
+  "Mesa Lab":     "_ML",
+  "Foothills":    "_FL",
+  "Center Green": "_CG",
+};
 
 // ─── Google OAuth2 token via service account ─────────────────────────────────
 async function getAccessToken() {
@@ -136,7 +143,10 @@ export default async function handler(req, res) {
     return res.status(err.status || 401).json({ error: err.message });
   }
 
-  const weekOfParam = req.query.weekOf;
+  const weekOfParam  = req.query.weekOf;
+  const campusParam  = req.query.campus ?? "Mesa Lab";
+  const campusSuffix = CAMPUS_SUFFIX[campusParam] ?? "";
+
   if (weekOfParam !== undefined && !ISO_DATE_RE.test(weekOfParam)) {
     return res.status(400).json({ error: "Invalid weekOf parameter. Expected YYYY-MM-DD." });
   }
@@ -160,7 +170,7 @@ export default async function handler(req, res) {
     for (const weekMonday of weeksToTry) {
       const yearFolder  = formatYearFolder(weekMonday);
       const monthFolder = formatMonthFolder(weekMonday);
-      const weekFolder  = formatWeekFolder(weekMonday);
+      const weekFolder  = formatWeekFolder(weekMonday) + campusSuffix;
 
       console.log(`[get-specials] Searching: ${yearFolder} > ${monthFolder} > ${weekFolder}`);
 
@@ -181,7 +191,7 @@ export default async function handler(req, res) {
         searched: weeksToTry.map(m => ({
           year:  formatYearFolder(m),
           month: formatMonthFolder(m),
-          week:  formatWeekFolder(m),
+          week:  formatWeekFolder(m) + campusSuffix,
         })),
       });
     }
