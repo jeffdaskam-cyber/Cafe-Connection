@@ -1,6 +1,6 @@
-import { subscribeEventOrders } from "../firebase.js";
-import { useWidgetSubscription } from "../hooks/useWidget.js";
-import { COLORS, SHADOWS, RADIUS } from "../theme.js";
+import { subscribeEventOrders } from "../../firebase.js";
+import { useWidgetSubscription } from "../../hooks/useWidget.js";
+import { COLORS, SHADOWS, RADIUS } from "../../theme.js";
 
 function formatUploadDate(ts) {
   if (!ts) return "Just now";
@@ -90,14 +90,16 @@ export default function EventOrderLibraryWidget() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {safeOrders.map(order => (
-              <div key={order.id} style={{
-                display: "flex", alignItems: "center",
-                justifyContent: "space-between",
-                padding: "9px 14px",
-                borderRadius: RADIUS.MD,
-                background: COLORS.BG_SURFACE_ALT,
-                border: `1px solid ${COLORS.BORDER}`,
-              }}
+              <div
+                key={order.id}
+                style={{
+                  display: "flex", alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "9px 14px",
+                  borderRadius: RADIUS.MD,
+                  background: COLORS.BG_SURFACE_ALT,
+                  border: `1px solid ${COLORS.BORDER}`,
+                }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.AQUA_BORDER}
                 onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.BORDER}
               >
