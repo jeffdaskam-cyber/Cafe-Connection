@@ -19,6 +19,8 @@ import Widget from "./components/Widget.jsx";
 import CampusSelector, { CAMPUS_COLOR } from "./components/CampusSelector.jsx";
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
+import EventOrderLibraryWidget from "./components/EventOrderLibraryWidget.jsx";
+
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 function getMonthKey(date) {
@@ -339,6 +341,10 @@ export default function FinancialsPage() {
             </LineChart>
           </ResponsiveContainer>
         </Widget>
+      </div>
+      {/* ── Event Order Library ── */}
+      <div style={{ marginBottom: 28, animation: "ucar-fadein .7s ease both" }}>
+        <EventOrderLibraryWidget />
       </div>
 
       {/* ── Footer ── */}
