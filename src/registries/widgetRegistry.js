@@ -70,6 +70,16 @@ export const WIDGET_REGISTRY = [
     defaultEnabled: false,
     colSpan:        1,
   },
+  {
+    widgetId:       "event_order_library",
+    label:          "Event Order Library",
+    icon:           "📄",
+    description:    "Browse and open uploaded event order PDFs.",
+    needsCampus:    false,
+    defaultEnabled: false,
+    colSpan:        1,
+  },
+
 ];
 
 /** Look up a widget definition by ID. */
