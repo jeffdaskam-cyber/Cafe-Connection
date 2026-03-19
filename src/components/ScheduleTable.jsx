@@ -15,7 +15,7 @@ export function classifyColor(rgb) {
   const { r, g, b } = rgb;
   if (b > 180 && r < 100 && g > 180) return { label: "WFH", bg: "#00BCD422", border: "#00BCD4", text: "#00BCD4" };
   if (r < 100 && g > 180 && b > 200) return { label: "WFH", bg: "#00BCD422", border: "#00BCD4", text: "#00BCD4" };
-  if (r > 200 && g > 200 && b < 80)  return { label: "PTO", bg: "#FFDD3122", border: YELLOW,    text: YELLOW   };
+  if (r > 200 && g > 200 && b < 80)  return { label: "PTO", bg: "#00357A",   border: "#00A2B4", text: "#00A2B4" };
   if (r < 60  && g < 100 && b > 120) return { label: "header",    bg: SCHED_HEADER_BG,  border: SCHED_HEADER_BG,  text: "#FFFFFF" };
   if (r < 100 && g < 140 && b > 150) return { label: "subheader", bg: SCHED_SUBHEAD_BG, border: SCHED_SUBHEAD_BG, text: "#FFFFFF" };
   return null;
