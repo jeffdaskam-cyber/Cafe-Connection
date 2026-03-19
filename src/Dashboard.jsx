@@ -19,7 +19,6 @@ import Widget from "./components/Widget.jsx";
 import CampusSelector, { CAMPUS_COLOR } from "./components/CampusSelector.jsx";
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
-import EventOrderLibraryWidget from "./components/EventOrderLibraryWidget.jsx";
 
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
@@ -342,11 +341,7 @@ export default function FinancialsPage() {
           </ResponsiveContainer>
         </Widget>
       </div>
-      {/* ── Event Order Library ── */}
-      <div style={{ marginBottom: 28, animation: "ucar-fadein .7s ease both" }}>
-        <EventOrderLibraryWidget />
-      </div>
-
+     
       {/* ── Footer ── */}
       <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,
         fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
