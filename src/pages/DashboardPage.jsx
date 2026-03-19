@@ -23,16 +23,20 @@ import ScheduleNoteWidget  from "../components/dashboard/ScheduleNoteWidget.jsx"
 import CashDropWidget      from "../components/dashboard/CashDropWidget.jsx";
 import CafeSpecialsWidget  from "../components/dashboard/CafeSpecialsWidget.jsx";
 import RecentReportsWidget from "../components/dashboard/RecentReportsWidget.jsx";
+import EventOrderLibraryWidget from "../components/dashboard/EventOrderLibraryWidget.jsx";
+
 
 // ── Widget component map ──────────────────────────────────────────────────────
 const WIDGET_COMPONENTS = {
-  sales_summary:  SalesSummaryWidget,
-  schedule:       ScheduleWidget,
-  schedule_note:  ScheduleNoteWidget,
-  cash_drop:      CashDropWidget,
-  cafe_specials:  CafeSpecialsWidget,
-  recent_reports: RecentReportsWidget,
+  sales_summary:       SalesSummaryWidget,
+  schedule:            ScheduleWidget,
+  schedule_note:       ScheduleNoteWidget,
+  cash_drop:           CashDropWidget,
+  cafe_specials:       CafeSpecialsWidget,
+  recent_reports:      RecentReportsWidget,
+  event_order_library: EventOrderLibraryWidget,
 };
+
 
 // ── Wave decoration ───────────────────────────────────────────────────────────
 function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
