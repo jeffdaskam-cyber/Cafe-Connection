@@ -15,6 +15,16 @@ function classifyRgb({ r, g, b }) {
 function parseDateToLocal(val, fallbackYear) {
   if (!val) return null;
   const s = String(val).trim();
+
+  // "16-Mar", "17-Mar" — day-month abbreviation (no year)
+  const dayMon = s.match(/^(\d{1,2})-([A-Za-z]{3,})$/);
+  if (dayMon) {
+    const day      = parseInt(dayMon[1], 10);
+    const monthIdx = new Date(`${dayMon[2]} 1 2000`).getMonth();
+    return new Date(fallbackYear, monthIdx, day);
+  }
+
+  // "3/17", "3/17/26", "3/17/2026"
   const slash = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
   if (slash) {
     const mo  = parseInt(slash[1], 10);
@@ -23,6 +33,8 @@ function parseDateToLocal(val, fallbackYear) {
     const yr  = rawY < 100 ? 2000 + rawY : rawY;
     return new Date(yr, mo - 1, day);
   }
+
+  // Full date string (UTC) — extract UTC date parts to avoid TZ shift
   const d = new Date(s);
   if (isNaN(d.getTime())) return null;
   return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
