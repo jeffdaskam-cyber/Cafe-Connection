@@ -120,9 +120,9 @@ function dayHeading(date) {
   return `${weekday} ${date.getMonth() + 1}-${date.getDate()}`;
 }
 
-const CARD      = { background: "#00357A", border: "1px solid #00A2B4", borderRadius: 12, padding: "18px 20px", fontFamily: "'Poppins', sans-serif" };
-const TITLE     = { color: "#FFFFFF", fontSize: 13, fontWeight: 700, letterSpacing: "0.01em", marginBottom: 14 };
-const DAY_LABEL = { color: "#FFFFFF", fontSize: 12, fontWeight: 700, marginBottom: 3 };
+const CARD      = { background: "#00A2B4", border: "1px solid #00357A", borderRadius: 12, padding: "18px 20px", fontFamily: "'Poppins', sans-serif" };
+const TITLE     = { color: "#5A7A91", fontSize: 13, fontWeight: 700, letterSpacing: "0.01em", marginBottom: 14 };
+const DAY_LABEL = { color: "#5A7A91", fontSize: 12, fontWeight: 700, marginBottom: 3 };
 const NAME_LINE = { color: "#5A7A91", fontSize: 11, lineHeight: 1.65 };
 const MUTED     = { color: "#5A7A91", fontSize: 12, paddingTop: 4 };
 
