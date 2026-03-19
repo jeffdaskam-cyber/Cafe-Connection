@@ -14,20 +14,60 @@ function classifyRgb({ r, g, b }) {
   return null;
 }
 
-// ── Date parser — handles "3/17", "3/17/26", full date strings ───────────────
-function parseDateValue(val, fallbackYear) {
+// ── Parse a sheet date value → local-midnight JS Date ───────────────────────
+// Handles: "3/17", "3/17/26", "3/17/2026",
+//          "Mon Mar 17 2026 00:00:00 GMT+0000" (Sheets full date string)
+function parseDateToLocal(val, fallbackYear) {
   if (!val) return null;
   const s = String(val).trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
-  if (m) {
-    const mo   = parseInt(m[1], 10);
-    const day  = parseInt(m[2], 10);
-    const rawY = m[3] ? parseInt(m[3], 10) : fallbackYear;
-    const yr   = rawY < 100 ? 2000 + rawY : rawY;
-    return new Date(yr, mo - 1, day);
+
+  // Slash format
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+  if (slash) {
+    const mo  = parseInt(slash[1], 10);
+    const day = parseInt(slash[2], 10);
+    const rawY = slash[3] ? parseInt(slash[3], 10) : fallbackYear;
+    const yr  = rawY < 100 ? 2000 + rawY : rawY;
+    return new Date(yr, mo - 1, day); // already local midnight
   }
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d;
+
+  // Full date string — parse then extract UTC fields to avoid TZ shift
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+// ── Build column→date map ────────────────────────────────────────────────────
+// Campus header rows embed dates in cols 1-5 (e.g. "Mesa Lab | 3/17 | 3/18 …")
+// The global dateRow (dayHeaderIdx+1) may also carry them.
+// We scan both to ensure colToDate is populated regardless of sheet layout.
+function buildColToDate(rows, dayHeaderIdx, fallbackYear) {
+  const colToDate = {};
+
+  // 1. Row immediately after the day-name header
+  const dateRow = rows[dayHeaderIdx + 1] ?? [];
+  dateRow.forEach((val, ci) => {
+    const d = parseDateToLocal(val, fallbackYear);
+    if (d) colToDate[ci] = d;
+  });
+
+  // 2. Any campus-header-style rows: non-empty col 0, date strings in cols 1-5
+  rows.forEach(row => {
+    if (!row[0]) return;
+    const dateCols = (row.slice(1, 6) ?? []).filter(Boolean);
+    if (dateCols.length < 3) return;
+    const allDates = dateCols.every(v => {
+      const s = String(v);
+      return /\d{4}/.test(s) || /\d{1,2}\/\d{1,2}/.test(s);
+    });
+    if (!allDates) return;
+    row.slice(1, 6).forEach((val, i) => {
+      const d = parseDateToLocal(val, fallbackYear);
+      if (d) colToDate[i + 1] = d;
+    });
+  });
+
+  return colToDate;
 }
 
 // ── Main parser ──────────────────────────────────────────────────────────────
@@ -37,24 +77,20 @@ function buildExceptions(rows, colorMap) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Find the row that has "Monday", "Tuesday", etc.
   const dayHeaderIdx = rows.findIndex(row =>
     row.some(cell => /monday|tuesday|wednesday|thursday|friday/i.test(String(cell ?? "")))
   );
+
   if (dayHeaderIdx < 0) {
-    console.warn("[WeeklyExceptions] Could not find day header row. First 5 rows:", rows.slice(0, 5));
+    console.warn("[WeeklyExceptions] Day header row not found. First 5 rows:", rows.slice(0, 5));
     return [];
   }
 
-  const dayHeaders = rows[dayHeaderIdx]     ?? [];
-  const dateRow    = rows[dayHeaderIdx + 1] ?? [];
+  const colToDate = buildColToDate(rows, dayHeaderIdx, today.getFullYear());
 
-  // Map column index → JS Date
-  const colToDate = {};
-  dayHeaders.forEach((_, ci) => {
-    const d = parseDateValue(dateRow[ci], today.getFullYear());
-    if (d) colToDate[ci] = d;
-  });
+  console.log("[WeeklyExceptions] colToDate:", Object.fromEntries(
+    Object.entries(colToDate).map(([k, v]) => [k, v.toLocaleDateString()])
+  ));
 
   const exceptions = [];
 
@@ -63,9 +99,10 @@ function buildExceptions(rows, colorMap) {
     const ri = parseInt(riStr, 10);
     const ci = parseInt(ciStr, 10);
 
-    if (ri <= dayHeaderIdx + 1) continue;   // skip header area
+    if (ri <= dayHeaderIdx + 1) continue;
+
     const date = colToDate[ci];
-    if (!date || date < today) continue;     // skip past days
+    if (!date || date < today) continue;
 
     const type = classifyRgb(colorMap[key]);
     if (!type) continue;
@@ -76,46 +113,22 @@ function buildExceptions(rows, colorMap) {
     exceptions.push({ name, date, type });
   }
 
+  console.log("[WeeklyExceptions]", exceptions.length, "exceptions found:", exceptions.map(e => `${e.name} ${e.type} ${e.date.toLocaleDateString()}`));
   return exceptions;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Formatting ───────────────────────────────────────────────────────────────
 function dayHeading(date) {
   const weekday = date.toLocaleDateString("en-US", { weekday: "long" });
   return `${weekday} ${date.getMonth() + 1}-${date.getDate()}`;
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
-const CARD = {
-  background:   "#00357A",
-  border:       "1px solid #00A2B4",
-  borderRadius: 12,
-  padding:      "18px 20px",
-  fontFamily:   "'Poppins', sans-serif",
-};
-const TITLE = {
-  color:        "#FFFFFF",
-  fontSize:     13,
-  fontWeight:   700,
-  letterSpacing: "0.01em",
-  marginBottom: 14,
-};
-const DAY_LABEL = {
-  color:        "#FFFFFF",
-  fontSize:     12,
-  fontWeight:   700,
-  marginBottom: 3,
-};
-const NAME_LINE = {
-  color:        "#5A7A91",
-  fontSize:     11,
-  lineHeight:   1.65,
-};
-const MUTED = {
-  color:        "#5A7A91",
-  fontSize:     12,
-  paddingTop:   4,
-};
+const CARD      = { background: "#00357A", border: "1px solid #00A2B4", borderRadius: 12, padding: "18px 20px", fontFamily: "'Poppins', sans-serif" };
+const TITLE     = { color: "#FFFFFF", fontSize: 13, fontWeight: 700, letterSpacing: "0.01em", marginBottom: 14 };
+const DAY_LABEL = { color: "#FFFFFF", fontSize: 12, fontWeight: 700, marginBottom: 3 };
+const NAME_LINE = { color: "#5A7A91", fontSize: 11, lineHeight: 1.65 };
+const MUTED     = { color: "#5A7A91", fontSize: 12, paddingTop: 4 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function WeeklyExceptions() {
@@ -134,7 +147,6 @@ export default function WeeklyExceptions() {
     if (exceptions.length === 0) {
       body = <div style={MUTED}>No exceptions this week.</div>;
     } else {
-      // Group by date
       const byDate = {};
       exceptions.forEach(ex => {
         const key = ex.date.toISOString().slice(0, 10);
@@ -142,9 +154,7 @@ export default function WeeklyExceptions() {
         byDate[key].items.push(ex);
       });
 
-      const days = Object.values(byDate)
-        .sort((a, b) => a.date - b.date);
-
+      const days = Object.values(byDate).sort((a, b) => a.date - b.date);
       days.forEach(d => d.items.sort((a, b) => a.name.localeCompare(b.name)));
 
       body = days.map(({ date, items }) => (
