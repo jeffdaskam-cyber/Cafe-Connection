@@ -173,11 +173,18 @@ function StepWelcome({ campus, setCampus, onBack, onNext }) {
 
 // ── Step 2: Widget picker ──────────────────────────────────────────────────────
 function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
-  function toggle(widgetId) {
-    setWidgets(prev => prev.map(w =>
-      w.widgetId === widgetId ? { ...w, enabled: !w.enabled } : w
-    ));
+   function toggle(widgetId) {
+    setWidgets(prev => {
+      const exists = prev.some(w => w.widgetId === widgetId);
+      if (!exists) {
+        return [...prev, { widgetId, enabled: true, position: prev.length, config: {} }];
+      }
+      return prev.map(w =>
+        w.widgetId === widgetId ? { ...w, enabled: !w.enabled } : w
+      );
+    });
   }
+
 
   const enabledCount = widgets.filter(w => w.enabled).length;
 
