@@ -79,6 +79,16 @@ export const WIDGET_REGISTRY = [
     defaultEnabled: false,
     colSpan:        1,
   },
+  {
+    widgetId:       "weekly_exceptions",
+    label:          "Schedule Notes",
+    icon:           "📋",
+    description:    "PTO and WFH exceptions for the current week, grouped by day.",
+    needsCampus:    false,
+    defaultEnabled: false,
+    colSpan:        1,
+  },
+
 
 ];
 
