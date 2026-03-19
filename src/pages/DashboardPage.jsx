@@ -24,7 +24,7 @@ import CashDropWidget      from "../components/dashboard/CashDropWidget.jsx";
 import CafeSpecialsWidget  from "../components/dashboard/CafeSpecialsWidget.jsx";
 import RecentReportsWidget from "../components/dashboard/RecentReportsWidget.jsx";
 import EventOrderLibraryWidget from "../components/dashboard/EventOrderLibraryWidget.jsx";
-
+import WeeklyExceptions from "../components/WeeklyExceptions.jsx";
 
 // ── Widget component map ──────────────────────────────────────────────────────
 const WIDGET_COMPONENTS = {
@@ -35,6 +35,7 @@ const WIDGET_COMPONENTS = {
   cafe_specials:       CafeSpecialsWidget,
   recent_reports:      RecentReportsWidget,
   event_order_library: EventOrderLibraryWidget,
+  weekly_exceptions: WeeklyExceptions,
 };
 
 
