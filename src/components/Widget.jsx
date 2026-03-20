@@ -260,6 +260,7 @@ export default function Widget({
   minHeight,
   style: outerStyle = {},
   children,
+  maxHeight = null,
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -283,6 +284,7 @@ export default function Widget({
         position: "relative",
         overflow: "hidden",
         animation: "ucar-fadein .5s ease both",
+      ...(maxHeight ? { maxHeight, overflow: "hidden" } : {}),
         ...outerStyle,
       }}>
         {/* Top accent bar */}
