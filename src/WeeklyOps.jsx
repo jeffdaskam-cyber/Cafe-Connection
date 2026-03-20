@@ -129,6 +129,24 @@ export default function WeeklyOps() {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
 
+  /** Parse a date from BEO filenames like "BEOs- March 23rd - 27th" */
+  function parseTitleDate(fileName) {
+    if (!fileName) return 0;
+    const months = { january:0, february:1, march:2, april:3, may:4, june:5,
+      july:6, august:7, september:8, october:9, november:10, december:11 };
+    const m = fileName.match(/([A-Za-z]+)\s+(\d+)/);
+    if (!m) return 0;
+    const mon = months[m[1].toLowerCase()];
+    if (mon === undefined) return 0;
+    const day = parseInt(m[2], 10);
+    const now = new Date();
+    return new Date(now.getFullYear(), mon, day).getTime();
+  }
+
+  function sortByTitleDate(orders) {
+    return [...orders].sort((a, b) => parseTitleDate(b.fileName) - parseTitleDate(a.fileName));
+  }
+
   const weekLabel = scheduleData?.weekLabel ?? `Week of ${weekOf}`;
 
   return (
@@ -329,7 +347,7 @@ export default function WeeklyOps() {
         </div>
 
         {/* Event Orders */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ gridColumn: "span 1", maxHeight: "520px", overflow: "hidden" }}>
           <Widget
             title="Event Orders"
             subtitle="Most recent first · click to open"
@@ -349,7 +367,7 @@ export default function WeeklyOps() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {eventOrders.map(order => (
+                {sortByTitleDate(eventOrders).slice(0, 3).map(order => (
                   <a
                     key={order.id}
                     href={order.downloadURL}

@@ -14,18 +14,36 @@ function truncateFileName(name, max = 40) {
   return name.slice(0, max - 1) + "…";
 }
 
+/** Parse a date from BEO filenames like "BEOs- March 23rd - 27th" */
+function parseTitleDate(fileName) {
+  if (!fileName) return 0;
+  const months = { january:0, february:1, march:2, april:3, may:4, june:5,
+    july:6, august:7, september:8, october:9, november:10, december:11 };
+  const m = fileName.match(/([A-Za-z]+)\s+(\d+)/);
+  if (!m) return 0;
+  const mon = months[m[1].toLowerCase()];
+  if (mon === undefined) return 0;
+  const day = parseInt(m[2], 10);
+  const now = new Date();
+  return new Date(now.getFullYear(), mon, day).getTime();
+}
+
+function sortByTitleDate(orders) {
+  return [...orders].sort((a, b) => parseTitleDate(b.fileName) - parseTitleDate(a.fileName));
+}
+
 export default function EventOrderLibraryWidget() {
   const { data: orders, loading, error } = useWidgetSubscription(
     (cb) => subscribeEventOrders(cb),
     []
   );
 
-  const safeOrders = orders ?? [];
+  const safeOrders = sortByTitleDate(orders ?? []).slice(0, 3);
 
   return (
     <Widget
       title="Event Order Library"
-      subtitle={`${safeOrders.length} file${safeOrders.length !== 1 ? "s" : ""} · most recent first`}
+      subtitle="Most recent first"
       icon="📄"
       accentColor={COLORS.AQUA}
       loading={loading}
