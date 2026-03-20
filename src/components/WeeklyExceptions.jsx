@@ -5,6 +5,8 @@
 import { useCallback } from "react";
 import { fetchSchedule } from "../firebase.js";
 import { useWidget }     from "../hooks/useWidget.js";
+import Widget            from "./Widget.jsx";
+import { COLORS }        from "../theme.js";
 
 function classifyRgb({ r, g, b }) {
   if (r > 180 && g > 180 && b < 100) return "PTO";
@@ -120,37 +122,46 @@ function dayHeading(date) {
   return `${weekday} ${date.getMonth() + 1}-${date.getDate()}`;
 }
 
-const CARD      = { background: "#FFFFFF", border: "1px solid #F1F0EE", borderRadius: 12, padding: "18px 20px", fontFamily: "'Poppins', sans-serif" };
-const TITLE     = { color: "#011837", fontSize: 13, fontWeight: 700, letterSpacing: "0.01em", marginBottom: 14 };
-const DAY_LABEL = { color: "#011837", fontSize: 12, fontWeight: 700, marginBottom: 3 };
-const NAME_LINE = { color: "#011837", fontSize: 11, lineHeight: 1.65 };
-const MUTED     = { color: "#011837", fontSize: 12, paddingTop: 4 };
+const DAY_LABEL = { color: COLORS.TEXT_PRIMARY, fontSize: 12, fontWeight: 700, marginBottom: 3, fontFamily: "'Poppins',sans-serif" };
+const NAME_LINE = { color: COLORS.TEXT_PRIMARY, fontSize: 11, lineHeight: 1.65, fontFamily: "'Poppins',sans-serif" };
 
 export default function WeeklyExceptions() {
   const fetcher = useCallback(() => fetchSchedule(), []);
   const { data, loading, error } = useWidget(fetcher, []);
 
-  let body;
+  const exceptions = (!loading && !error && data)
+    ? buildExceptions(data.rows, data.colorMap)
+    : [];
 
-  if (loading) {
-    body = <div style={MUTED}>Loading…</div>;
-  } else if (error) {
-    body = <div style={MUTED}>Could not load schedule.</div>;
-  } else {
-    const exceptions = data ? buildExceptions(data.rows, data.colorMap) : [];
+  const isEmpty = !loading && !error && exceptions.length === 0;
 
-    if (exceptions.length === 0) {
-      body = <div style={MUTED}>No exceptions this week.</div>;
-    } else {
-      const byDate = {};
-      exceptions.forEach(ex => {
-        const key = ex.date.toISOString().slice(0, 10);
-        if (!byDate[key]) byDate[key] = { date: ex.date, items: [] };
-        byDate[key].items.push(ex);
-      });
-      const days = Object.values(byDate).sort((a, b) => a.date - b.date);
-      days.forEach(d => d.items.sort((a, b) => a.name.localeCompare(b.name)));
-      body = days.map(({ date, items }) => (
+  // Group by date
+  const days = (() => {
+    if (exceptions.length === 0) return [];
+    const byDate = {};
+    exceptions.forEach(ex => {
+      const key = ex.date.toISOString().slice(0, 10);
+      if (!byDate[key]) byDate[key] = { date: ex.date, items: [] };
+      byDate[key].items.push(ex);
+    });
+    const sorted = Object.values(byDate).sort((a, b) => a.date - b.date);
+    sorted.forEach(d => d.items.sort((a, b) => a.name.localeCompare(b.name)));
+    return sorted;
+  })();
+
+  return (
+    <Widget
+      title="Schedule Notes"
+      subtitle="PTO & WFH · this week"
+      icon="📝"
+      accentColor={COLORS.AQUA}
+      loading={loading}
+      error={error}
+      empty={isEmpty}
+      emptyIcon="📝"
+      emptyMessage="No exceptions this week."
+    >
+      {days.map(({ date, items }) => (
         <div key={date.toISOString()} style={{ marginBottom: 14 }}>
           <div style={DAY_LABEL}>{dayHeading(date)}</div>
           {items.map((item, i) => (
@@ -159,14 +170,7 @@ export default function WeeklyExceptions() {
             </div>
           ))}
         </div>
-      ));
-    }
-  }
-
-  return (
-    <div style={CARD}>
-      <div style={TITLE}>Schedule Notes</div>
-      {body}
-    </div>
+      ))}
+    </Widget>
   );
 }
