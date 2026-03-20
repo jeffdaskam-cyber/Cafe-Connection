@@ -255,9 +255,14 @@ export default function DashboardPage() {
             if (!Component || !meta) return null;
             return (
               <div
-                key={w.widgetId}
-                style={{ gridColumn: `span ${meta.colSpan ?? 1}` }}
-              >
+                 key={w.widgetId}
+                 style={{
+                 gridColumn: `span ${meta.colSpan ?? 1}`,
+                 maxHeight: 360,
+                 overflow: "hidden",
+                 borderRadius: "inherit",
+                 }}
+                 >
                 <Component config={w.config ?? {}} />
               </div>
             );
