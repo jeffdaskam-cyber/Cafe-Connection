@@ -97,6 +97,7 @@ function getMondayOf(date) {
 }
 // Hardcoded to avoid Node.js ICU locale inconsistencies across environments
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 function formatYearFolder(date) {
   return `${date.getFullYear()}`;
@@ -115,6 +116,10 @@ function formatWeekFolder(monday) {
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
   const monLabel = MONTHS_SHORT[monday.getMonth()];
+  // Only repeat month name if Friday is in a different month
+  if (monday.getMonth() === friday.getMonth()) {
+    return `${monLabel} ${ordinal(monday.getDate())} - ${ordinal(friday.getDate())}`;
+  }
   const friLabel = MONTHS_SHORT[friday.getMonth()];
   return `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
 }
