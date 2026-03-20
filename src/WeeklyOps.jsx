@@ -321,83 +321,72 @@ export default function WeeklyOps() {
         <DropBox />
       </div>
 
-      {/* ── Row 4: Event Orders ── */}
-      <div style={{ animation: "ucar-fadein .65s ease both" }}>
-        <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-          letterSpacing: "1.5px", textTransform: "uppercase",
-          marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
-          Event Orders
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 20 }}>
-
+      {/* —— Row 4: Event Orders —— */}
+      <div style={{ marginBottom: 28, animation: "ucar-fadein .65s ease both" }}>
+        <Widget
+          title="Event Orders"
+          subtitle="Most recent first · click to open"
+          icon="📁"
+          accentColor={COLORS.AQUA}
+        >
           {/* Upload zone */}
-          <div style={{ background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG, padding: "24px",
-            border: `1px solid ${COLORS.BORDER}`, boxShadow: SHADOWS.SM }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
-              fontFamily: "'Poppins',sans-serif", marginBottom: 4 }}>
-              Upload Event Order
-            </div>
-            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
-              letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 18 }}>
-              PDF only
-            </div>
+          <div style={{ marginBottom: 16 }}>
             <EventOrderUpload onUpload={handleEventOrderUpload} uploadState={uploadState} />
           </div>
 
-          {/* Event order library */}
-          <div style={{ background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG, padding: "24px",
-            border: `1px solid ${COLORS.BORDER}`, boxShadow: SHADOWS.SM }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
-              fontFamily: "'Poppins',sans-serif", marginBottom: 4 }}>
-              Event Order Library
+          {/* Library list */}
+          {!eventOrders || eventOrders.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 0",
+              color: COLORS.TEXT_MUTED, fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>
+              No event orders uploaded yet
             </div>
-            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
-              letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 18 }}>
-              Click to open · most recent first
-            </div>
-
-            {!eventOrders || eventOrders.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 0",
-                color: COLORS.TEXT_MUTED, fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>
-                No event orders uploaded yet
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {eventOrders.map(order => (
-                  <a key={order.id} href={order.downloadURL} target="_blank" rel="noreferrer"
-                    style={{ display: "flex", alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "10px 16px", borderRadius: RADIUS.MD,
-                      background: COLORS.BG_SURFACE_ALT,
-                      border: `1px solid ${COLORS.BORDER}`,
-                      textDecoration: "none", transition: "all .2s", cursor: "pointer" }}
-                    onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.AQUA_BORDER}
-                    onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.BORDER}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 8,
-                        background: `${COLORS.ORANGE}15`, border: `1px solid ${COLORS.ORANGE}33`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 14, flexShrink: 0 }}>📄</div>
-                      <div>
-                        <div style={{ color: COLORS.TEXT_PRIMARY, fontSize: 12, fontWeight: 600,
-                          fontFamily: "'Poppins',sans-serif" }}>{order.fileName}</div>
-                        <div style={{ color: COLORS.TEXT_MUTED, fontSize: 10,
-                          fontFamily: "'Poppins',sans-serif" }}>
-                          {formatUploadDate(order.uploadedAt)}
-                          {order.size ? ` · ${formatFileSize(order.size)}` : ""}
-                        </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {eventOrders.map(order => (
+                <a
+                  key={order.id}
+                  href={order.downloadURL}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    display: "flex", alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "10px 16px", borderRadius: RADIUS.MD,
+                    background: COLORS.BG_SURFACE_ALT,
+                    border: `1px solid ${COLORS.BORDER}`,
+                    textDecoration: "none", transition: "all .2s", cursor: "pointer",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.AQUA_BORDER}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.BORDER}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8,
+                      background: `${COLORS.ORANGE}15`, border: `1px solid ${COLORS.ORANGE}33`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 15 }}>
+                      📄
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600,
+                        color: COLORS.TEXT_PRIMARY, fontFamily: "'Poppins',sans-serif",
+                        marginBottom: 2 }}>
+                        {order.fileName}
+                      </div>
+                      <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED,
+                        fontFamily: "'Poppins',sans-serif" }}>
+                        {formatUploadDate(order.uploadedAt)} · {formatFileSize(order.size)}
                       </div>
                     </div>
-                    <div style={{ color: COLORS.AQUA, fontSize: 11, fontWeight: 600,
-                      fontFamily: "'Poppins',sans-serif", whiteSpace: "nowrap" }}>
-                      View →
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: COLORS.AQUA,
+                    fontWeight: 600, fontFamily: "'Poppins',sans-serif" }}>
+                    Open →
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </Widget>
       </div>
 
       {/* ── Footer ── */}
