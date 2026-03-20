@@ -32,7 +32,7 @@ export const WIDGET_REGISTRY = [
     description:    "This week's staff schedule, pulled from Google Drive.",
     needsCampus:    false,
     defaultEnabled: true,
-    colSpan:        2,
+    colSpan:        1,
   },
   {
     widgetId:       "cash_drop",
