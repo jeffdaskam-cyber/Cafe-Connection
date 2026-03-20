@@ -32,27 +32,29 @@ export default function ScheduleNoteWidget({ config = {} }) {
 
   return (
     <Widget
-      title="Manager's Note"
-      subtitle={`Week of ${weekOf}`}
+      title="Schedule Notes"
+      subtitle={`Week of ${weekOf} · org-wide`}
       icon="📝"
       accentColor={COLORS.AQUA}
       loading={loading}
       error={error}
       empty={!loading && !error && !body}
       emptyIcon="📝"
-      emptyMessage="No note posted for this week."
+      emptyMessage="No notes posted for this week."
     >
       {body && (
         <div>
           <div style={{
             fontSize: 12, color: COLORS.TEXT_PRIMARY, lineHeight: 1.65, fontWeight: 400,
+            fontFamily: "'Poppins',sans-serif",
             whiteSpace: "pre-wrap", wordBreak: "break-word",
             maxHeight: 160, overflowY: "auto",
           }}>
             {body}
           </div>
           {author && (
-            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, marginTop: 10,
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED,
+              fontFamily: "'Poppins',sans-serif", marginTop: 10,
               borderTop: `1px solid ${COLORS.BORDER}`, paddingTop: 8 }}>
               Posted by {author}
             </div>
