@@ -5,10 +5,9 @@
  *
  * Layout:
  *   Top bar  — WeekSelector (left) + CampusSelector (right)
- *   Row 1    — Staff Schedule (full width, Widget, expandable)
- *   Row 2    — Schedule Notes + Cafe Specials (2 col)
- *   Row 3    — Cash Drop + Sales Report DropBox (1:2 split)
- *   Row 4    — Event Orders (upload + library)
+ *   3-column grid (repeat(3, 1fr), 360px max-height per cell):
+ *     Row 1  — Staff Schedule | Weekly Exceptions | Cafe Specials
+ *     Row 2  — Cash Drop | DropBox | Event Orders
  */
 
 import { useState, useCallback, useEffect } from "react";
@@ -248,145 +247,155 @@ export default function WeeklyOps() {
         <CampusSelector value={campus} onChange={setCampus} size="sm" />
       </div>
 
-      {/* ── Row 1: Staff Schedule (compact trigger) ── */}
-      <div style={{ marginBottom: 20, animation: "ucar-fadein .5s ease both" }}>
-        <Widget
-          title="Staff Schedule"
-          subtitle={weekLabel}
-          icon="📅"
-          accentColor={COLORS.AQUA}
-          loading={scheduleLoading}
-          error={scheduleError}
-          onRetry={reloadSchedule}
-          actions={[{
-            label: "↻ Refresh",
-            onClick: reloadSchedule,
-          }]}
-        >
-          <div style={{
-            padding: "16px 4px",
-            display: "flex", alignItems: "center",
-            justifyContent: "space-between",
-          }}>
-            <div style={{ fontFamily: "'Poppins',sans-serif" }}>
-              {scheduleLoading ? (
-                <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
-                  Loading schedule…
-                </span>
-              ) : scheduleError ? (
-                <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
-                  Could not load schedule.
-                </span>
-              ) : scheduleData?.rows?.length ? (
-                <button
-                  onClick={() => setScheduleOpen(true)}
-                  style={{
-                    background: "transparent", border: "none",
-                    padding: 0, cursor: "pointer",
-                    color: COLORS.AQUA, fontSize: 13,
-                    fontWeight: 700, fontFamily: "'Poppins',sans-serif",
-                    textDecoration: "underline",
-                    textUnderlineOffset: 3,
-                  }}
-                >
-                  View schedule → {weekLabel}
-                </button>
-              ) : (
-                <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
-                  No schedule found for this week.
-                </span>
-              )}
-            </div>
-          </div>
-        </Widget>
-      </div>
-
-      {/* ── Row 2: Schedule Notes + Cafe Specials ── */}
+      {/* ── 3-column widget grid ── */}
       <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr",
-        gap: 20, marginBottom: 20,
-        animation: "ucar-fadein .55s ease both",
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: "16px",
+        padding: "16px",
       }}>
-        <WeeklyExceptions />
-        <CafeSpecials  weekOf={weekOf} campus={campus} />
-      </div>
 
-      {/* ── Row 3: Cash Drop + DropBox ── */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 2fr",
-        gap: 20, marginBottom: 28,
-        animation: "ucar-fadein .6s ease both",
-      }}>
-        <CashDrop campus={campus} />
-        <DropBox />
-      </div>
-
-      {/* —— Row 4: Event Orders —— */}
-      <div style={{ marginBottom: 28, animation: "ucar-fadein .65s ease both" }}>
-        <Widget
-          title="Event Orders"
-          subtitle="Most recent first · click to open"
-          icon="📁"
-          accentColor={COLORS.AQUA}
-        >
-          {/* Upload zone */}
-          <div style={{ marginBottom: 16 }}>
-            <EventOrderUpload onUpload={handleEventOrderUpload} uploadState={uploadState} />
-          </div>
-
-          {/* Library list */}
-          {!eventOrders || eventOrders.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 0",
-              color: COLORS.TEXT_MUTED, fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>
-              No event orders uploaded yet
+        {/* Staff Schedule */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <Widget
+            title="Staff Schedule"
+            subtitle={weekLabel}
+            icon="📅"
+            accentColor={COLORS.AQUA}
+            loading={scheduleLoading}
+            error={scheduleError}
+            onRetry={reloadSchedule}
+            actions={[{
+              label: "↻ Refresh",
+              onClick: reloadSchedule,
+            }]}
+          >
+            <div style={{
+              padding: "16px 4px",
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between",
+            }}>
+              <div style={{ fontFamily: "'Poppins',sans-serif" }}>
+                {scheduleLoading ? (
+                  <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
+                    Loading schedule…
+                  </span>
+                ) : scheduleError ? (
+                  <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
+                    Could not load schedule.
+                  </span>
+                ) : scheduleData?.rows?.length ? (
+                  <button
+                    onClick={() => setScheduleOpen(true)}
+                    style={{
+                      background: "transparent", border: "none",
+                      padding: 0, cursor: "pointer",
+                      color: COLORS.AQUA, fontSize: 13,
+                      fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 3,
+                    }}
+                  >
+                    View schedule → {weekLabel}
+                  </button>
+                ) : (
+                  <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
+                    No schedule found for this week.
+                  </span>
+                )}
+              </div>
             </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {eventOrders.map(order => (
-                <a
-                  key={order.id}
-                  href={order.downloadURL}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: "flex", alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "10px 16px", borderRadius: RADIUS.MD,
-                    background: COLORS.BG_SURFACE_ALT,
-                    border: `1px solid ${COLORS.BORDER}`,
-                    textDecoration: "none", transition: "all .2s", cursor: "pointer",
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.AQUA_BORDER}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.BORDER}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8,
-                      background: `${COLORS.ORANGE}15`, border: `1px solid ${COLORS.ORANGE}33`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 15 }}>
-                      📄
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600,
-                        color: COLORS.TEXT_PRIMARY, fontFamily: "'Poppins',sans-serif",
-                        marginBottom: 2 }}>
-                        {order.fileName}
-                      </div>
-                      <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED,
-                        fontFamily: "'Poppins',sans-serif" }}>
-                        {formatUploadDate(order.uploadedAt)} · {formatFileSize(order.size)}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 11, color: COLORS.AQUA,
-                    fontWeight: 600, fontFamily: "'Poppins',sans-serif" }}>
-                    Open →
-                  </div>
-                </a>
-              ))}
+          </Widget>
+        </div>
+
+        {/* Weekly Exceptions */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <WeeklyExceptions />
+        </div>
+
+        {/* Cafe Specials */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <CafeSpecials weekOf={weekOf} campus={campus} />
+        </div>
+
+        {/* Cash Drop */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <CashDrop campus={campus} />
+        </div>
+
+        {/* DropBox */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <DropBox />
+        </div>
+
+        {/* Event Orders */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <Widget
+            title="Event Orders"
+            subtitle="Most recent first · click to open"
+            icon="📁"
+            accentColor={COLORS.AQUA}
+          >
+            {/* Upload zone */}
+            <div style={{ marginBottom: 16 }}>
+              <EventOrderUpload onUpload={handleEventOrderUpload} uploadState={uploadState} />
             </div>
-          )}
-        </Widget>
+
+            {/* Library list */}
+            {!eventOrders || eventOrders.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 0",
+                color: COLORS.TEXT_MUTED, fontSize: 12, fontFamily: "'Poppins',sans-serif" }}>
+                No event orders uploaded yet
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {eventOrders.map(order => (
+                  <a
+                    key={order.id}
+                    href={order.downloadURL}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "flex", alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 16px", borderRadius: RADIUS.MD,
+                      background: COLORS.BG_SURFACE_ALT,
+                      border: `1px solid ${COLORS.BORDER}`,
+                      textDecoration: "none", transition: "all .2s", cursor: "pointer",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.AQUA_BORDER}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.BORDER}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 8,
+                        background: `${COLORS.ORANGE}15`, border: `1px solid ${COLORS.ORANGE}33`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 15 }}>
+                        📄
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600,
+                          color: COLORS.TEXT_PRIMARY, fontFamily: "'Poppins',sans-serif",
+                          marginBottom: 2 }}>
+                          {order.fileName}
+                        </div>
+                        <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED,
+                          fontFamily: "'Poppins',sans-serif" }}>
+                          {formatUploadDate(order.uploadedAt)} · {formatFileSize(order.size)}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.AQUA,
+                      fontWeight: 600, fontFamily: "'Poppins',sans-serif" }}>
+                      Open →
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </Widget>
+        </div>
+
       </div>
 
       {/* ── Footer ── */}
