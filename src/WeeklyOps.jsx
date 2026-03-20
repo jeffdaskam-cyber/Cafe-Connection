@@ -337,7 +337,7 @@ export default function WeeklyOps() {
         </div>
 
         {/* Cafe Specials */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "auto" }}>
           <CafeSpecials weekOf={weekOf} campus={campus} />
         </div>
 
