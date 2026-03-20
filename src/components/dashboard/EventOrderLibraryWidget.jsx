@@ -14,12 +14,17 @@ function truncateFileName(name, max = 40) {
   return name.slice(0, max - 1) + "…";
 }
 
-/** Parse a date from BEO filenames like "BEOs- March 23rd - 27th" */
+/** Parse a date from BEO filenames like "BEOs - Mar 9th - 13th" */
 function parseTitleDate(fileName) {
   if (!fileName) return 0;
-  const months = { january:0, february:1, march:2, april:3, may:4, june:5,
-    july:6, august:7, september:8, october:9, november:10, december:11 };
-  const m = fileName.match(/([A-Za-z]+)\s+(\d+)/);
+  const months = {
+    jan:0, january:0, feb:1, february:1, mar:2, march:2,
+    apr:3, april:3, may:4, jun:5, june:5, jul:6, july:6,
+    aug:7, august:7, sep:8, sept:8, september:8, oct:9, october:9,
+    nov:10, november:10, dec:11, december:11,
+  };
+  // Match month name followed by a day number (e.g. "Mar 9th", "March 23rd")
+  const m = fileName.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s+(\d+)/i);
   if (!m) return 0;
   const mon = months[m[1].toLowerCase()];
   if (mon === undefined) return 0;
