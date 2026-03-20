@@ -35,15 +35,6 @@ export const WIDGET_REGISTRY = [
     colSpan:        2,
   },
   {
-    widgetId:       "schedule_note",
-    label:          "Manager's Note",
-    icon:           "📝",
-    description:    "This week's pinned announcement from the schedule.",
-    needsCampus:    false,
-    defaultEnabled: true,
-    colSpan:        1,
-  },
-  {
     widgetId:       "cash_drop",
     label:          "Cash Drops",
     icon:           "💧",

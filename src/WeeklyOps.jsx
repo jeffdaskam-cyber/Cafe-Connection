@@ -24,7 +24,7 @@ import Widget          from "./components/Widget.jsx";
 import WeekSelector,   { getCurrentMonday } from "./components/WeekSelector.jsx";
 import CampusSelector, { CAMPUSES }         from "./components/CampusSelector.jsx";
 import ScheduleTable   from "./components/ScheduleTable.jsx";
-import ScheduleNoteWidget from "./components/dashboard/ScheduleNoteWidget.jsx";
+import WeeklyExceptions from "./components/WeeklyExceptions.jsx";
 import CafeSpecials    from "./components/CafeSpecials.jsx";
 import CashDrop        from "./components/CashDrop.jsx";
 import DropBox         from "./components/DropBox.jsx";
@@ -307,7 +307,7 @@ export default function WeeklyOps() {
         gap: 20, marginBottom: 20,
         animation: "ucar-fadein .55s ease both",
       }}>
-        <ScheduleNoteWidget />
+        <WeeklyExceptions />
         <CafeSpecials  weekOf={weekOf} campus={campus} />
       </div>
 

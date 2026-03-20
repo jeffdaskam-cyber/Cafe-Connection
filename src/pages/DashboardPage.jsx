@@ -19,7 +19,6 @@ import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 // ── Mini widget components ────────────────────────────────────────────────────
 import SalesSummaryWidget  from "../components/dashboard/SalesSummaryWidget.jsx";
 import ScheduleWidget      from "../components/dashboard/ScheduleWidget.jsx";
-import ScheduleNoteWidget  from "../components/dashboard/ScheduleNoteWidget.jsx";
 import CashDropWidget      from "../components/dashboard/CashDropWidget.jsx";
 import CafeSpecialsWidget  from "../components/dashboard/CafeSpecialsWidget.jsx";
 import RecentReportsWidget from "../components/dashboard/RecentReportsWidget.jsx";
@@ -30,7 +29,6 @@ import WeeklyExceptions from "../components/WeeklyExceptions.jsx";
 const WIDGET_COMPONENTS = {
   sales_summary:       SalesSummaryWidget,
   schedule:            ScheduleWidget,
-  schedule_note:       ScheduleNoteWidget,
   cash_drop:           CashDropWidget,
   cafe_specials:       CafeSpecialsWidget,
   recent_reports:      RecentReportsWidget,
