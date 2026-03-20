@@ -112,16 +112,23 @@ function ordinal(n) {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
-function formatWeekFolder(monday) {
+// Returns an array of possible week-folder names to try (new format first, then legacy)
+function formatWeekFolderVariants(monday) {
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
   const monLabel = MONTHS_SHORT[monday.getMonth()];
-  // Only repeat month name if Friday is in a different month
-  if (monday.getMonth() === friday.getMonth()) {
-    return `${monLabel} ${ordinal(monday.getDate())} - ${ordinal(friday.getDate())}`;
-  }
   const friLabel = MONTHS_SHORT[friday.getMonth()];
-  return `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
+
+  // New format: month only on start date  → "Mar 23rd - 27th"
+  // Legacy format: month on both dates    → "Mar 23rd - Mar 27th"
+  const sameMonth = monday.getMonth() === friday.getMonth();
+  const newFmt    = sameMonth
+    ? `${monLabel} ${ordinal(monday.getDate())} - ${ordinal(friday.getDate())}`
+    : `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
+  const legacyFmt = `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
+
+  // Deduplicate when months differ (both formats are identical)
+  return sameMonth ? [newFmt, legacyFmt] : [newFmt];
 }
 
 // ─── Extract plain text from Google Docs API response ────────────────────────
@@ -175,9 +182,7 @@ export default async function handler(req, res) {
     for (const weekMonday of weeksToTry) {
       const yearFolder  = formatYearFolder(weekMonday);
       const monthFolder = formatMonthFolder(weekMonday);
-      const weekFolder  = formatWeekFolder(weekMonday) + campusSuffix;
-
-      console.log(`[get-specials] Searching: ${yearFolder} > ${monthFolder} > ${weekFolder}`);
+      const variants    = formatWeekFolderVariants(weekMonday);
 
       const yearDir = await findInFolder(token, rootFolderId, yearFolder);
       if (!yearDir) { console.log(`[get-specials] Year folder not found: ${yearFolder}`); continue; }
@@ -185,19 +190,25 @@ export default async function handler(req, res) {
       const monthDir = await findInFolder(token, yearDir.id, monthFolder);
       if (!monthDir) { console.log(`[get-specials] Month folder not found: ${monthFolder}`); continue; }
 
-      const file = await findInFolder(token, monthDir.id, weekFolder);
-      if (file) { specialsFile = file; usedMonday = weekMonday; break; }
-      console.log(`[get-specials] Week file not found: ${weekFolder}`);
+      // Try each naming variant with the campus suffix
+      for (const variant of variants) {
+        const weekFolder = variant + campusSuffix;
+        console.log(`[get-specials] Searching: ${yearFolder} > ${monthFolder} > ${weekFolder}`);
+        const file = await findInFolder(token, monthDir.id, weekFolder);
+        if (file) { specialsFile = file; usedMonday = weekMonday; break; }
+        console.log(`[get-specials] Week file not found: ${weekFolder}`);
+      }
+      if (specialsFile) break;
     }
 
     if (!specialsFile) {
       return res.status(404).json({
         error: "Specials not found.",
-        searched: weeksToTry.map(m => ({
+        searched: weeksToTry.flatMap(m => formatWeekFolderVariants(m).map(v => ({
           year:  formatYearFolder(m),
           month: formatMonthFolder(m),
-          week:  formatWeekFolder(m) + campusSuffix,
-        })),
+          week:  v + campusSuffix,
+        }))),
       });
     }
 
