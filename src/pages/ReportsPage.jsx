@@ -15,8 +15,7 @@ import { useState } from "react";
 import { getMonthEndData } from "../firebase.js";
 import Widget            from "../components/Widget.jsx";
 import CafeChargesReport from "../components/CafeChargesReport.jsx";
-import SetUpReport       from "../components/SetUpReport.jsx";
-import EventReport       from "../components/EventReport.jsx";
+
 import { COLORS, RADIUS } from "../theme.js";
 
 const CAMPUSES     = ["Mesa Lab", "Foothills", "Center Green"];
@@ -225,17 +224,6 @@ export default function ReportsPage() {
         marginBottom: 32, animation: "ucar-fadein .5s ease both" }}>
         <MonthEndReport />
         <CafeChargesReport />
-      </div>
-
-      {/* ── Operations reports ── */}
-      <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
-        textTransform: "uppercase", marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
-        Operations
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
-        marginBottom: 40, animation: "ucar-fadein .6s ease both" }}>
-        <SetUpReport />
-        <EventReport />
       </div>
 
       {/* ── Footer ── */}

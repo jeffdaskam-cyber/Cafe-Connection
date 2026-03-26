@@ -19,7 +19,7 @@ import Widget from "./components/Widget.jsx";
 import CampusSelector, { CAMPUS_COLOR } from "./components/CampusSelector.jsx";
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
-import WeeklyExceptions from "./components/WeeklyExceptions.jsx";
+
 
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
@@ -342,12 +342,6 @@ export default function FinancialsPage() {
           </ResponsiveContainer>
         </Widget>
       </div>
-      {/* ── Schedule Notes (PTO / WFH exceptions) ── */}
-      <div style={{ marginBottom: 28, animation: "ucar-fadein .7s ease both" }}>
-        <WeeklyExceptions />
-      </div>
-
-     
       {/* ── Footer ── */}
       <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,
         fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase" }}>
