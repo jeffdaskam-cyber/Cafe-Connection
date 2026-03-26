@@ -420,11 +420,11 @@ export default function WeeklyOps() {
           </Widget>
         </div>
 
-      </div>
+        {/* Event Report */}
+        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+          <EventReportWidget />
+        </div>
 
-      {/* Row 5 — Event Report */}
-      <div style={{ marginBottom: 24 }}>
-        <EventReportWidget />
       </div>
 
       {/* ── Footer ── */}
