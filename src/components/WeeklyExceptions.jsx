@@ -95,7 +95,9 @@ function buildExceptions(rows, colorMap) {
   ));
 
   const exceptions = [];
+  const seen = new Set();
 
+  // Pass 1: color-based detection (PTO = yellow, WFH = cyan)
   for (const key of Object.keys(colorMap)) {
     const [riStr, ciStr] = key.split(",");
     const ri = parseInt(riStr, 10);
@@ -107,7 +109,27 @@ function buildExceptions(rows, colorMap) {
     if (!type) continue;
     const name = String(rows[ri]?.[0] ?? "").trim();
     if (!name) continue;
+    const dedupKey = `${ri},${ci}`;
+    seen.add(dedupKey);
     exceptions.push({ name, date, type });
+  }
+
+  // Pass 2: text-based detection — cells containing "Home" → WFH
+  for (let ri = dayHeaderIdx + 2; ri < rows.length; ri++) {
+    const row = rows[ri];
+    if (!row) continue;
+    const name = String(row[0] ?? "").trim();
+    if (!name) continue;
+    for (let ci = 1; ci < row.length; ci++) {
+      const cell = String(row[ci] ?? "").trim();
+      if (!/^home$/i.test(cell)) continue;
+      const date = colToDate[ci];
+      if (!date || date < today) continue;
+      const dedupKey = `${ri},${ci}`;
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+      exceptions.push({ name, date, type: "WFH" });
+    }
   }
 
   console.log("[WeeklyExceptions] exceptions found:", JSON.stringify(
