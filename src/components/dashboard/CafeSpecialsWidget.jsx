@@ -64,7 +64,7 @@ export default function CafeSpecialsWidget({ config = {} }) {
     [weekOf, activeCampus]
   );
 
-  const body = specials?.body ?? "";
+  const body = (specials?.body ?? "").replace(/\*[^*]*Menu Items May Be Substituted[\s\S]*$/, "").trim();
 
   return (
     <Widget

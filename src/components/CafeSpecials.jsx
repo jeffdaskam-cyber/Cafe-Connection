@@ -26,7 +26,7 @@ export default function CafeSpecials({ weekOf, campus }) {
     reload,
   } = useWidget(() => fetchSpecials(weekOf, campus), [weekOf, campus]);
 
-  const body = specialsData?.body ?? "";
+  const body = (specialsData?.body ?? "").replace(/\*[^*]*Menu Items May Be Substituted[\s\S]*$/, "").trim();
 
   return (
     <Widget
