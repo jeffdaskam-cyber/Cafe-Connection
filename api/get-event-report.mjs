@@ -81,10 +81,11 @@ async function findInFolder(token, parentId, name) {
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
-// Returns the Sunday of the week containing 'date'
+// Returns the upcoming Sunday (or today if already Sunday)
 function getSundayOf(date) {
   const d = new Date(date);
-  d.setDate(d.getDate() - d.getDay()); // getDay() returns 0 for Sunday
+  const day = d.getDay();
+  if (day !== 0) d.setDate(d.getDate() + (7 - day));
   d.setHours(0, 0, 0, 0);
   return d;
 }
