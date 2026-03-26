@@ -246,9 +246,8 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: 16,
+          columnCount: 3,
+          columnGap: 16,
           animation: "ucar-fadein .6s ease both",
         }}>
           {enabledWidgets.map(w => {
@@ -259,10 +258,8 @@ export default function DashboardPage() {
               <div
                  key={w.widgetId}
                  style={{
-                 gridColumn: `span ${meta.colSpan ?? 1}`,
-                 maxHeight: 360,
-                 overflow: "hidden",
-                 borderRadius: "inherit",
+                 breakInside: "avoid",
+                 marginBottom: 16,
                  }}
                  >
                 <Component config={w.config ?? {}} />

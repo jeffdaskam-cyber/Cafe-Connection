@@ -271,16 +271,15 @@ export default function WeeklyOps() {
         <CampusSelector value={campus} onChange={setCampus} size="sm" />
       </div>
 
-      {/* ── 3-column widget grid ── */}
+      {/* ── 3-column widget layout ── */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: "16px",
+        columnCount: 3,
+        columnGap: 16,
         padding: "16px",
       }}>
 
         {/* Staff Schedule */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <Widget
             title="Staff Schedule"
             subtitle={weekLabel}
@@ -333,27 +332,27 @@ export default function WeeklyOps() {
         </div>
 
         {/* Weekly Exceptions */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <WeeklyExceptions />
         </div>
 
         {/* Cafe Specials */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "auto" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <CafeSpecials weekOf={weekOf} campus={campus} />
         </div>
 
         {/* Cash Drop */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <CashDrop campus={campus} />
         </div>
 
         {/* DropBox */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <DropBox />
         </div>
 
         {/* Event Orders */}
-        <div style={{ gridColumn: "span 1", maxHeight: "520px", overflow: "hidden" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <Widget
             title="Event Orders"
             subtitle="Most recent first · click to open"
@@ -421,7 +420,7 @@ export default function WeeklyOps() {
         </div>
 
         {/* Event Report */}
-        <div style={{ gridColumn: "span 1", maxHeight: "360px", overflow: "hidden" }}>
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <EventReportWidget />
         </div>
 
