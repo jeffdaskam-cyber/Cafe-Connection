@@ -27,6 +27,7 @@ import WeeklyExceptions from "./components/WeeklyExceptions.jsx";
 import CafeSpecials    from "./components/CafeSpecials.jsx";
 import CashDrop        from "./components/CashDrop.jsx";
 import DropBox         from "./components/DropBox.jsx";
+import EventReportWidget from "./components/EventReportWidget.jsx";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
 // ── Event Order Upload Zone ────────────────────────────────────────────────────
@@ -419,6 +420,11 @@ export default function WeeklyOps() {
           </Widget>
         </div>
 
+      </div>
+
+      {/* Row 5 — Event Report */}
+      <div style={{ marginBottom: 24 }}>
+        <EventReportWidget />
       </div>
 
       {/* ── Footer ── */}
