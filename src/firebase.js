@@ -170,24 +170,46 @@ export async function fetchSchedulePdf(weekOf = null) {
   return res.json();
 }
 
-// ── Query event orders by date range (for Weekly Packet) ────────────────
+// ── Get event orders matching a week (by filename date parsing) ─────────
+// BEO filenames follow patterns like "BEOs - Mar 9th - 13th".
+// We parse the start date from the filename and check if it falls within
+// the given week (Monday–Sunday), matching the EventOrderLibraryWidget logic.
 export async function getEventOrdersByWeek(weekOfIso) {
   const monday = new Date(weekOfIso + "T12:00:00");
-  const sunday = new Date(monday);
-  sunday.setDate(sunday.getDate() - 1); // Sunday before
-  sunday.setHours(0, 0, 0, 0);
-  const saturday = new Date(monday);
-  saturday.setDate(saturday.getDate() + 5); // Saturday after
-  saturday.setHours(23, 59, 59, 999);
+  const mondayTime = monday.getTime();
+  const sundayEnd  = mondayTime + 6 * 24 * 60 * 60 * 1000; // following Sunday
 
+  const months = {
+    jan:0, january:0, feb:1, february:1, mar:2, march:2,
+    apr:3, april:3, may:4, jun:5, june:5, jul:6, july:6,
+    aug:7, august:7, sep:8, sept:8, september:8, oct:9, october:9,
+    nov:10, november:10, dec:11, december:11,
+  };
+
+  function parseTitleDate(fileName) {
+    if (!fileName) return 0;
+    const m = fileName.match(
+      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s+(\d+)/i
+    );
+    if (!m) return 0;
+    const mon = months[m[1].toLowerCase()];
+    if (mon === undefined) return 0;
+    const day = parseInt(m[2], 10);
+    return new Date(monday.getFullYear(), mon, day).getTime();
+  }
+
+  // Fetch all event orders then filter by parsed filename date
   const q = query(
     collection(db, "event_orders"),
-    where("uploadedAt", ">=", Timestamp.fromDate(sunday)),
-    where("uploadedAt", "<=", Timestamp.fromDate(saturday)),
-    orderBy("uploadedAt", "asc")
+    orderBy("uploadedAt", "desc")
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  return all.filter(order => {
+    const t = parseTitleDate(order.fileName);
+    return t >= mondayTime && t <= sundayEnd;
+  });
 }
 
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────

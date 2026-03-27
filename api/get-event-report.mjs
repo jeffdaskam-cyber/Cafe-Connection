@@ -167,12 +167,14 @@ export default async function handler(req, res) {
     })}`;
 
     // Fetch PDF binary for inline preview
+    // Google Workspace files (Docs/Sheets) need export; native files use alt=media
     let pdf = null;
     try {
-      const fileRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${reportFile.id}?alt=media`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const isGoogleDoc = reportFile.mimeType?.startsWith("application/vnd.google-apps.");
+      const pdfUrl = isGoogleDoc
+        ? `https://www.googleapis.com/drive/v3/files/${reportFile.id}/export?mimeType=application/pdf`
+        : `https://www.googleapis.com/drive/v3/files/${reportFile.id}?alt=media`;
+      const fileRes = await fetch(pdfUrl, { headers: { Authorization: `Bearer ${token}` } });
       if (fileRes.ok) {
         const buffer = await fileRes.arrayBuffer();
         pdf = Buffer.from(buffer).toString("base64");
