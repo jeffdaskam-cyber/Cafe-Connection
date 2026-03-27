@@ -97,25 +97,40 @@ function ensurePrintStyle() {
         overflow: visible !important;
         pointer-events: auto !important;
       }
+
       .packet-page {
-        width: 100%;
+        display: block;
         page-break-after: always;
         page-break-inside: avoid;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        width: 100vw;
+        height: 100vh;
       }
       .packet-page:last-child {
         page-break-after: avoid;
       }
       .packet-page img {
         width: 100%;
-        height: auto;
+        height: 100%;
+        object-fit: contain;
+        object-position: top left;
         display: block;
       }
+
+      /* Schedule fills the page completely */
+      .schedule-page img {
+        object-fit: fill;
+      }
+
       .packet-preview-grid { display: none !important; }
+
+      @page portrait-page { size: letter portrait; margin: 0; }
+      @page landscape-page { size: letter landscape; margin: 0; }
+      .packet-page.portrait { page: portrait-page; }
+      .packet-page.landscape { page: landscape-page; }
     }
-    @page portrait-page { size: portrait; margin: 0; }
-    @page landscape-page { size: landscape; margin: 0; }
-    .portrait-page { page: portrait-page; }
-    .landscape-page { page: landscape-page; }
   `;
   document.head.appendChild(style);
 }
@@ -412,23 +427,23 @@ export default function WeeklyPacketReport() {
         width: "100vw", height: 0, overflow: "hidden",
         pointerEvents: "none",
       }}>
-        {/* Staff Schedule — portrait */}
+        {/* Staff Schedule — portrait, fill page */}
         {schedule.images.map((img, i) => (
-          <div key={`sched-${i}`} className="packet-page portrait-page">
+          <div key={`sched-${i}`} className="packet-page portrait schedule-page">
             <img src={img} alt={`Schedule page ${i + 1}`} />
           </div>
         ))}
 
         {/* Event Report — landscape */}
         {eventReport.images.map((img, i) => (
-          <div key={`event-${i}`} className="packet-page landscape-page">
+          <div key={`event-${i}`} className="packet-page landscape">
             <img src={img} alt={`Event Report page ${i + 1}`} />
           </div>
         ))}
 
         {/* Set Up Report — landscape */}
         {setupReport.images.map((img, i) => (
-          <div key={`setup-${i}`} className="packet-page landscape-page">
+          <div key={`setup-${i}`} className="packet-page landscape">
             <img src={img} alt={`Set Up Report page ${i + 1}`} />
           </div>
         ))}
