@@ -1,9 +1,8 @@
 /**
  * SetUpReportDrive — Weekly Ops widget for the Set Up Report PDF.
  *
- * Fetches the current week's set up report from Google Drive via
- * /api/get-setup-report and displays an inline PDF preview with
- * Print and Open in Drive actions.
+ * Shows a "View Set Up Report > Week of ..." link. Clicking it expands
+ * to a landscape PDF preview with Print and Open in Drive actions.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -26,6 +25,7 @@ export default function SetUpReportDrive({ weekOf = null }) {
     reload,
   } = useWidget(() => fetchSetupReport(weekOf), [weekOf]);
 
+  const [expanded, setExpanded] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
   const blobRef = useRef(null);
 
@@ -72,9 +72,39 @@ export default function SetUpReportDrive({ weekOf = null }) {
       emptyMessage="No Set Up Report found for this week."
       actions={[{ label: "↻ Refresh", onClick: reload }]}
     >
-      {report && (
+      {report && !expanded && (
+        <div style={{ padding: "12px 0" }}>
+          <button
+            onClick={() => setExpanded(true)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              padding: 0, display: "inline-flex", alignItems: "center", gap: 6,
+              fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+              fontSize: 13, color: COLORS.AQUA,
+              textDecoration: "none", transition: "opacity .18s",
+            }}
+          >
+            View Set Up Report &rsaquo; {report.weekLabel}
+          </button>
+        </div>
+      )}
+
+      {report && expanded && (
         <div style={{ padding: "8px 0" }}>
-          {/* Inline PDF preview */}
+          {/* Collapse link */}
+          <button
+            onClick={() => setExpanded(false)}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              padding: 0, marginBottom: 10,
+              fontFamily: "'Poppins',sans-serif", fontWeight: 600,
+              fontSize: 11, color: COLORS.TEXT_MUTED,
+            }}
+          >
+            &lsaquo; Back
+          </button>
+
+          {/* Landscape PDF preview */}
           {blobUrl ? (
             <iframe
               id="setup-report-preview"
@@ -82,7 +112,7 @@ export default function SetUpReportDrive({ weekOf = null }) {
               title="Set Up Report PDF"
               style={{
                 width: "100%",
-                height: 500,
+                height: 450,
                 border: `1px solid ${COLORS.BORDER}`,
                 borderRadius: RADIUS.MD,
                 background: COLORS.BG_SURFACE_ALT,
@@ -90,13 +120,12 @@ export default function SetUpReportDrive({ weekOf = null }) {
             />
           ) : (
             <div style={{
-              width: "100%", height: 120,
+              width: "100%", height: 100,
               display: "flex", alignItems: "center", justifyContent: "center",
               background: COLORS.BG_SURFACE_ALT,
               border: `1px solid ${COLORS.BORDER}`,
               borderRadius: RADIUS.MD,
-              color: COLORS.TEXT_MUTED,
-              fontSize: 12,
+              color: COLORS.TEXT_MUTED, fontSize: 12,
               fontFamily: "'Poppins',sans-serif",
             }}>
               PDF preview not available
@@ -105,8 +134,7 @@ export default function SetUpReportDrive({ weekOf = null }) {
 
           {/* Actions */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            marginTop: 12,
+            display: "flex", alignItems: "center", gap: 10, marginTop: 12,
           }}>
             <button
               onClick={handlePrint}
