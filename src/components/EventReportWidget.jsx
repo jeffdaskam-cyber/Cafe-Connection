@@ -1,8 +1,8 @@
 /**
  * EventReportWidget — Weekly Ops widget for the Event Report PDF.
  *
- * Shows a "View Event Report > Week of ..." link. Clicking it expands
- * to a landscape PDF preview with Print and Open in Drive actions.
+ * Shows a "View Event Report > Week of ..." link. Clicking opens a
+ * full-screen modal with a landscape PDF preview, Print, and Open in Drive.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -18,14 +18,11 @@ function base64ToBlobUrl(base64) {
 }
 
 export default function EventReportWidget({ weekOf = null }) {
-  const {
-    data:    report,
-    loading,
-    error,
-    reload,
-  } = useWidget(() => fetchEventReport(weekOf), [weekOf]);
+  const { data: report, loading, error, reload } = useWidget(
+    () => fetchEventReport(weekOf), [weekOf]
+  );
 
-  const [expanded, setExpanded] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
   const blobRef = useRef(null);
 
@@ -45,7 +42,16 @@ export default function EventReportWidget({ weekOf = null }) {
     };
   }, [report?.pdf]);
 
+  // Close on Escape
+  useEffect(() => {
+    if (!modalOpen) return;
+    const handler = (e) => { if (e.key === "Escape") setModalOpen(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [modalOpen]);
+
   const notFound = !loading && !error && !report;
+  const label = report?.weekLabel ?? "Weekly event report";
 
   const handlePrint = () => {
     const iframe = document.getElementById("event-report-preview");
@@ -59,115 +65,157 @@ export default function EventReportWidget({ weekOf = null }) {
   };
 
   return (
-    <Widget
-      title="Event Report"
-      subtitle={report?.weekLabel ?? "Weekly event report"}
-      icon="📋"
-      accentColor={COLORS.AQUA}
-      loading={loading}
-      error={error}
-      onRetry={reload}
-      empty={notFound}
-      emptyIcon="📋"
-      emptyMessage="No event report found for this week."
-      actions={[{ label: "↻ Refresh", onClick: reload }]}
-    >
-      {report && !expanded && (
-        <div style={{ padding: "12px 0" }}>
-          <button
-            onClick={() => setExpanded(true)}
+    <>
+      {/* ── Modal ── */}
+      {modalOpen && (
+        <div
+          onClick={() => setModalOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(1,24,55,0.82)",
+            display: "flex", alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "48px 24px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              background: "none", border: "none", cursor: "pointer",
-              padding: 0, display: "inline-flex", alignItems: "center", gap: 6,
-              fontFamily: "'Poppins',sans-serif", fontWeight: 700,
-              fontSize: 13, color: COLORS.AQUA,
-              textDecoration: "none", transition: "opacity .18s",
-            }}
-          >
-            View Event Report &rsaquo; {report.weekLabel}
-          </button>
-        </div>
-      )}
-
-      {report && expanded && (
-        <div style={{ padding: "8px 0" }}>
-          {/* Collapse link */}
-          <button
-            onClick={() => setExpanded(false)}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              padding: 0, marginBottom: 10,
-              fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-              fontSize: 11, color: COLORS.TEXT_MUTED,
-            }}
-          >
-            &lsaquo; Back
-          </button>
-
-          {/* Landscape PDF preview */}
-          {blobUrl ? (
-            <iframe
-              id="event-report-preview"
-              src={blobUrl}
-              title="Event Report PDF"
-              style={{
-                width: "100%",
-                height: 450,
-                border: `1px solid ${COLORS.BORDER}`,
-                borderRadius: RADIUS.MD,
-                background: COLORS.BG_SURFACE_ALT,
-              }}
-            />
-          ) : (
-            <div style={{
-              width: "100%", height: 100,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: COLORS.BG_SURFACE_ALT,
+              background: COLORS.BG_SURFACE,
+              borderRadius: 16,
               border: `1px solid ${COLORS.BORDER}`,
-              borderRadius: RADIUS.MD,
-              color: COLORS.TEXT_MUTED, fontSize: 12,
-              fontFamily: "'Poppins',sans-serif",
+              width: "100%", maxWidth: 1100,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+              overflow: "hidden",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            {/* Modal header */}
+            <div style={{
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between",
+              padding: "18px 24px",
+              borderBottom: `1px solid ${COLORS.BORDER}`,
+              background: COLORS.BG_SURFACE_ALT,
+              flexShrink: 0,
             }}>
-              PDF preview not available
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>📋</span>
+                <div>
+                  <div style={{
+                    fontSize: 14, fontWeight: 700,
+                    color: COLORS.TEXT_PRIMARY,
+                    fontFamily: "'Poppins',sans-serif",
+                  }}>Event Report</div>
+                  <div style={{
+                    fontSize: 11, color: COLORS.TEXT_MUTED,
+                    fontFamily: "'Poppins',sans-serif",
+                  }}>{label}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  onClick={handlePrint}
+                  disabled={!blobUrl}
+                  style={{
+                    background: blobUrl ? COLORS.AQUA : "transparent",
+                    border: blobUrl ? "none" : `1px solid ${COLORS.BORDER}`,
+                    borderRadius: 8, padding: "6px 16px",
+                    color: blobUrl ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_DISABLED,
+                    fontSize: 12, cursor: blobUrl ? "pointer" : "not-allowed",
+                    fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+                  }}>Print</button>
+                {report?.viewUrl && (
+                  <a
+                    href={report.viewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: "transparent",
+                      border: `1px solid ${COLORS.BORDER}`,
+                      borderRadius: 8, padding: "5px 12px",
+                      color: COLORS.TEXT_MUTED, fontSize: 11,
+                      fontFamily: "'Poppins',sans-serif", fontWeight: 600,
+                      textDecoration: "none",
+                    }}>Open in Drive</a>
+                )}
+                <button
+                  onClick={() => setModalOpen(false)}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${COLORS.BORDER}`,
+                    borderRadius: 8, padding: "5px 14px",
+                    color: COLORS.TEXT_MUTED, fontSize: 16,
+                    cursor: "pointer", lineHeight: 1,
+                  }}>&#10005;</button>
+              </div>
             </div>
-          )}
 
-          {/* Actions */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10, marginTop: 12,
-          }}>
-            <button
-              onClick={handlePrint}
-              disabled={!blobUrl}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 6,
-                padding: "8px 18px", borderRadius: 8, border: "none",
-                background: blobUrl ? COLORS.AQUA : COLORS.BG_SURFACE_HOVER,
-                color: blobUrl ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_DISABLED,
-                fontFamily: "'Poppins',sans-serif",
-                fontWeight: 700, fontSize: 12,
-                cursor: blobUrl ? "pointer" : "not-allowed",
-                boxShadow: blobUrl ? `0 4px 16px ${COLORS.AQUA}33` : "none",
-                transition: "all .18s",
-              }}
-            >
-              Print
-            </button>
-            <a
-              href={report.viewUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                fontSize: 11, color: COLORS.TEXT_MUTED,
-                fontFamily: "'Poppins',sans-serif",
-                textDecoration: "underline",
-              }}
-            >
-              Open in Drive
-            </a>
+            {/* Modal body */}
+            <div style={{ padding: 24 }}>
+              {blobUrl ? (
+                <iframe
+                  id="event-report-preview"
+                  src={blobUrl}
+                  title="Event Report PDF"
+                  style={{
+                    width: "100%", height: "75vh",
+                    border: `1px solid ${COLORS.BORDER}`,
+                    borderRadius: RADIUS.MD,
+                    background: COLORS.BG_SURFACE_ALT,
+                  }}
+                />
+              ) : (
+                <div style={{
+                  width: "100%", height: 200,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: COLORS.BG_SURFACE_ALT,
+                  border: `1px solid ${COLORS.BORDER}`,
+                  borderRadius: RADIUS.MD,
+                  color: COLORS.TEXT_MUTED, fontSize: 13,
+                  fontFamily: "'Poppins',sans-serif",
+                }}>
+                  PDF preview not available
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
-    </Widget>
+
+      {/* ── Widget tile ── */}
+      <Widget
+        title="Event Report"
+        subtitle={label}
+        icon="📋"
+        accentColor={COLORS.AQUA}
+        loading={loading}
+        error={error}
+        onRetry={reload}
+        empty={notFound}
+        emptyIcon="📋"
+        emptyMessage="No event report found for this week."
+        actions={[{ label: "↻ Refresh", onClick: reload }]}
+      >
+        {report && (
+          <div style={{ padding: "16px 4px" }}>
+            <button
+              onClick={() => setModalOpen(true)}
+              style={{
+                background: "transparent", border: "none",
+                padding: 0, cursor: "pointer",
+                color: COLORS.AQUA, fontSize: 13,
+                fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+              }}
+            >
+              View Event Report &rsaquo; {label}
+            </button>
+          </div>
+        )}
+      </Widget>
+    </>
   );
 }
