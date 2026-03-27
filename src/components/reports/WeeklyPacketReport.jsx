@@ -40,7 +40,15 @@ function ensurePrintStyle() {
   style.textContent = `
     @media print {
       body > *:not(#weekly-packet-print) { display: none !important; }
-      #weekly-packet-print { display: block !important; }
+      #weekly-packet-print {
+        display: block !important;
+        position: static !important;
+        left: auto !important;
+        width: auto !important;
+        height: auto !important;
+        overflow: visible !important;
+        pointer-events: auto !important;
+      }
       .packet-section { page-break-after: always; }
       .packet-section:last-child { page-break-after: avoid; }
       .packet-section iframe {
@@ -288,9 +296,13 @@ export default function WeeklyPacketReport() {
 
       </div>
     </Widget>
-    {/* Print container — portaled to body so CSS selector works */}
+    {/* Print container — portaled to body, offscreen but rendered so iframes load */}
     {createPortal(
-      <div id="weekly-packet-print" style={{ display: "none" }}>
+      <div id="weekly-packet-print" style={{
+        position: "fixed", left: "-9999px", top: 0,
+        width: "100vw", height: 0, overflow: "hidden",
+        pointerEvents: "none",
+      }}>
         {schedule.data?.blobUrl && (
           <div className="packet-section portrait">
             <iframe src={schedule.data.blobUrl} title="Staff Schedule" />

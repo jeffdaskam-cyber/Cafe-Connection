@@ -175,9 +175,9 @@ export async function fetchSchedulePdf(weekOf = null) {
 // We parse the start date from the filename and check if it falls within
 // the given week (Monday–Sunday), matching the EventOrderLibraryWidget logic.
 export async function getEventOrdersByWeek(weekOfIso) {
-  const monday = new Date(weekOfIso + "T12:00:00");
+  const monday = new Date(weekOfIso + "T00:00:00");
   const mondayTime = monday.getTime();
-  const sundayEnd  = mondayTime + 6 * 24 * 60 * 60 * 1000; // following Sunday
+  const sundayEnd  = mondayTime + 7 * 24 * 60 * 60 * 1000 - 1; // end of Sunday
 
   const months = {
     jan:0, january:0, feb:1, february:1, mar:2, march:2,
