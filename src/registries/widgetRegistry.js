@@ -88,6 +88,15 @@ export const WIDGET_REGISTRY = [
     defaultEnabled: false,
     colSpan:        1,
   },
+  {
+    widgetId:       "setup_report",
+    label:          "Set Up Report",
+    icon:           "📋",
+    description:    "Current week's Set Up Report from Google Drive.",
+    needsCampus:    false,
+    defaultEnabled: false,
+    colSpan:        1,
+  },
 ];
 
 /** Look up a widget definition by ID. */

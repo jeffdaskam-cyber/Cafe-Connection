@@ -28,6 +28,7 @@ import CafeSpecials    from "./components/CafeSpecials.jsx";
 import CashDrop        from "./components/CashDrop.jsx";
 import DropBox         from "./components/DropBox.jsx";
 import EventReportWidget from "./components/EventReportWidget.jsx";
+import SetUpReportDrive from "./components/SetUpReportDrive.jsx";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
 // ── Event Order Upload Zone ────────────────────────────────────────────────────
@@ -417,6 +418,11 @@ export default function WeeklyOps() {
               </div>
             )}
           </Widget>
+        </div>
+
+        {/* Set Up Report (Google Drive PDF) */}
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
+          <SetUpReportDrive />
         </div>
 
         {/* Event Report */}

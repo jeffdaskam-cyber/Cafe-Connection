@@ -134,6 +134,24 @@ export async function fetchEventReport(weekOf = null) {
   return res.json();
 }
 
+// ── Fetch week's set up report PDF from Google Drive ─────────────────────
+// weekOf: ISO date string "YYYY-MM-DD" (optional; omit for auto-detect)
+export async function fetchSetupReport(weekOf = null) {
+  const token = await getAuthToken();
+  const url = weekOf
+    ? `/api/get-setup-report?weekOf=${weekOf}`
+    : "/api/get-setup-report";
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to fetch setup report");
+  }
+  return res.json();
+}
+
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────
 // campus: specific campus name OR "All Campuses" to merge all three live
 export function subscribeToCampus(campus, callback) {
