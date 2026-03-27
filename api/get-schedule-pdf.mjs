@@ -151,7 +151,7 @@ export default async function handler(req, res) {
     }
 
     // Export Google Sheet as PDF (portrait, fit to page)
-    const exportUrl = `https://docs.google.com/spreadsheets/d/${scheduleFile.id}/export?format=pdf&portrait=true&fitw=true&gridlines=false`;
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${scheduleFile.id}/export?format=pdf&portrait=true&fitw=true&gridlines=false&size=letter&top_margin=0.5&bottom_margin=0.5&left_margin=0.5&right_margin=0.5`;
     const pdfRes = await fetch(exportUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });

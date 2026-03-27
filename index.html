@@ -9,13 +9,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { font-size: 16px; }
       body { background: #F1F0EE; }
-    <style>
-     * { box-sizing: border-box; margin: 0; padding: 0; }
-     html { font-size: 16px; }
-     body { background: #F1F0EE; }
-     #root { zoom: 1.35; }
+      #root { zoom: 1.35; }
     </style>
+    <!-- PDF.js for canvas-based PDF rendering (Weekly Packet print) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
   </head>
   <body>
     <div id="root"></div>

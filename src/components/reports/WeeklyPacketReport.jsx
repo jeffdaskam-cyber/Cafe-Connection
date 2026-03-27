@@ -2,31 +2,79 @@
  * WeeklyPacketReport — Assembles Staff Schedule, Event Report, Set Up Report,
  * and all BEOs for a selected week into a single printable packet.
  *
- * Uses CSS @page rules to control orientation per section.
- * No server-side PDF merge — all assembly is client-side via print CSS.
+ * Uses PDF.js to render each PDF page to canvas, then prints the resulting
+ * images. This avoids the iframe/PDF-viewer-chrome print bug entirely.
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { fetchEventReport, fetchSetupReport, fetchSchedulePdf, getEventOrdersByWeek } from "../../firebase.js";
 import { getNextMonday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
+import { renderPdfToImages } from "../../utils/pdfRenderer.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function base64ToBlobUrl(base64) {
-  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  const blob = new Blob([bytes], { type: "application/pdf" });
-  return URL.createObjectURL(blob);
-}
-
-// Status icon per section
 function StatusIcon({ ok, loading, error }) {
   if (loading) return <span style={{ color: COLORS.TEXT_MUTED }}>...</span>;
   if (error)   return <span title={error}>&#9888;</span>;
   if (ok)      return <span style={{ color: COLORS.SUCCESS }}>&#10003;</span>;
-  return <span style={{ color: COLORS.TEXT_DISABLED }}>—</span>;
+  return <span style={{ color: COLORS.TEXT_DISABLED }}>&mdash;</span>;
+}
+
+function PreviewCard({ title, status, firstImage, pageCount }) {
+  const cardStyle = {
+    background: COLORS.BG_SURFACE_ALT,
+    border: `1px solid ${COLORS.BORDER}`,
+    borderRadius: RADIUS.MD,
+    padding: 12,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 120,
+  };
+  const labelStyle = {
+    fontSize: 11,
+    fontWeight: 600,
+    fontFamily: "'Poppins',sans-serif",
+    color: COLORS.TEXT_PRIMARY,
+    textAlign: "center",
+  };
+
+  return (
+    <div style={cardStyle}>
+      <div style={labelStyle}>{title}</div>
+      {status === "loading" && (
+        <span style={{ fontSize: 11, color: COLORS.TEXT_MUTED }}>Rendering...</span>
+      )}
+      {status === "error" && (
+        <span style={{ fontSize: 11, color: COLORS.WARNING }}>Failed to load</span>
+      )}
+      {status === "ready" && firstImage && (
+        <>
+          <img
+            src={firstImage}
+            alt={`${title} preview`}
+            style={{
+              width: "100%",
+              maxHeight: 140,
+              objectFit: "contain",
+              borderRadius: 4,
+              border: `1px solid ${COLORS.BORDER}`,
+            }}
+          />
+          <span style={{ fontSize: 10, color: COLORS.TEXT_MUTED }}>
+            {pageCount} page{pageCount !== 1 ? "s" : ""}
+          </span>
+        </>
+      )}
+      {status === "idle" && (
+        <span style={{ fontSize: 11, color: COLORS.TEXT_DISABLED }}>Not loaded</span>
+      )}
+    </div>
+  );
 }
 
 // ── Print stylesheet (injected once) ─────────────────────────────────────────
@@ -49,18 +97,25 @@ function ensurePrintStyle() {
         overflow: visible !important;
         pointer-events: auto !important;
       }
-      .packet-section { page-break-after: always; }
-      .packet-section:last-child { page-break-after: avoid; }
-      .packet-section iframe {
+      .packet-page {
         width: 100%;
-        height: 100vh;
-        border: none;
+        page-break-after: always;
+        page-break-inside: avoid;
       }
+      .packet-page:last-child {
+        page-break-after: avoid;
+      }
+      .packet-page img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .packet-preview-grid { display: none !important; }
     }
-    @page portrait-page { size: portrait; }
-    @page landscape-page { size: landscape; }
-    .packet-section.portrait { page: portrait-page; }
-    .packet-section.landscape { page: landscape-page; }
+    @page portrait-page { size: portrait; margin: 0; }
+    @page landscape-page { size: landscape; margin: 0; }
+    .portrait-page { page: portrait-page; }
+    .landscape-page { page: landscape-page; }
   `;
   document.head.appendChild(style);
 }
@@ -123,99 +178,119 @@ function PacketWeekSelector({ value, onChange }) {
 
 // ── Main Component ───────────────────────────────────────────────────────────
 
+const INITIAL_SECTION = { status: "idle", images: [], error: null };
+
 export default function WeeklyPacketReport() {
   const [selectedWeek, setSelectedWeek] = useState(getNextMonday);
 
-  const [schedule,    setSchedule]    = useState({ data: null, loading: false, error: null });
-  const [eventReport, setEventReport] = useState({ data: null, loading: false, error: null });
-  const [setupReport, setSetupReport] = useState({ data: null, loading: false, error: null });
-  const [beos,        setBeos]        = useState({ data: [],   loading: false, error: null });
+  const [schedule, setSchedule]       = useState(INITIAL_SECTION);
+  const [eventReport, setEventReport] = useState(INITIAL_SECTION);
+  const [setupReport, setSetupReport] = useState(INITIAL_SECTION);
+  const [beos, setBeos]               = useState([]);
+  const [beosLoading, setBeosLoading] = useState(false);
 
-  // Track blob URLs for cleanup
-  const blobUrls = useRef([]);
+  // Labels from the API response (for display)
+  const [scheduleLabel, setScheduleLabel] = useState(null);
+  const [eventLabel, setEventLabel]       = useState(null);
+  const [setupLabel, setSetupLabel]       = useState(null);
 
-  const cleanupBlobs = useCallback(() => {
-    blobUrls.current.forEach(url => URL.revokeObjectURL(url));
-    blobUrls.current = [];
-  }, []);
-
-  const makeBlobUrl = useCallback((base64) => {
-    const url = base64ToBlobUrl(base64);
-    blobUrls.current.push(url);
-    return url;
+  const loadSection = useCallback(async (key, fetchFn, setSectionState, setLabel) => {
+    setSectionState({ status: "loading", images: [], error: null });
+    if (setLabel) setLabel(null);
+    try {
+      const result = await fetchFn();
+      if (!result?.pdf) {
+        setSectionState({ status: "error", images: [], error: "Not found" });
+        return;
+      }
+      if (setLabel && result.weekLabel) setLabel(result.weekLabel);
+      const images = await renderPdfToImages(result.pdf);
+      setSectionState({ status: "ready", images, error: null });
+    } catch (err) {
+      setSectionState({ status: "error", images: [], error: err.message });
+    }
   }, []);
 
   // Fetch all sections when week changes
   useEffect(() => {
-    cleanupBlobs();
     let cancelled = false;
 
     async function fetchAll() {
-      // Schedule PDF
-      setSchedule(s => ({ ...s, loading: true, error: null }));
-      setEventReport(s => ({ ...s, loading: true, error: null }));
-      setSetupReport(s => ({ ...s, loading: true, error: null }));
-      setBeos(s => ({ ...s, loading: true, error: null }));
-
-      // Fetch all four in parallel
-      const [schedRes, eventRes, setupRes, beoRes] = await Promise.allSettled([
-        fetchSchedulePdf(selectedWeek),
-        fetchEventReport(selectedWeek),
-        fetchSetupReport(selectedWeek),
-        getEventOrdersByWeek(selectedWeek),
-      ]);
-
+      // Load sections sequentially to avoid UI freeze from concurrent canvas rendering
+      await loadSection("schedule", () => fetchSchedulePdf(selectedWeek), (v) => !cancelled && setSchedule(v), (v) => !cancelled && setScheduleLabel(v));
+      if (cancelled) return;
+      await loadSection("eventReport", () => fetchEventReport(selectedWeek), (v) => !cancelled && setEventReport(v), (v) => !cancelled && setEventLabel(v));
+      if (cancelled) return;
+      await loadSection("setupReport", () => fetchSetupReport(selectedWeek), (v) => !cancelled && setSetupReport(v), (v) => !cancelled && setSetupLabel(v));
       if (cancelled) return;
 
-      // Schedule
-      if (schedRes.status === "fulfilled" && schedRes.value?.pdf) {
-        setSchedule({ data: { blobUrl: makeBlobUrl(schedRes.value.pdf), weekLabel: schedRes.value.weekLabel }, loading: false, error: null });
-      } else {
-        setSchedule({ data: null, loading: false, error: schedRes.status === "rejected" ? schedRes.reason?.message : "Not found" });
-      }
-
-      // Event Report
-      if (eventRes.status === "fulfilled" && eventRes.value?.pdf) {
-        setEventReport({ data: { blobUrl: makeBlobUrl(eventRes.value.pdf), weekLabel: eventRes.value.weekLabel }, loading: false, error: null });
-      } else {
-        setEventReport({ data: null, loading: false, error: eventRes.status === "rejected" ? eventRes.reason?.message : "Not found" });
-      }
-
-      // Setup Report
-      if (setupRes.status === "fulfilled" && setupRes.value?.pdf) {
-        setSetupReport({ data: { blobUrl: makeBlobUrl(setupRes.value.pdf), weekLabel: setupRes.value.weekLabel }, loading: false, error: null });
-      } else {
-        setSetupReport({ data: null, loading: false, error: setupRes.status === "rejected" ? setupRes.reason?.message : "Not found" });
-      }
-
       // BEOs
-      if (beoRes.status === "fulfilled" && beoRes.value) {
-        setBeos({ data: beoRes.value, loading: false, error: null });
-      } else {
-        setBeos({ data: [], loading: false, error: beoRes.status === "rejected" ? beoRes.reason?.message : null });
+      setBeosLoading(true);
+      try {
+        const docs = await getEventOrdersByWeek(selectedWeek);
+        if (cancelled) return;
+        if (!docs || docs.length === 0) {
+          setBeos([]);
+          setBeosLoading(false);
+          return;
+        }
+
+        const rendered = [];
+        for (const doc of docs) {
+          if (cancelled) return;
+          try {
+            const res = await fetch(doc.downloadURL);
+            const buffer = await res.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            let binary = "";
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const base64 = btoa(binary);
+            const images = await renderPdfToImages(base64);
+            rendered.push({ name: doc.fileName, status: "ready", images, error: null });
+          } catch (err) {
+            rendered.push({ name: doc.fileName, status: "error", images: [], error: err.message });
+          }
+        }
+        if (!cancelled) setBeos(rendered);
+      } catch (err) {
+        if (!cancelled) setBeos([]);
       }
+      if (!cancelled) setBeosLoading(false);
     }
 
+    // Reset all sections
+    setSchedule(INITIAL_SECTION);
+    setEventReport(INITIAL_SECTION);
+    setSetupReport(INITIAL_SECTION);
+    setBeos([]);
+    setScheduleLabel(null);
+    setEventLabel(null);
+    setSetupLabel(null);
+
     fetchAll();
-    return () => { cancelled = true; cleanupBlobs(); };
-  }, [selectedWeek, cleanupBlobs, makeBlobUrl]);
+    return () => { cancelled = true; };
+  }, [selectedWeek, loadSection]);
 
   // Print handler
   const handlePrint = () => {
     ensurePrintStyle();
-    // Small delay to let the style inject
     requestAnimationFrame(() => window.print());
   };
 
-  const anyLoading = schedule.loading || eventReport.loading || setupReport.loading || beos.loading;
-  const sectionsLoaded = [schedule.data, eventReport.data, setupReport.data].filter(Boolean).length + (beos.data.length > 0 ? 1 : 0);
+  const anyLoading = schedule.status === "loading" || eventReport.status === "loading" || setupReport.status === "loading" || beosLoading;
+  const sectionsLoaded =
+    [schedule, eventReport, setupReport].filter(s => s.status === "ready").length +
+    (beos.filter(b => b.status === "ready").length > 0 ? 1 : 0);
+
+  const beoReadyCount = beos.filter(b => b.status === "ready").length;
+  const beoTotalPages = beos.reduce((sum, b) => sum + b.images.length, 0);
 
   return (
     <>
     <Widget
       title="Weekly Packet"
       subtitle={`Week of ${formatWeekLabel(selectedWeek)}`}
-      icon="📦"
+      icon="&#x1F4E6;"
       accentColor={COLORS.AQUA}
       loading={false}
     >
@@ -236,41 +311,74 @@ export default function WeeklyPacketReport() {
               fontFamily: "'Poppins',sans-serif",
               marginBottom: 10,
             }}>
-              Loading sections...
+              Loading &amp; rendering sections...
             </div>
           )}
 
           {[
-            { label: "Staff Schedule", state: schedule, suffix: schedule.data?.weekLabel },
-            { label: "Event Report",   state: eventReport, suffix: eventReport.data?.weekLabel },
-            { label: "Set Up Report",  state: setupReport, suffix: setupReport.data?.weekLabel },
-            { label: `BEOs (${beos.data.length} file${beos.data.length !== 1 ? "s" : ""})`, state: beos, suffix: null },
+            { label: "Staff Schedule", state: schedule, suffix: scheduleLabel },
+            { label: "Event Report",   state: eventReport, suffix: eventLabel },
+            { label: "Set Up Report",  state: setupReport, suffix: setupLabel },
+            { label: `BEOs (${beos.length} file${beos.length !== 1 ? "s" : ""})`, state: { status: beosLoading ? "loading" : (beos.length > 0 ? "ready" : "idle"), error: null }, suffix: null },
           ].map(({ label, state, suffix }) => (
             <div key={label} style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "5px 0",
               fontSize: 12,
               fontFamily: "'Poppins',sans-serif",
-              color: state.error && !state.data ? COLORS.WARNING : COLORS.TEXT_PRIMARY,
+              color: state.error && state.status === "error" ? COLORS.WARNING : COLORS.TEXT_PRIMARY,
             }}>
               <StatusIcon
-                ok={label.startsWith("BEOs") ? beos.data.length > 0 : !!state.data}
-                loading={state.loading}
+                ok={state.status === "ready"}
+                loading={state.status === "loading"}
                 error={state.error}
               />
               <span style={{ fontWeight: 600 }}>{label}</span>
               {suffix && (
                 <span style={{ fontSize: 10, color: COLORS.TEXT_MUTED }}>
-                  — {suffix}
+                  &mdash; {suffix}
                 </span>
               )}
-              {state.error && !state.data && (
+              {state.error && state.status === "error" && (
                 <span style={{ fontSize: 10, color: COLORS.WARNING, marginLeft: "auto" }}>
                   {state.error}
                 </span>
               )}
             </div>
           ))}
+        </div>
+
+        {/* Preview grid */}
+        <div className="packet-preview-grid" style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 12,
+          marginBottom: 16,
+        }}>
+          <PreviewCard
+            title="Staff Schedule"
+            status={schedule.status}
+            firstImage={schedule.images[0]}
+            pageCount={schedule.images.length}
+          />
+          <PreviewCard
+            title="Event Report"
+            status={eventReport.status}
+            firstImage={eventReport.images[0]}
+            pageCount={eventReport.images.length}
+          />
+          <PreviewCard
+            title="Set Up Report"
+            status={setupReport.status}
+            firstImage={setupReport.images[0]}
+            pageCount={setupReport.images.length}
+          />
+          <PreviewCard
+            title={`BEOs (${beoReadyCount} file${beoReadyCount !== 1 ? "s" : ""})`}
+            status={beosLoading ? "loading" : (beoReadyCount > 0 ? "ready" : "idle")}
+            firstImage={beos[0]?.images[0]}
+            pageCount={beoTotalPages}
+          />
         </div>
 
         {/* Print button */}
@@ -296,33 +404,43 @@ export default function WeeklyPacketReport() {
 
       </div>
     </Widget>
-    {/* Print container — portaled to body, offscreen but rendered so iframes load */}
+
+    {/* Print container — portaled to body, hidden on screen, visible on print */}
     {createPortal(
       <div id="weekly-packet-print" style={{
         position: "fixed", left: "-9999px", top: 0,
         width: "100vw", height: 0, overflow: "hidden",
         pointerEvents: "none",
       }}>
-        {schedule.data?.blobUrl && (
-          <div className="packet-section portrait">
-            <iframe src={schedule.data.blobUrl} title="Staff Schedule" />
-          </div>
-        )}
-        {eventReport.data?.blobUrl && (
-          <div className="packet-section landscape">
-            <iframe src={eventReport.data.blobUrl} title="Event Report" />
-          </div>
-        )}
-        {setupReport.data?.blobUrl && (
-          <div className="packet-section landscape">
-            <iframe src={setupReport.data.blobUrl} title="Set Up Report" />
-          </div>
-        )}
-        {beos.data.map((beo, i) => (
-          <div key={beo.id || i} className="packet-section">
-            <iframe src={beo.downloadURL} title={`BEO ${i + 1} — ${beo.fileName}`} />
+        {/* Staff Schedule — portrait */}
+        {schedule.images.map((img, i) => (
+          <div key={`sched-${i}`} className="packet-page portrait-page">
+            <img src={img} alt={`Schedule page ${i + 1}`} />
           </div>
         ))}
+
+        {/* Event Report — landscape */}
+        {eventReport.images.map((img, i) => (
+          <div key={`event-${i}`} className="packet-page landscape-page">
+            <img src={img} alt={`Event Report page ${i + 1}`} />
+          </div>
+        ))}
+
+        {/* Set Up Report — landscape */}
+        {setupReport.images.map((img, i) => (
+          <div key={`setup-${i}`} className="packet-page landscape-page">
+            <img src={img} alt={`Set Up Report page ${i + 1}`} />
+          </div>
+        ))}
+
+        {/* BEOs */}
+        {beos.flatMap((beo, beoIdx) =>
+          beo.images.map((img, pageIdx) => (
+            <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page">
+              <img src={img} alt={`BEO ${beoIdx + 1} page ${pageIdx + 1}`} />
+            </div>
+          ))
+        )}
       </div>,
       document.body
     )}
