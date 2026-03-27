@@ -1,10 +1,10 @@
-// api/get-setup-report.mjs
+// api/get-schedule-pdf.mjs
 // Vercel Serverless Function — Cafe Connection
-// Fetches the current week's Set Up Report PDF from Google Drive.
-// Uses Google REST APIs directly via fetch — no googleapis npm package.
+// Exports the current week's staff schedule Google Sheet as a PDF (base64).
+// Reuses the same Drive folder navigation as get-schedule.js.
 //
-// GET /api/get-setup-report?weekOf=YYYY-MM-DD  (weekOf optional)
-// Returns: { success: true, weekLabel: string, fileName: string, downloadUrl: string }
+// GET /api/get-schedule-pdf?weekOf=YYYY-MM-DD  (weekOf optional)
+// Returns: { success: true, weekLabel: string, pdf: string (base64) }
 
 import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";
@@ -47,7 +47,7 @@ async function getAccessToken() {
   const now = Math.floor(Date.now() / 1000);
 
   const jwt = await new SignJWT({
-    scope: "https://www.googleapis.com/auth/drive.readonly",
+    scope: "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/spreadsheets.readonly",
   })
     .setProtectedHeader({ alg: "RS256" })
     .setIssuer(email)
@@ -73,32 +73,29 @@ async function getAccessToken() {
 // ─── Drive helpers ────────────────────────────────────────────────────────────
 async function findInFolder(token, parentId, name) {
   const q   = `'${parentId}' in parents and name = '${name}' and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType,webViewLink)&pageSize=10`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   const data = await res.json();
   if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
   return data.files?.[0] || null;
 }
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+// ─── Date helpers (same as get-schedule.js) ──────────────────────────────────
 function getMondayOf(date) {
   const d   = new Date(date);
   const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
-
-// "March 2026"
-function formatMonthFolder(date) {
-  return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+function formatFileDate(date) {
+  return `${date.getMonth() + 1}.${date.getDate()}.${String(date.getFullYear()).slice(2)}`;
 }
-
-// "3.23" — M.DD, no leading zero on month
-function formatWeekFileName(monday) {
-  const month = monday.getMonth() + 1; // no leading zero
-  const day   = String(monday.getDate()).padStart(2, "0");
-  return `${month}.${day}`;
+function formatMonthFolder(date) {
+  const mm        = String(date.getMonth() + 1).padStart(2, "0");
+  const monthName = date.toLocaleDateString("en-US", { month: "long" });
+  return `${mm} - ${monthName} - ${date.getFullYear()}`;
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -118,82 +115,62 @@ export default async function handler(req, res) {
 
   try {
     const token        = await getAccessToken();
-    const rootFolderId = process.env.GOOGLE_SETUP_REPORT_FOLDER_ID;
-    if (!rootFolderId) throw new Error("GOOGLE_SETUP_REPORT_FOLDER_ID env var not set.");
+    const rootFolderId = process.env.GOOGLE_SCHEDULE_FOLDER_ID;
+    if (!rootFolderId) throw new Error("GOOGLE_SCHEDULE_FOLDER_ID env var not set.");
 
     const monday = weekOfParam
       ? getMondayOf(new Date(weekOfParam + "T12:00:00"))
       : getMondayOf(new Date());
 
-    // Try current week, then fall back to previous week
     const weeksToTry = weekOfParam
       ? [monday]
       : [monday, new Date(monday.getTime() - 7 * 24 * 60 * 60 * 1000)];
 
-    let reportFile = null;
-    let usedMonday = null;
+    let scheduleFile = null;
+    let usedMonday   = null;
 
     for (const weekMonday of weeksToTry) {
       const monthFolder = formatMonthFolder(weekMonday);
-      const weekFileName = formatWeekFileName(weekMonday);
-
-      console.log(`[get-setup-report] Searching: ${monthFolder} > ${weekFileName}`);
+      const fileName    = formatFileDate(weekMonday);
 
       const monthDir = await findInFolder(token, rootFolderId, monthFolder);
-      if (!monthDir) {
-        console.log(`[get-setup-report] Month folder not found: ${monthFolder}`);
-        continue;
-      }
+      if (!monthDir) continue;
 
-      const file = await findInFolder(token, monthDir.id, weekFileName);
-      if (file) {
-        reportFile = file;
-        usedMonday = weekMonday;
-        break;
-      }
-      console.log(`[get-setup-report] Week file not found: ${weekFileName}`);
+      const file = await findInFolder(token, monthDir.id, fileName);
+      if (file) { scheduleFile = file; usedMonday = weekMonday; break; }
     }
 
-    if (!reportFile) {
+    if (!scheduleFile) {
       return res.status(404).json({
-        error: "Set Up Report not found.",
+        error: "Schedule not found.",
         searched: weeksToTry.map(m => ({
           month: formatMonthFolder(m),
-          file:  formatWeekFileName(m),
+          file:  formatFileDate(m),
         })),
       });
     }
+
+    // Export Google Sheet as PDF (portrait, fit to page)
+    const exportUrl = `https://docs.google.com/spreadsheets/d/${scheduleFile.id}/export?format=pdf&portrait=true&fitw=true&gridlines=false`;
+    const pdfRes = await fetch(exportUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!pdfRes.ok) {
+      throw new Error(`PDF export failed: ${pdfRes.status} ${pdfRes.statusText}`);
+    }
+
+    const buffer = await pdfRes.arrayBuffer();
+    const pdf = Buffer.from(buffer).toString("base64");
 
     const weekLabel = `Week of ${usedMonday.toLocaleDateString("en-US", {
       month: "long", day: "numeric", year: "numeric",
     })}`;
 
-    // Fetch PDF binary for inline preview
-    let pdf = null;
-    try {
-      const fileRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${reportFile.id}?alt=media`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (fileRes.ok) {
-        const buffer = await fileRes.arrayBuffer();
-        pdf = Buffer.from(buffer).toString("base64");
-      }
-    } catch (pdfErr) {
-      console.warn("[get-setup-report] Could not fetch PDF binary:", pdfErr.message);
-    }
-
-    return res.status(200).json({
-      success:     true,
-      weekLabel,
-      fileId:      reportFile.id,
-      fileName:    reportFile.name,
-      downloadUrl: reportFile.webViewLink,
-      pdf,
-    });
+    return res.status(200).json({ success: true, weekLabel, pdf });
 
   } catch (err) {
-    console.error("[get-setup-report] Error:", err);
+    console.error("[get-schedule-pdf] Error:", err);
     return res.status(500).json({ error: err.message || "Internal server error" });
   }
 }

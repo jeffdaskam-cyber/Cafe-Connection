@@ -152,6 +152,44 @@ export async function fetchSetupReport(weekOf = null) {
   return res.json();
 }
 
+// ── Fetch week's schedule as PDF (for Weekly Packet) ────────────────────
+// weekOf: ISO date string "YYYY-MM-DD" (optional; omit for auto-detect)
+export async function fetchSchedulePdf(weekOf = null) {
+  const token = await getAuthToken();
+  const url = weekOf
+    ? `/api/get-schedule-pdf?weekOf=${weekOf}`
+    : "/api/get-schedule-pdf";
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to fetch schedule PDF");
+  }
+  return res.json();
+}
+
+// ── Query event orders by date range (for Weekly Packet) ────────────────
+export async function getEventOrdersByWeek(weekOfIso) {
+  const monday = new Date(weekOfIso + "T12:00:00");
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() - 1); // Sunday before
+  sunday.setHours(0, 0, 0, 0);
+  const saturday = new Date(monday);
+  saturday.setDate(saturday.getDate() + 5); // Saturday after
+  saturday.setHours(23, 59, 59, 999);
+
+  const q = query(
+    collection(db, "event_orders"),
+    where("uploadedAt", ">=", Timestamp.fromDate(sunday)),
+    where("uploadedAt", "<=", Timestamp.fromDate(saturday)),
+    orderBy("uploadedAt", "asc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────
 // campus: specific campus name OR "All Campuses" to merge all three live
 export function subscribeToCampus(campus, callback) {

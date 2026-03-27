@@ -47,7 +47,15 @@ export function getCurrentMonday() {
   return getMondayOf(new Date());
 }
 
-function formatWeekLabel(isoMonday) {
+/**
+ * Returns the ISO Monday string for NEXT week.
+ * Used as default for Weekly Packet (printed Thurs/Fri for the coming week).
+ */
+export function getNextMonday() {
+  return addWeeks(getCurrentMonday(), 1);
+}
+
+export function formatWeekLabel(isoMonday) {
   const d = new Date(isoMonday + "T12:00:00");
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }

@@ -166,6 +166,21 @@ export default async function handler(req, res) {
       month: "long", day: "numeric", year: "numeric",
     })}`;
 
+    // Fetch PDF binary for inline preview
+    let pdf = null;
+    try {
+      const fileRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${reportFile.id}?alt=media`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (fileRes.ok) {
+        const buffer = await fileRes.arrayBuffer();
+        pdf = Buffer.from(buffer).toString("base64");
+      }
+    } catch (pdfErr) {
+      console.warn("[get-event-report] Could not fetch PDF binary:", pdfErr.message);
+    }
+
     return res.status(200).json({
       success:     true,
       weekLabel,
@@ -173,6 +188,7 @@ export default async function handler(req, res) {
       fileName:    reportFile.name,
       downloadUrl,
       viewUrl,
+      pdf,
     });
 
   } catch (err) {
