@@ -87,49 +87,67 @@ function ensurePrintStyle() {
   style.id = PRINT_STYLE_ID;
   style.textContent = `
     @media print {
-      body > *:not(#weekly-packet-print) { display: none !important; }
+      /* Hide the entire app, show only the packet */
+      body > * { display: none !important; }
       #weekly-packet-print {
         display: block !important;
-        position: static !important;
-        left: auto !important;
-        width: auto !important;
-        height: auto !important;
-        overflow: visible !important;
-        pointer-events: auto !important;
+        position: fixed;
+        inset: 0;
       }
 
+      /* Base packet page — page-break BEFORE (not after) to avoid trailing blanks */
       .packet-page {
         display: block;
-        page-break-after: always;
-        page-break-inside: avoid;
-        overflow: hidden;
         margin: 0;
         padding: 0;
-        width: 100vw;
-        height: 100vh;
+        overflow: hidden;
       }
-      .packet-page:last-child {
-        page-break-after: avoid;
-      }
-      .packet-page img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        object-position: top left;
-        display: block;
+      .packet-page + .packet-page {
+        page-break-before: always;
       }
 
-      /* Schedule fills the page completely */
-      .schedule-page img {
+      /* Portrait pages (schedule) */
+      @page portrait-page { size: letter portrait; margin: 0; }
+      .portrait-page {
+        page: portrait-page;
+        width: 8.5in;
+        height: 11in;
+      }
+      .portrait-page img {
+        display: block;
+        width: 8.5in;
+        height: 11in;
         object-fit: fill;
       }
 
-      .packet-preview-grid { display: none !important; }
-
-      @page portrait-page { size: letter portrait; margin: 0; }
+      /* Landscape pages (event report, set up report) */
       @page landscape-page { size: letter landscape; margin: 0; }
-      .packet-page.portrait { page: portrait-page; }
-      .packet-page.landscape { page: landscape-page; }
+      .landscape-page {
+        page: landscape-page;
+        width: 11in;
+        height: 8.5in;
+      }
+      .landscape-page img {
+        display: block;
+        width: 11in;
+        height: 8.5in;
+        object-fit: contain;
+        object-position: top left;
+      }
+
+      /* BEO pages — portrait, natural sizing */
+      @page beo-page { size: letter portrait; margin: 0.5in; }
+      .beo-page {
+        page: beo-page;
+      }
+      .beo-page img {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 9in;
+      }
+
+      .packet-preview-grid { display: none !important; }
     }
   `;
   document.head.appendChild(style);
@@ -429,29 +447,29 @@ export default function WeeklyPacketReport() {
       }}>
         {/* Staff Schedule — portrait, fill page */}
         {schedule.images.map((img, i) => (
-          <div key={`sched-${i}`} className="packet-page portrait schedule-page">
+          <div key={`sched-${i}`} className="packet-page portrait-page">
             <img src={img} alt={`Schedule page ${i + 1}`} />
           </div>
         ))}
 
         {/* Event Report — landscape */}
         {eventReport.images.map((img, i) => (
-          <div key={`event-${i}`} className="packet-page landscape">
+          <div key={`event-${i}`} className="packet-page landscape-page">
             <img src={img} alt={`Event Report page ${i + 1}`} />
           </div>
         ))}
 
         {/* Set Up Report — landscape */}
         {setupReport.images.map((img, i) => (
-          <div key={`setup-${i}`} className="packet-page landscape">
+          <div key={`setup-${i}`} className="packet-page landscape-page">
             <img src={img} alt={`Set Up Report page ${i + 1}`} />
           </div>
         ))}
 
-        {/* BEOs */}
+        {/* BEOs — portrait, natural sizing */}
         {beos.flatMap((beo, beoIdx) =>
           beo.images.map((img, pageIdx) => (
-            <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page">
+            <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page beo-page">
               <img src={img} alt={`BEO ${beoIdx + 1} page ${pageIdx + 1}`} />
             </div>
           ))
