@@ -10,13 +10,13 @@ import { fetchSetupReport } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import { COLORS } from "../theme.js";
 
-export default function SetUpReportDrive() {
+export default function SetUpReportDrive({ weekOf = null }) {
   const {
     data:    report,
     loading,
     error,
     reload,
-  } = useWidget(() => fetchSetupReport(), []);
+  } = useWidget(() => fetchSetupReport(weekOf), [weekOf]);
 
   const notFound = !loading && !error && !report;
 

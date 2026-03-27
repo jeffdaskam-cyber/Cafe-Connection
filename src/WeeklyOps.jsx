@@ -422,12 +422,12 @@ export default function WeeklyOps() {
 
         {/* Set Up Report (Google Drive PDF) */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <SetUpReportDrive />
+          <SetUpReportDrive weekOf={weekOf} />
         </div>
 
         {/* Event Report */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <EventReportWidget />
+          <EventReportWidget weekOf={weekOf} />
         </div>
 
       </div>

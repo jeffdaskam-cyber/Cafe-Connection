@@ -10,13 +10,13 @@ import { fetchEventReport } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import { COLORS } from "../theme.js";
 
-export default function EventReportWidget() {
+export default function EventReportWidget({ weekOf = null }) {
   const {
     data:    report,
     loading,
     error,
     reload,
-  } = useWidget(() => fetchEventReport(), []);
+  } = useWidget(() => fetchEventReport(weekOf), [weekOf]);
 
   const notFound = !loading && !error && !report;
 
