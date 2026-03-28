@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { fetchEventReport, fetchSetupReport, fetchSchedulePdf, getEventOrdersByWeek } from "../../firebase.js";
-import { getNextMonday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
+import { getNextSunday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
 import { renderPdfToImages } from "../../utils/pdfRenderer.js";
@@ -225,7 +225,7 @@ function PacketWeekSelector({ value, onChange }) {
 const INITIAL_SECTION = { status: "idle", images: [], error: null };
 
 export default function WeeklyPacketReport() {
-  const [selectedWeek, setSelectedWeek] = useState(getNextMonday);
+  const [selectedWeek, setSelectedWeek] = useState(getNextSunday);
 
   const [schedule, setSchedule]       = useState(INITIAL_SECTION);
   const [eventReport, setEventReport] = useState(INITIAL_SECTION);
@@ -260,12 +260,19 @@ export default function WeeklyPacketReport() {
     let cancelled = false;
 
     async function fetchAll() {
+      // selectedWeek is a Sunday (UCAR weeks run Sun–Sat).
+      // Schedule and Setup Report APIs expect a Monday, so shift +1 day.
+      // Event Report API and BEO query use Sunday dates natively.
+      const mondayDate = new Date(selectedWeek + "T12:00:00");
+      mondayDate.setDate(mondayDate.getDate() + 1);
+      const mondayIso = mondayDate.toISOString().slice(0, 10);
+
       // Load sections sequentially to avoid UI freeze from concurrent canvas rendering
-      await loadSection("schedule", () => fetchSchedulePdf(selectedWeek), (v) => !cancelled && setSchedule(v), (v) => !cancelled && setScheduleLabel(v));
+      await loadSection("schedule", () => fetchSchedulePdf(mondayIso), (v) => !cancelled && setSchedule(v), (v) => !cancelled && setScheduleLabel(v));
       if (cancelled) return;
       await loadSection("eventReport", () => fetchEventReport(selectedWeek), (v) => !cancelled && setEventReport(v), (v) => !cancelled && setEventLabel(v));
       if (cancelled) return;
-      await loadSection("setupReport", () => fetchSetupReport(selectedWeek), (v) => !cancelled && setSetupReport(v), (v) => !cancelled && setSetupLabel(v));
+      await loadSection("setupReport", () => fetchSetupReport(mondayIso), (v) => !cancelled && setSetupReport(v), (v) => !cancelled && setSetupLabel(v));
       if (cancelled) return;
 
       // BEOs

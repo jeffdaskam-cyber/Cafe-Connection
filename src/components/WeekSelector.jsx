@@ -34,10 +34,22 @@ export function getMondayOf(dateOrIso) {
 }
 
 /**
- * Returns the ISO Monday string n weeks before or after the given ISO Monday.
+ * Returns the ISO "YYYY-MM-DD" string of the Sunday (start of week) for a given date.
+ * UCAR cafe operations use Sunday-based weeks.
  */
-export function addWeeks(isoMonday, n) {
-  const d = new Date(isoMonday + "T12:00:00");
+export function getSundayOf(dateOrIso) {
+  const d = typeof dateOrIso === "string"
+    ? new Date(dateOrIso + "T12:00:00")
+    : new Date(dateOrIso);
+  d.setDate(d.getDate() - d.getDay()); // roll back to Sunday (getDay() = 0 for Sunday)
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns the ISO string n weeks before or after the given ISO date.
+ */
+export function addWeeks(isoDate, n) {
+  const d = new Date(isoDate + "T12:00:00");
   d.setDate(d.getDate() + n * 7);
   return d.toISOString().slice(0, 10);
 }
@@ -47,12 +59,25 @@ export function getCurrentMonday() {
   return getMondayOf(new Date());
 }
 
+/** Returns the ISO Sunday of the current week. */
+export function getCurrentSunday() {
+  return getSundayOf(new Date());
+}
+
 /**
  * Returns the ISO Monday string for NEXT week.
  * Used as default for Weekly Packet (printed Thurs/Fri for the coming week).
  */
 export function getNextMonday() {
   return addWeeks(getCurrentMonday(), 1);
+}
+
+/**
+ * Returns the ISO Sunday string for NEXT week.
+ * Used by Weekly Packet — UCAR weeks run Sunday to Saturday.
+ */
+export function getNextSunday() {
+  return addWeeks(getCurrentSunday(), 1);
 }
 
 export function formatWeekLabel(isoMonday) {
