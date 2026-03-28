@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { fetchEventReport, fetchSetupReport, fetchSchedulePdf, getEventOrdersByWeek } from "../../firebase.js";
 import { getNextSunday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
 import Widget from "../Widget.jsx";
@@ -86,16 +87,17 @@ function ensurePrintStyle() {
   style.id = PRINT_STYLE_ID;
   style.textContent = `
     @media print {
-      /* Hide everything in #root EXCEPT the print container */
-      #root > *:not(#weekly-packet-print-container) {
+      /* Hide the React app — the portal container is a sibling of #root on document.body, so it is NOT affected by this rule */
+      #root {
         display: none !important;
       }
 
-      /* Show and properly size the packet container */
+      /* Show and reset the portal container for print layout */
       #weekly-packet-print-container {
         display: block !important;
         position: static !important;
         visibility: visible !important;
+        left: auto !important;
         width: auto !important;
         height: auto !important;
         overflow: visible !important;
@@ -470,48 +472,48 @@ export default function WeeklyPacketReport() {
       </div>
     </Widget>
 
-    {/* Print container — hidden on screen, shown by print CSS */}
-    <div
-      id="weekly-packet-print-container"
-      style={{
-        position: "absolute",
-        left: "-9999px",
-        width: 0,
-        height: 0,
-        visibility: "hidden",
-        overflow: "hidden",
-      }}
-    >
-      {/* Staff Schedule — portrait, fill page */}
-      {schedule.images.map((img, i) => (
-        <div key={`sched-${i}`} className="packet-page portrait-page">
-          <img src={img} alt={`Schedule page ${i + 1}`} />
-        </div>
-      ))}
-
-      {/* Event Report — landscape */}
-      {eventReport.images.map((img, i) => (
-        <div key={`event-${i}`} className="packet-page landscape-page">
-          <img src={img} alt={`Event Report page ${i + 1}`} />
-        </div>
-      ))}
-
-      {/* Set Up Report — landscape */}
-      {setupReport.images.map((img, i) => (
-        <div key={`setup-${i}`} className="packet-page landscape-page">
-          <img src={img} alt={`Set Up Report page ${i + 1}`} />
-        </div>
-      ))}
-
-      {/* BEOs — portrait, natural sizing */}
-      {beos.flatMap((beo, beoIdx) =>
-        beo.images.map((img, pageIdx) => (
-          <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page beo-page">
-            <img src={img} alt={`BEO ${beoIdx + 1} page ${pageIdx + 1}`} />
+    {/* Print container — portaled to document.body, hidden on screen, shown by print CSS */}
+    {createPortal(
+      <div
+        id="weekly-packet-print-container"
+        style={{
+          position: "absolute",
+          left: "-9999px",
+          visibility: "hidden",
+        }}
+      >
+        {/* Staff Schedule — portrait, fill page */}
+        {schedule.images.map((img, i) => (
+          <div key={`sched-${i}`} className="packet-page portrait-page">
+            <img src={img} alt={`Schedule page ${i + 1}`} />
           </div>
-        ))
-      )}
-    </div>
+        ))}
+
+        {/* Event Report — landscape */}
+        {eventReport.images.map((img, i) => (
+          <div key={`event-${i}`} className="packet-page landscape-page">
+            <img src={img} alt={`Event Report page ${i + 1}`} />
+          </div>
+        ))}
+
+        {/* Set Up Report — landscape */}
+        {setupReport.images.map((img, i) => (
+          <div key={`setup-${i}`} className="packet-page landscape-page">
+            <img src={img} alt={`Set Up Report page ${i + 1}`} />
+          </div>
+        ))}
+
+        {/* BEOs — portrait, natural sizing */}
+        {beos.flatMap((beo, beoIdx) =>
+          beo.images.map((img, pageIdx) => (
+            <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page beo-page">
+              <img src={img} alt={`BEO ${beoIdx + 1} page ${pageIdx + 1}`} />
+            </div>
+          ))
+        )}
+      </div>,
+      document.body
+    )}
     </>
   );
 }
