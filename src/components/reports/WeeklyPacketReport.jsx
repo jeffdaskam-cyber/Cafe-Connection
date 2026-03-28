@@ -166,15 +166,15 @@ function ensurePrintStyle() {
         max-height: 9in;
       }
 
-      /* Setup report — all sheets stacked on one portrait page */
+      /* Setup report — all sheets stacked on one landscape page */
       @page setup-stack-page {
-        size: letter portrait;
+        size: letter landscape;
         margin: 0.25in;
       }
       .setup-stack-page {
         page: setup-stack-page;
-        width: 8in;
-        height: 10.5in;
+        width: 10.5in;
+        height: 8in;
         display: flex;
         flex-direction: column;
         justify-content: flex-start;
