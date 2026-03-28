@@ -166,6 +166,29 @@ function ensurePrintStyle() {
         max-height: 9in;
       }
 
+      /* Setup report — all sheets stacked on one portrait page */
+      @page setup-stack-page {
+        size: letter portrait;
+        margin: 0.25in;
+      }
+      .setup-stack-page {
+        page: setup-stack-page;
+        width: 8in;
+        height: 10.5in;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 0;
+      }
+      .setup-stack-page img {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 3.4in;
+        object-fit: contain;
+        object-position: top left;
+      }
+
       /* Hide the preview grid when printing */
       .packet-preview-grid {
         display: none !important;
@@ -496,12 +519,14 @@ export default function WeeklyPacketReport() {
           </div>
         ))}
 
-        {/* Set Up Report — landscape */}
-        {setupReport.images.map((img, i) => (
-          <div key={`setup-${i}`} className="packet-page landscape-page">
-            <img src={img} alt={`Set Up Report page ${i + 1}`} />
+        {/* Set Up Report — all sheets stacked on one portrait page */}
+        {setupReport.images.length > 0 && (
+          <div key="setup-stack" className="packet-page setup-stack-page">
+            {setupReport.images.map((img, i) => (
+              <img key={`setup-${i}`} src={img} alt={`Set Up Report page ${i + 1}`} />
+            ))}
           </div>
-        ))}
+        )}
 
         {/* BEOs — portrait, natural sizing */}
         {beos.flatMap((beo, beoIdx) =>
