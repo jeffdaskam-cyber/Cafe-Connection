@@ -12,7 +12,7 @@ import { fetchEventReport, fetchSetupReport, fetchSchedulePdf, getEventOrdersByW
 import { getNextSunday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
-import { renderPdfToImages } from "../../utils/pdfRenderer.js";
+import { renderPdfToImages, trimImageBottom } from "../../utils/pdfRenderer.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -184,9 +184,6 @@ function ensurePrintStyle() {
         display: block;
         width: 100%;
         height: auto;
-        max-height: 3.4in;
-        object-fit: contain;
-        object-position: top left;
       }
 
       /* Hide the preview grid when printing */
@@ -277,12 +274,13 @@ export default function WeeklyPacketReport() {
     if (setLabel) setLabel(null);
     try {
       const result = await fetchFn();
-      if (!result?.pdf) {
+      if (!result?.pdf && !result?._preRenderedImages) {
         setSectionState({ status: "error", images: [], error: "Not found" });
         return;
       }
       if (setLabel && result.weekLabel) setLabel(result.weekLabel);
-      const images = await renderPdfToImages(result.pdf);
+      // Use pre-rendered images if available (e.g. trimmed setup report), otherwise render normally
+      const images = result._preRenderedImages || await renderPdfToImages(result.pdf);
       setSectionState({ status: "ready", images, error: null });
     } catch (err) {
       setSectionState({ status: "error", images: [], error: err.message });
@@ -306,7 +304,16 @@ export default function WeeklyPacketReport() {
       if (cancelled) return;
       await loadSection("eventReport", () => fetchEventReport(selectedWeek), (v) => !cancelled && setEventReport(v), (v) => !cancelled && setEventLabel(v));
       if (cancelled) return;
-      await loadSection("setupReport", () => fetchSetupReport(mondayIso), (v) => !cancelled && setSetupReport(v), (v) => !cancelled && setSetupLabel(v));
+      // Load setup report and trim whitespace from images for stacking
+      await loadSection("setupReport", async () => {
+        const result = await fetchSetupReport(mondayIso);
+        if (result?.pdf) {
+          const images = await renderPdfToImages(result.pdf);
+          const trimmedImages = await Promise.all(images.map(img => trimImageBottom(img)));
+          return { ...result, _preRenderedImages: trimmedImages };
+        }
+        return result;
+      }, (v) => !cancelled && setSetupReport(v), (v) => !cancelled && setSetupLabel(v));
       if (cancelled) return;
 
       // BEOs
