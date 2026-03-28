@@ -7,7 +7,6 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { fetchEventReport, fetchSetupReport, fetchSchedulePdf, getEventOrdersByWeek } from "../../firebase.js";
 import { getNextSunday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
 import Widget from "../Widget.jsx";
@@ -87,37 +86,39 @@ function ensurePrintStyle() {
   style.id = PRINT_STYLE_ID;
   style.textContent = `
     @media print {
-      /* Hide the React app root. The portal is a sibling of #root,
-         so it is NOT hidden by this rule. */
-      #root {
+      /* Hide everything in #root EXCEPT the print container */
+      #root > *:not(#weekly-packet-print-container) {
         display: none !important;
       }
 
-      /* Show the packet container */
+      /* Show and properly size the packet container */
       #weekly-packet-print-container {
         display: block !important;
         position: static !important;
-        left: auto !important;
+        visibility: visible !important;
         width: auto !important;
         height: auto !important;
         overflow: visible !important;
       }
 
-      /* CRITICAL: page-break-BEFORE on every page after the first.
-         page-break-after: always on the last page always generates
-         a trailing blank page. The adjacent sibling selector avoids this. */
+      /* Base page class */
       .packet-page {
         display: block;
         margin: 0;
         padding: 0;
         overflow: hidden;
       }
+
+      /* Page breaks between pages — adjacent sibling selector avoids trailing blank page */
       .packet-page + .packet-page {
         page-break-before: always;
       }
 
       /* Portrait pages (schedule) */
-      @page portrait-page { size: letter portrait; margin: 0; }
+      @page portrait-page {
+        size: letter portrait;
+        margin: 0;
+      }
       .portrait-page {
         page: portrait-page;
         width: 8.5in;
@@ -131,7 +132,10 @@ function ensurePrintStyle() {
       }
 
       /* Landscape pages (event report, set up report) */
-      @page landscape-page { size: letter landscape; margin: 0; }
+      @page landscape-page {
+        size: letter landscape;
+        margin: 0;
+      }
       .landscape-page {
         page: landscape-page;
         width: 11in;
@@ -145,9 +149,11 @@ function ensurePrintStyle() {
         object-position: top left;
       }
 
-      /* BEO pages — portrait, natural sizing.
-         Do not constrain height — let them flow naturally. */
-      @page beo-page { size: letter portrait; margin: 0.5in; }
+      /* BEO pages — portrait, natural sizing */
+      @page beo-page {
+        size: letter portrait;
+        margin: 0.5in;
+      }
       .beo-page {
         page: beo-page;
       }
@@ -158,7 +164,10 @@ function ensurePrintStyle() {
         max-height: 9in;
       }
 
-      .packet-preview-grid { display: none !important; }
+      /* Hide the preview grid when printing */
+      .packet-preview-grid {
+        display: none !important;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -461,45 +470,48 @@ export default function WeeklyPacketReport() {
       </div>
     </Widget>
 
-    {/* Print container — portaled to body as sibling of #root, hidden on screen */}
-    {createPortal(
-      <div id="weekly-packet-print-container" style={{
-        position: "fixed", left: "-9999px", top: 0,
-        width: "100vw", height: 0, overflow: "hidden",
-        pointerEvents: "none",
-      }}>
-        {/* Staff Schedule — portrait, fill page */}
-        {schedule.images.map((img, i) => (
-          <div key={`sched-${i}`} className="packet-page portrait-page">
-            <img src={img} alt={`Schedule page ${i + 1}`} />
-          </div>
-        ))}
+    {/* Print container — hidden on screen, shown by print CSS */}
+    <div
+      id="weekly-packet-print-container"
+      style={{
+        position: "absolute",
+        left: "-9999px",
+        width: 0,
+        height: 0,
+        visibility: "hidden",
+        overflow: "hidden",
+      }}
+    >
+      {/* Staff Schedule — portrait, fill page */}
+      {schedule.images.map((img, i) => (
+        <div key={`sched-${i}`} className="packet-page portrait-page">
+          <img src={img} alt={`Schedule page ${i + 1}`} />
+        </div>
+      ))}
 
-        {/* Event Report — landscape */}
-        {eventReport.images.map((img, i) => (
-          <div key={`event-${i}`} className="packet-page landscape-page">
-            <img src={img} alt={`Event Report page ${i + 1}`} />
-          </div>
-        ))}
+      {/* Event Report — landscape */}
+      {eventReport.images.map((img, i) => (
+        <div key={`event-${i}`} className="packet-page landscape-page">
+          <img src={img} alt={`Event Report page ${i + 1}`} />
+        </div>
+      ))}
 
-        {/* Set Up Report — landscape */}
-        {setupReport.images.map((img, i) => (
-          <div key={`setup-${i}`} className="packet-page landscape-page">
-            <img src={img} alt={`Set Up Report page ${i + 1}`} />
-          </div>
-        ))}
+      {/* Set Up Report — landscape */}
+      {setupReport.images.map((img, i) => (
+        <div key={`setup-${i}`} className="packet-page landscape-page">
+          <img src={img} alt={`Set Up Report page ${i + 1}`} />
+        </div>
+      ))}
 
-        {/* BEOs — portrait, natural sizing */}
-        {beos.flatMap((beo, beoIdx) =>
-          beo.images.map((img, pageIdx) => (
-            <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page beo-page">
-              <img src={img} alt={`BEO ${beoIdx + 1} page ${pageIdx + 1}`} />
-            </div>
-          ))
-        )}
-      </div>,
-      document.body
-    )}
+      {/* BEOs — portrait, natural sizing */}
+      {beos.flatMap((beo, beoIdx) =>
+        beo.images.map((img, pageIdx) => (
+          <div key={`beo-${beoIdx}-${pageIdx}`} className="packet-page beo-page">
+            <img src={img} alt={`BEO ${beoIdx + 1} page ${pageIdx + 1}`} />
+          </div>
+        ))
+      )}
+    </div>
     </>
   );
 }
