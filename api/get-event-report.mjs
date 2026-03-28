@@ -170,10 +170,34 @@ export default async function handler(req, res) {
     // Google Workspace files (Docs/Sheets) need export; native files use alt=media
     let pdf = null;
     try {
+      const isGoogleSheet = reportFile.mimeType === "application/vnd.google-apps.spreadsheet";
       const isGoogleDoc = reportFile.mimeType?.startsWith("application/vnd.google-apps.");
-      const pdfUrl = isGoogleDoc
-        ? `https://www.googleapis.com/drive/v3/files/${reportFile.id}/export?mimeType=application/pdf`
-        : `https://www.googleapis.com/drive/v3/files/${reportFile.id}?alt=media`;
+
+      let pdfUrl;
+      if (isGoogleSheet) {
+        // Use Sheets-specific export with landscape orientation and fit-to-page
+        pdfUrl = [
+          `https://docs.google.com/spreadsheets/d/${reportFile.id}/export`,
+          `?format=pdf`,
+          `&portrait=false`,
+          `&fitw=true`,
+          `&fith=true`,
+          `&size=letter`,
+          `&gridlines=true`,
+          `&printtitle=false`,
+          `&sheetnames=false`,
+          `&pagenumbers=false`,
+          `&top_margin=0.25`,
+          `&bottom_margin=0.25`,
+          `&left_margin=0.25`,
+          `&right_margin=0.25`,
+        ].join('');
+      } else if (isGoogleDoc) {
+        pdfUrl = `https://www.googleapis.com/drive/v3/files/${reportFile.id}/export?mimeType=application/pdf`;
+      } else {
+        pdfUrl = `https://www.googleapis.com/drive/v3/files/${reportFile.id}?alt=media`;
+      }
+
       const fileRes = await fetch(pdfUrl, { headers: { Authorization: `Bearer ${token}` } });
       if (fileRes.ok) {
         const buffer = await fileRes.arrayBuffer();
