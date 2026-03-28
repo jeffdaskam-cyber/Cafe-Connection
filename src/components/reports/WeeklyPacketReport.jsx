@@ -96,12 +96,16 @@ function ensurePrintStyle() {
       /* Show the packet container */
       #weekly-packet-print-container {
         display: block !important;
-        position: fixed;
-        inset: 0;
+        position: static !important;
+        left: auto !important;
+        width: auto !important;
+        height: auto !important;
+        overflow: visible !important;
       }
 
-      /* Page break: before every page except the first.
-         page-break-after on the last page always generates a trailing blank. */
+      /* CRITICAL: page-break-BEFORE on every page after the first.
+         page-break-after: always on the last page always generates
+         a trailing blank page. The adjacent sibling selector avoids this. */
       .packet-page {
         display: block;
         margin: 0;
@@ -141,7 +145,8 @@ function ensurePrintStyle() {
         object-position: top left;
       }
 
-      /* BEO pages — portrait, natural sizing */
+      /* BEO pages — portrait, natural sizing.
+         Do not constrain height — let them flow naturally. */
       @page beo-page { size: letter portrait; margin: 0.5in; }
       .beo-page {
         page: beo-page;
@@ -451,7 +456,11 @@ export default function WeeklyPacketReport() {
 
     {/* Print container — portaled to body as sibling of #root, hidden on screen */}
     {createPortal(
-      <div id="weekly-packet-print-container" style={{ display: "none" }}>
+      <div id="weekly-packet-print-container" style={{
+        position: "fixed", left: "-9999px", top: 0,
+        width: "100vw", height: 0, overflow: "hidden",
+        pointerEvents: "none",
+      }}>
         {/* Staff Schedule — portrait, fill page */}
         {schedule.images.map((img, i) => (
           <div key={`sched-${i}`} className="packet-page portrait-page">
