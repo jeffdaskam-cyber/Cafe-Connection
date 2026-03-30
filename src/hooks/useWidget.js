@@ -43,11 +43,14 @@ export function useWidget(asyncFn, deps = []) {
 
   // Stable reload function — recreated when deps change
   // eslint-disable-next-line react-hooks/exhaustive-deps
+ const asyncFnRef = useRef(asyncFn);
+  asyncFnRef.current = asyncFn;
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await asyncFn();
+      const result = await asyncFnRef.current();
       if (mountedRef.current) {
         setData(result);
         setLoading(false);
