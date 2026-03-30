@@ -17,7 +17,7 @@ export function launchEmailComposer(reportType, campus, weekLabel, reportLink) {
     '',
     `Please find the ${reportType} for ${campus} for the ${weekLabel} below:`,
     '',
-    reportLink,
+    reportType,
     '',
     'Thank you,',
     'Café Connection',
