@@ -124,8 +124,10 @@ export default async function handler(req, res) {
     const baseDate = weekOfParam ? new Date(weekOfParam + "T12:00:00") : new Date();
     const sunday   = getSundayOf(baseDate);
 
-    // Try current week, then previous week as fallback
-    const weeksToTry = [sunday, new Date(sunday.getTime() - 7 * 24 * 60 * 60 * 1000)];
+    // Try current week, then previous week as fallback (only when auto-detecting)
+    const weeksToTry = weekOfParam
+      ? [sunday]
+      : [sunday, new Date(sunday.getTime() - 7 * 24 * 60 * 60 * 1000)];
     let reportFile = null;
     let usedSunday = null;
 
