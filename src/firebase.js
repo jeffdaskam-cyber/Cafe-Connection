@@ -255,13 +255,26 @@ export function subscribeAllReports(campus, callback) {
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
 
-// ── Listen to event orders (most recent first) ────────────────────────────
-export function subscribeEventOrders(callback) {
+// Returns event orders uploaded during the week starting on `weekOf` (a JS Date or ISO string)
+// weekOf should be the Monday of the target week
+export function subscribeEventOrdersForWeek(weekOf, callback) {
+  const monday = new Date(weekOf);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
   const q = query(
     collection(db, "event_orders"),
+    where("uploadedAt", ">=", Timestamp.fromDate(monday)),
+    where("uploadedAt", "<=", Timestamp.fromDate(sunday)),
     orderBy("uploadedAt", "desc")
   );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    callback(orders);
+  });
 }
 
 // ── Schedule Notes (org-wide, per week) ──────────────────────────────────
