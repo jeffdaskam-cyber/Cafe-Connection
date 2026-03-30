@@ -16,6 +16,7 @@ import {
   fetchSchedule,
   uploadEventOrder,
   subscribeEventOrders,
+  subscribeEventOrdersForWeek,
 } from "./firebase.js";
 import { useWidget, useWidgetSubscription } from "./hooks/useWidget.js";
 
@@ -92,9 +93,9 @@ export default function WeeklyOps() {
     reload:  reloadSchedule,
   } = useWidget(() => fetchSchedule(weekOf), [weekOf]);
 
-  const { data: eventOrders } = useWidgetSubscription(
-    (cb) => subscribeEventOrders(cb),
-    []
+ const { data: eventOrders } = useWidgetSubscription(
+    (cb) => subscribeEventOrdersForWeek(weekOf, cb),
+    [weekOf]
   );
 
   // Close modal on Escape
