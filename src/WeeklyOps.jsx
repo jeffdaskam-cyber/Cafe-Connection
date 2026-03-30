@@ -31,6 +31,7 @@ import DropBox         from "./components/DropBox.jsx";
 import EventReportWidget from "./components/EventReportWidget.jsx";
 import SetUpReportDrive from "./components/SetUpReportDrive.jsx";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
+import { launchEmailComposer } from "./utils/emailLauncher.js";
 
 // ── Event Order Upload Zone ────────────────────────────────────────────────────
 function EventOrderUpload({ onUpload, uploadState }) {
@@ -290,10 +291,22 @@ export default function WeeklyOps() {
             loading={scheduleLoading}
             error={scheduleError}
             onRetry={reloadSchedule}
-            actions={[{
-              label: "↻ Refresh",
-              onClick: reloadSchedule,
-            }]}
+            actions={[
+              {
+                icon: "📧",
+                label: "Email",
+                onClick: () => launchEmailComposer(
+                  "Staff Schedule",
+                  campus,
+                  weekLabel,
+                  `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
+                ),
+              },
+              {
+                label: "↻ Refresh",
+                onClick: reloadSchedule,
+              },
+            ]}
           >
             <div style={{
               padding: "16px 4px",
@@ -423,12 +436,12 @@ export default function WeeklyOps() {
 
         {/* Set Up Report (Google Drive PDF) */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <SetUpReportDrive weekOf={weekOf} />
+          <SetUpReportDrive weekOf={weekOf} campus={campus} weekLabel={weekLabel} />
         </div>
 
         {/* Event Report */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <EventReportWidget weekOf={weekOf} />
+          <EventReportWidget weekOf={weekOf} campus={campus} weekLabel={weekLabel} />
         </div>
 
       </div>

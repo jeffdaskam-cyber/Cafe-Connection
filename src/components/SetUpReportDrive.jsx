@@ -10,6 +10,7 @@ import { useWidget } from "../hooks/useWidget.js";
 import { fetchSetupReport } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import { COLORS, RADIUS } from "../theme.js";
+import { launchEmailComposer } from "../utils/emailLauncher.js";
 
 function base64ToBlobUrl(base64) {
   const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
@@ -17,7 +18,7 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
-export default function SetUpReportDrive({ weekOf = null }) {
+export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel: parentWeekLabel = "" }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchSetupReport(weekOf), [weekOf]
   );
@@ -196,7 +197,19 @@ export default function SetUpReportDrive({ weekOf = null }) {
         empty={notFound}
         emptyIcon="📋"
         emptyMessage="No Set Up Report found for this week."
-        actions={[{ label: "↻ Refresh", onClick: reload }]}
+        actions={[
+          {
+            icon: "📧",
+            label: "Email",
+            onClick: () => launchEmailComposer(
+              "Set Up Report",
+              campus,
+              parentWeekLabel || label,
+              report?.downloadUrl || `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
+            ),
+          },
+          { label: "↻ Refresh", onClick: reload },
+        ]}
       >
         {report && (
           <div style={{ padding: "16px 4px" }}>
