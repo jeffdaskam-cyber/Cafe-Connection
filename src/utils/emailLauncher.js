@@ -13,14 +13,16 @@ export function launchEmailComposer(reportType, campus, weekLabel, reportLink) {
   const subject = `${reportType} — ${campus} — ${weekLabel}`;
 
   const body = [
-    'Hi,',
+    'Hello,',
     '',
-    `Please find the ${reportType} for ${campus} for the ${weekLabel} below:`,
+    `Please find the ${reportType} for the ${weekLabel} below:`,
     '',
     reportLink,
     '',
+    'Please let us know if you have any questions.',
+    '',
     'Thank you,',
-    'Café Connection',
+    'Event Services Team',
   ].join('\n');
 
   const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
