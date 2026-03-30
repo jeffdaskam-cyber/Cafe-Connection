@@ -254,7 +254,17 @@ export function subscribeAllReports(campus, callback) {
   );
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
 }
-
+// ── Listen to all event orders (most recent first) ────────────────────────
+export function subscribeEventOrders(callback) {
+  const q = query(
+    collection(db, "event_orders"),
+    orderBy("uploadedAt", "desc")
+  );
+  return onSnapshot(q, (snapshot) => {
+    const orders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    callback(orders);
+  });
+}
 // Returns event orders uploaded during the week starting on `weekOf` (a JS Date or ISO string)
 // weekOf should be the Monday of the target week
 export function subscribeEventOrdersForWeek(weekOf, callback) {
