@@ -9,7 +9,6 @@
  */
 
 import { useState, useEffect } from "react";
-import { addCashDrop, subscribeRecentCashDrops } from "../firebase.js";
 import { addCashDrop, removeCashDrop, subscribeRecentCashDrops } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
@@ -127,7 +126,88 @@ export default function CashDrop({ campus }) {
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.1px", textTransform: "uppercase",
               marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Amount ($)</div>
-@@ -193,33 +211,53 @@ export default function CashDrop({ campus }) {
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={e => { setAmount(e.target.value); setError(null); }}
+              style={{
+                ...inputStyle,
+                borderColor: error ? `${COLORS.WARNING}88` : COLORS.BORDER,
+              }}
+            />
+          </div>
+
+          {/* Date */}
+          <div>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+              letterSpacing: "1.1px", textTransform: "uppercase",
+              marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Date</div>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+            letterSpacing: "1.1px", textTransform: "uppercase",
+            marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Notes (optional)</div>
+          <input
+            type="text"
+            placeholder="Any notes…"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+
+        {error && (
+          <div style={{ fontSize: 11, color: COLORS.WARNING, marginBottom: 8,
+            fontFamily: "'Poppins',sans-serif" }}>{error}</div>
+        )}
+
+        <button type="submit" disabled={saving}
+          style={{
+            width: "100%", padding: "10px 0", borderRadius: RADIUS.SM,
+            background: saved ? COLORS.AQUA_LIGHT : saving ? `${accent}77` : accent,
+            color: saved ? accent : COLORS.TEXT_ON_ACCENT,
+            border: saved ? `1px solid ${COLORS.AQUA_BORDER}` : "none",
+            fontFamily: "'Poppins',sans-serif",
+            fontWeight: 700, fontSize: 12,
+            cursor: saving ? "not-allowed" : "pointer",
+            transition: "all .2s",
+          }}>
+          {saved ? "✓ Recorded!" : saving ? "Saving…" : "Log Cash Drop"}
+        </button>
+      </form>
+
+      {/* ── Recent Drops ── */}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+          letterSpacing: "1.2px", textTransform: "uppercase",
+          marginBottom: 10, fontFamily: "'Poppins',sans-serif" }}>
+          Recent Drops
+        </div>
+
+        {loadingDrops ? (
+          <div style={{ height: 40, background: COLORS.BG_SURFACE_HOVER, borderRadius: 8,
+            animation: "ucar-shimmer 1.4s ease-in-out infinite" }} />
+        ) : drops.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "16px 0",
+            color: COLORS.TEXT_DISABLED, fontSize: 11,
+            fontFamily: "'Poppins',sans-serif" }}>
+            No drops recorded yet.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {drops.map(drop => (
               <div key={drop.id} style={{
                 display: "flex", alignItems: "center",
                 justifyContent: "space-between",
