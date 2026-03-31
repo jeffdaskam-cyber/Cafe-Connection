@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getAuth, getIdToken, setPersistence, browserLocalPersistence } from "firebase/auth";
 
@@ -353,6 +353,11 @@ export function subscribeRecentCashDrops(campus, callback) {
     limit(10)
   );
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
+export async function removeCashDrop(dropId) {
+  if (!dropId) throw new Error("Missing cash drop id.");
+  await deleteDoc(doc(db, "cash_drops", dropId));
 }
 
 // ── Cafe Charges — daily_metrics for a date range + campus ───────────────
