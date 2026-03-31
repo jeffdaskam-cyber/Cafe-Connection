@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from "react";
 import { addCashDrop, subscribeRecentCashDrops } from "../firebase.js";
+import { addCashDrop, removeCashDrop, subscribeRecentCashDrops } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
 import { CAMPUS_COLOR } from "./CampusSelector.jsx";
@@ -42,6 +43,7 @@ export default function CashDrop({ campus }) {
   // Recent drops list
   const [drops,   setDrops]   = useState([]);
   const [loadingDrops, setLoadingDrops] = useState(true);
+  const [removingId, setRemovingId] = useState("");
 
   useEffect(() => {
     setLoadingDrops(true);
@@ -83,6 +85,23 @@ export default function CashDrop({ campus }) {
     }
   }
 
+  async function handleRemoveDrop(dropId) {
+    if (!dropId || removingId) return;
+    const confirmed = window.confirm("Remove this cash drop entry?");
+    if (!confirmed) return;
+
+    setRemovingId(dropId);
+    setError(null);
+    try {
+      await removeCashDrop(dropId);
+    } catch (err) {
+      console.error("[CashDrop] Failed to remove drop:", err);
+      setError("Unable to remove this drop. You may not have permission.");
+    } finally {
+      setRemovingId("");
+    }
+  }
+
   const inputStyle = {
     width: "100%", boxSizing: "border-box",
     background: COLORS.BG_SURFACE_ALT,
@@ -108,88 +127,7 @@ export default function CashDrop({ campus }) {
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.1px", textTransform: "uppercase",
               marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Amount ($)</div>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => { setAmount(e.target.value); setError(null); }}
-              style={{
-                ...inputStyle,
-                borderColor: error ? `${COLORS.WARNING}88` : COLORS.BORDER,
-              }}
-            />
-          </div>
-
-          {/* Date */}
-          <div>
-            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-              letterSpacing: "1.1px", textTransform: "uppercase",
-              marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Date</div>
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-            letterSpacing: "1.1px", textTransform: "uppercase",
-            marginBottom: 6, fontFamily: "'Poppins',sans-serif" }}>Notes (optional)</div>
-          <input
-            type="text"
-            placeholder="Any notes…"
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            style={inputStyle}
-          />
-        </div>
-
-        {error && (
-          <div style={{ fontSize: 11, color: COLORS.WARNING, marginBottom: 8,
-            fontFamily: "'Poppins',sans-serif" }}>{error}</div>
-        )}
-
-        <button type="submit" disabled={saving}
-          style={{
-            width: "100%", padding: "10px 0", borderRadius: RADIUS.SM,
-            background: saved ? COLORS.AQUA_LIGHT : saving ? `${accent}77` : accent,
-            color: saved ? accent : COLORS.TEXT_ON_ACCENT,
-            border: saved ? `1px solid ${COLORS.AQUA_BORDER}` : "none",
-            fontFamily: "'Poppins',sans-serif",
-            fontWeight: 700, fontSize: 12,
-            cursor: saving ? "not-allowed" : "pointer",
-            transition: "all .2s",
-          }}>
-          {saved ? "✓ Recorded!" : saving ? "Saving…" : "Log Cash Drop"}
-        </button>
-      </form>
-
-      {/* ── Recent Drops ── */}
-      <div style={{ marginTop: 20 }}>
-        <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-          letterSpacing: "1.2px", textTransform: "uppercase",
-          marginBottom: 10, fontFamily: "'Poppins',sans-serif" }}>
-          Recent Drops
-        </div>
-
-        {loadingDrops ? (
-          <div style={{ height: 40, background: COLORS.BG_SURFACE_HOVER, borderRadius: 8,
-            animation: "ucar-shimmer 1.4s ease-in-out infinite" }} />
-        ) : drops.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "16px 0",
-            color: COLORS.TEXT_DISABLED, fontSize: 11,
-            fontFamily: "'Poppins',sans-serif" }}>
-            No drops recorded yet.
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {drops.map(drop => (
+@@ -193,33 +211,53 @@ export default function CashDrop({ campus }) {
               <div key={drop.id} style={{
                 display: "flex", alignItems: "center",
                 justifyContent: "space-between",
@@ -215,6 +153,26 @@ export default function CashDrop({ campus }) {
                   <br />
                   <span style={{ fontSize: 9 }}>{drop.created_by}</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDrop(drop.id)}
+                  disabled={removingId === drop.id}
+                  style={{
+                    marginLeft: 10,
+                    border: `1px solid ${COLORS.BORDER}`,
+                    background: "transparent",
+                    color: COLORS.TEXT_MUTED,
+                    borderRadius: 6,
+                    padding: "4px 8px",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    fontFamily: "'Poppins',sans-serif",
+                    cursor: removingId === drop.id ? "not-allowed" : "pointer",
+                    opacity: removingId === drop.id ? 0.65 : 1,
+                  }}
+                >
+                  {removingId === drop.id ? "Removing…" : "Remove"}
+                </button>
               </div>
             ))}
           </div>
