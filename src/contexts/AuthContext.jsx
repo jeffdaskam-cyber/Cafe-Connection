@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "../firebase.js";
+import { auth, db, createUserRoleIfMissing } from "../firebase.js";
 
 const AuthContext = createContext(null);
 
@@ -25,6 +25,7 @@ export function AuthProvider({ children }) {
             },
             { merge: true }
           );
+          await createUserRoleIfMissing(firebaseUser);
         } catch (e) {
           // Non-fatal: rules may not be deployed yet
           console.warn("[AuthContext] Could not write user profile doc:", e.message);

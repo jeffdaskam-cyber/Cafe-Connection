@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
+import { useRole } from "./hooks/useRole.js";
 import LoginPage    from "./pages/LoginPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import ReportsPage  from "./pages/ReportsPage.jsx";
+import AdminPage    from "./pages/AdminPage.jsx";
 import FinancialsPage from "./Dashboard.jsx";
 import WeeklyOps    from "./WeeklyOps.jsx";
 import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
@@ -65,6 +67,7 @@ const TABS = [
 // ── Main App Shell ─────────────────────────────────────────────────────────────
 function AppShell() {
   const { user, loading, logout } = useAuth();
+  const { isAdministrator } = useRole();
   const [activeTab, setActiveTab] = useState("dashboard");
 
   if (loading) return <LoadingScreen />;
@@ -140,6 +143,22 @@ function AppShell() {
                 </button>
               );
             })}
+            {isAdministrator && (
+              <button className="ucar-tab-btn"
+                onClick={() => setActiveTab("admin")}
+                style={{
+                  display: "flex", alignItems: "center",
+                  padding: "8px 20px", borderRadius: 0, border: "none",
+                  cursor: "pointer", fontFamily: "'Poppins',sans-serif",
+                  fontWeight: 600, fontSize: 12, letterSpacing: "0.03em",
+                  background: activeTab === "admin" ? `${COLORS.AQUA}12` : "transparent",
+                  color: activeTab === "admin" ? COLORS.NAV_TEXT_ACTIVE : COLORS.NAV_TEXT,
+                  borderBottom: activeTab === "admin" ? `2px solid ${COLORS.NAV_INDICATOR}` : "2px solid transparent",
+                  transition: "all .2s ease",
+                }}>
+                Admin
+              </button>
+            )}
           </div>
 
           {/* Date + user info */}
@@ -176,6 +195,7 @@ function AppShell() {
         {activeTab === "weeklyops"  && <WeeklyOps />}
         {activeTab === "financials" && <FinancialsPage />}
         {activeTab === "reports"    && <ReportsPage />}
+        {activeTab === "admin"      && <AdminPage />}
 
       </div>
     </>

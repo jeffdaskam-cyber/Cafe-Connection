@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, getDoc, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getAuth, getIdToken, setPersistence, browserLocalPersistence } from "firebase/auth";
 
@@ -456,6 +456,23 @@ export async function saveDashboardPrefs(uid, data) {
 }
 
 // ── Fetch month-end accounting data for all three campuses ────────────────
+// ── Create user_roles document on first login if missing ─────────────────
+export async function createUserRoleIfMissing(user) {
+  const ref = doc(db, "user_roles", user.uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      uid:         user.uid,
+      email:       user.email,
+      displayName: user.displayName || "",
+      role:        "user",
+      assignedBy:  user.uid,
+      assignedAt:  serverTimestamp(),
+      createdAt:   serverTimestamp(),
+    });
+  }
+}
+
 export async function getMonthEndData(year, month) {
   const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];
   const startDate   = Timestamp.fromDate(new Date(year, month - 1, 1));

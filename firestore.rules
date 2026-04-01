@@ -132,6 +132,25 @@ service cloud.firestore {
       allow read, write: if isAuthedUCAR() && request.auth.uid == userId;
     }
 
+    // ── user_roles ──────────────────────────────────────────────────────────
+    // Role-based access control. Document ID == Firebase Auth UID.
+    match /user_roles/{uid} {
+      // Any authenticated user can read their own role document
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Administrators can read all role documents (for Admin panel)
+      allow read: if isAuthedUCAR() &&
+                     get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+
+      // Self-registration on first login: create own doc with role "user" only
+      allow create: if request.auth != null && request.auth.uid == uid
+                       && request.resource.data.role == "user";
+
+      // Only administrators can update or delete role docs
+      allow update, delete: if request.auth != null
+                               && get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+    }
+
     // ── Catch-all: deny everything not explicitly matched ──────────────────
     match /{document=**} {
       allow read, write: if false;
