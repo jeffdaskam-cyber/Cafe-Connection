@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { useRole } from "./hooks/useRole.js";
+import { useIsMobile } from "./hooks/useIsMobile.js";
+import MobileApp    from "./MobileApp.jsx";
 import LoginPage    from "./pages/LoginPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import ReportsPage  from "./pages/ReportsPage.jsx";
@@ -69,9 +71,11 @@ function AppShell() {
   const { user, loading, logout } = useAuth();
   const { isAdministrator } = useRole();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const isMobile = useIsMobile();
 
   if (loading) return <LoadingScreen />;
   if (!user)   return <LoginPage />;
+  if (isMobile) return <MobileApp />;
 
   return (
     <>
