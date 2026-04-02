@@ -333,7 +333,7 @@ export default function FinancialsPage() {
           value={loading ? "—" : (avgVolume || "—")}
           delta={-1.8} accentColor={COLORS.LAQUA} />
         <StatCard
-          label={period === "daily" ? "Avg Lunch Checks" : "Total Lunch Checks"}
+          label="Total Lunch Checks"
           value={loading ? "—" : (totalEvents || "—")}
           delta={11.3} accentColor={color} />
       </div>
