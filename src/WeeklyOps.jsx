@@ -13,6 +13,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import {
+  auth,
   fetchSchedule,
   uploadEventOrder,
   subscribeEventOrders,
@@ -86,6 +87,8 @@ export default function WeeklyOps() {
   const [campus,        setCampus]        = useState(CAMPUSES[0]);
   const [uploadState,   setUploadState]   = useState("IDLE");
   const [scheduleOpen,  setScheduleOpen]  = useState(false);
+  const [emailCheckState, setEmailCheckState] = useState("idle");
+  const [emailCheckMessage, setEmailCheckMessage] = useState("");
 
   const {
     data:    scheduleData,
@@ -119,6 +122,31 @@ export default function WeeklyOps() {
       setTimeout(() => setUploadState("IDLE"), 3000);
     }
   }, []);
+
+  async function handleCheckEmailOrders() {
+    setEmailCheckState("loading");
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/ingest-email-orders", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Unknown error");
+
+      const count = data.processed ?? 0;
+      setEmailCheckMessage(count > 0 ? `\u2713 ${count} new order${count === 1 ? "" : "s"}` : "\u2713 No new orders");
+      setEmailCheckState("success");
+    } catch (err) {
+      console.error("[WeeklyOps] Email check failed:", err);
+      setEmailCheckMessage("\u2717 Error");
+      setEmailCheckState("error");
+    } finally {
+      setTimeout(() => {
+        setEmailCheckState("idle");
+        setEmailCheckMessage("");
+      }, 3000);
+    }
+  }
 
   function formatFileSize(bytes) {
     if (!bytes) return "";
@@ -373,6 +401,15 @@ export default function WeeklyOps() {
             subtitle="Most recent first · click to open"
             icon="📁"
             accentColor={COLORS.AQUA}
+            actions={[{
+              label: emailCheckState === "loading"
+                ? "Checking\u2026"
+                : emailCheckState !== "idle"
+                ? emailCheckMessage
+                : "Check for new orders",
+              onClick: handleCheckEmailOrders,
+              disabled: emailCheckState === "loading",
+            }]}
           >
             {/* Upload zone */}
             <div style={{ marginBottom: 16 }}>

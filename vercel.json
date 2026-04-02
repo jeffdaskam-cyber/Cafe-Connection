@@ -1,3 +1,9 @@
 {
-  "framework": "vite"
+  "framework": "vite",
+  "crons": [
+    {
+      "path": "/api/ingest-email-orders",
+      "schedule": "0 14 * * *"
+    }
+  ]
 }
