@@ -154,7 +154,9 @@ export default async function handler(req, res) {
     const exportUrl = [
       `https://docs.google.com/spreadsheets/d/${scheduleFile.id}/export`,
       `?format=pdf`,
-      `&portrait=true`,
+      `&portrait=false`,
+      `&fitw=true`,
+      `&fith=true`,
       `&scale=4`,
       `&size=letter`,
       `&gridlines=false`,
