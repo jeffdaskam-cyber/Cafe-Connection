@@ -1,3 +1,11 @@
+/**
+ * firebase.js — Firebase client initialization and Firestore/Storage helpers.
+ *
+ * Initializes the Firebase app (Auth, Firestore, Storage) using VITE_ environment
+ * variables. Exports reusable async helpers used by all widgets and serverless
+ * functions: file uploads, Firestore reads/writes, real-time subscriptions,
+ * and the schedule/specials fetch wrappers.
+ */
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, getDoc, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";

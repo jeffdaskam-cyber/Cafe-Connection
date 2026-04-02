@@ -1,3 +1,11 @@
+/**
+ * App.jsx — Top-level application shell.
+ *
+ * Renders the persistent header, tab navigation bar, and splash screen.
+ * Conditionally mounts one of four tab pages based on active tab state:
+ *   Dashboard, Weekly Ops, Financials, Reports.
+ * Handles authentication state and first-run wizard routing.
+ */
 import { useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { useRole } from "./hooks/useRole.js";

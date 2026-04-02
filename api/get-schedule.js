@@ -1,10 +1,13 @@
-// api/get-schedule.js
-// Vercel Serverless Function — Cafe Connection
-// Fetches the current week's staff schedule from Google Drive / Google Sheets.
-// Uses Google REST APIs directly via fetch — no googleapis npm package needed.
-//
-// GET /api/get-schedule
-// Returns: { success: true, weekLabel: string, rows: string[][], colorMap: object }
+/**
+ * api/get-schedule.js — Vercel Serverless Function.
+ *
+ * GET /api/get-schedule
+ * Authenticates via Firebase ID token (Bearer). Uses a service account JWT
+ * (jose) to call the Google Drive and Google Sheets REST APIs directly —
+ * no googleapis package. Navigates the 2026 ES Schedules folder structure
+ * to find the current week's sheet; falls back to the previous week if not found.
+ * Returns { rows, colorMap } for the ScheduleTable component.
+ */
 
 import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";

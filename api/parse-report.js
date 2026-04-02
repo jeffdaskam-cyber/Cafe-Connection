@@ -1,10 +1,12 @@
-// api/parse-report.js
-// Vercel Serverless Function — Cafe Connection
-// Parses InfoGenesis Sales Summary reports (Excel or PDF) and writes to Firestore.
-//
-// POST body: { fileUrl: string, campus: string, fileName: string }
-//   campus is used as a fallback for PDFs — Excel files detect campus automatically.
-// Returns:   { success: true, docId: string, metrics: object }
+/**
+ * api/parse-report.js — Vercel Serverless Function.
+ *
+ * POST /api/parse-report
+ * Accepts { fileUrl, campus, fileName } in the request body.
+ * Fetches the file from Firebase Storage, detects PDF vs Excel by extension,
+ * parses revenue/check/tax/cash fields, and writes the result to Firestore
+ * daily_metrics/{YYYY-MM-DD_CampusName} with merge: true.
+ */
 
 import admin from "firebase-admin";
 import ExcelJS from "exceljs";

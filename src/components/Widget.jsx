@@ -1,14 +1,9 @@
 /**
- * Widget — standard reusable panel container for Cafe Connection.
+ * Widget.jsx — Reusable panel container used by every widget in the app.
  *
- * Handles all four display states automatically:
- *   loading  → animated skeleton bars
- *   error    → message + retry button
- *   empty    → icon + message placeholder
- *   content  → renders children
- *
- * Optional expand-to-modal and print support built in.
- * All modules (Weekly Ops, Financials, Reports, Dashboard) build on this.
+ * Wraps content with a consistent header (title, icon, subtitle, actions),
+ * and handles loading, error, and empty states uniformly. Supports expand
+ * (full-screen modal) and print behaviors via Widget props.
  */
 
 import { useState, useEffect } from "react";

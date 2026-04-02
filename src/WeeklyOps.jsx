@@ -1,13 +1,10 @@
 /**
- * WeeklyOps — weekly operational hub.
+ * WeeklyOps.jsx — Weekly operational hub (Weekly Ops tab).
  *
- * Phase 6 rewrite: full widget layout with week + campus navigation.
- *
- * Layout:
- *   Top bar  — WeekSelector (left) + CampusSelector (right)
- *   3-column grid (repeat(3, 1fr), 360px max-height per cell):
- *     Row 1  — Staff Schedule | Weekly Exceptions | Cafe Specials
- *     Row 2  — Cash Drop | DropBox | Event Orders
+ * Renders the full weekly ops workspace: Staff Schedule, Weekly Exceptions,
+ * Cafe Specials, Cash Drop, DropBox, Event Orders, Set-Up Report, and
+ * Event Report widgets. Week and campus selectors at the top drive all widgets.
+ * Role-based visibility: manager+ sees upload zones and DropBox.
  */
 
 import { useState, useCallback, useEffect } from "react";
