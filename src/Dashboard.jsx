@@ -64,7 +64,7 @@ function buildAnnualData(monthlyData) {
   monthlyData.forEach(m => {
     const [year, month] = m.monthKey.split("-").map(Number);
     const fy    = month >= 10 ? year : year - 1;
-    const label = `FY${fy}\u2013${String(fy + 1).slice(2)}`;
+    const label = `FY${String(fy + 1).slice(2)}`;
     if (!byFY[fy]) byFY[fy] = { fy, label, net_revenue: 0, total_checks: 0, lunch_checks: 0 };
     byFY[fy].net_revenue  += m.net_revenue;
     byFY[fy].total_checks += m.total_checks;
@@ -150,10 +150,11 @@ const MONTH_NAMES = [
 
 function getCalendarYear(fyLabel, month) {
   if (!fyLabel) return new Date().getFullYear();
-  const match = fyLabel.match(/FY(\d{4})/);
+  const match = fyLabel.match(/FY(\d{2})/);
   if (!match) return new Date().getFullYear();
-  const fyStart = parseInt(match[1]);
-  return month >= 10 ? fyStart : fyStart + 1;
+  const fyEnd = 2000 + parseInt(match[1]); // e.g. "FY26" → 2026
+  // FY26 = Oct 2025 – Sep 2026: Oct-Dec → fyEnd - 1, Jan-Sep → fyEnd
+  return month >= 10 ? fyEnd - 1 : fyEnd;
 }
 
 export default function FinancialsPage() {
@@ -194,7 +195,7 @@ export default function FinancialsPage() {
     if (!fyLabel) return true;
     const [year, month] = monthKey.split("-").map(Number);
     const fy = month >= 10 ? year : year - 1;
-    return `FY${fy}\u2013${String(fy + 1).slice(2)}` === fyLabel;
+    return `FY${String(fy + 1).slice(2)}` === fyLabel;
   }
 
   const filteredMonthly = period === "monthly"
@@ -216,7 +217,7 @@ export default function FinancialsPage() {
         if (fiscalYear) {
           const m = dt.getMonth() + 1, y = dt.getFullYear();
           const fy = m >= 10 ? y : y - 1;
-          if (`FY${fy}\u2013${String(fy + 1).slice(2)}` !== fiscalYear) return false;
+          if (`FY${String(fy + 1).slice(2)}` !== fiscalYear) return false;
         }
         // Month filter
         return dt >= monthStartDate && dt <= monthEndDate;
