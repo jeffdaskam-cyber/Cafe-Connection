@@ -142,10 +142,25 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ── Financials Page ────────────────────────────────────────────────────────────
 // Renamed from Dashboard → FinancialsPage as part of Phase 1 tab architecture refactor.
 // This component is now rendered under the "Financials" tab in App.jsx.
+const MONTH_NAMES = [
+  "January", "February", "March", "April",
+  "May", "June", "July", "August",
+  "September", "October", "November", "December",
+];
+
+function getCalendarYear(fyLabel, month) {
+  if (!fyLabel) return new Date().getFullYear();
+  const match = fyLabel.match(/FY(\d{4})/);
+  if (!match) return new Date().getFullYear();
+  const fyStart = parseInt(match[1]);
+  return month >= 10 ? fyStart : fyStart + 1;
+}
+
 export default function FinancialsPage() {
-  const [campus,     setCampus]     = useState("Mesa Lab");
-  const [period,     setPeriod]     = useState("daily");
-  const [fiscalYear, setFiscalYear] = useState(null);
+  const [campus,        setCampus]        = useState("Mesa Lab");
+  const [period,        setPeriod]        = useState("daily");
+  const [fiscalYear,    setFiscalYear]    = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   // ── Real-time Firestore subscriptions via shared hook ──────────────────────
   const { data: metrics,  loading: metricsLoading  } = useWidgetSubscription(
@@ -182,13 +197,27 @@ export default function FinancialsPage() {
     ? monthlyData.filter(d => inFiscalYear(d.monthKey, fiscalYear))
     : monthlyData;
 
+  const calendarYear = getCalendarYear(fiscalYear, selectedMonth);
+  const now = new Date();
+  const isCurrentMonth =
+    selectedMonth === now.getMonth() + 1 &&
+    calendarYear === now.getFullYear();
+  const monthStartDate = new Date(calendarYear, selectedMonth - 1, 1);
+  const monthEndDate = isCurrentMonth
+    ? now
+    : new Date(calendarYear, selectedMonth, 0, 23, 59, 59, 999);
+
   const filteredDaily = period === "daily"
     ? safeMetrics.filter(d => {
-        if (!fiscalYear) return true;
         const dt = d.date?.toDate ? d.date.toDate() : new Date(d.date);
-        const m = dt.getMonth() + 1, y = dt.getFullYear();
-        const fy = m >= 10 ? y : y - 1;
-        return `FY${fy}\u2013${String(fy + 1).slice(2)}` === fiscalYear;
+        // Fiscal year filter
+        if (fiscalYear) {
+          const m = dt.getMonth() + 1, y = dt.getFullYear();
+          const fy = m >= 10 ? y : y - 1;
+          if (`FY${fy}\u2013${String(fy + 1).slice(2)}` !== fiscalYear) return false;
+        }
+        // Month filter
+        return dt >= monthStartDate && dt <= monthEndDate;
       })
     : safeMetrics;
 
@@ -202,7 +231,11 @@ export default function FinancialsPage() {
   const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
 
-  const chartSubtitle = period === "daily"   ? `Last 30 days · ${campus}`
+  const dailyRangeLabel = isCurrentMonth
+    ? `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear} (MTD)`
+    : `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear}`;
+
+  const chartSubtitle = period === "daily"   ? `${dailyRangeLabel} · ${campus}`
                       : period === "monthly" ? `By month · fiscal year · ${campus}`
                       :                       `By fiscal year · ${campus}`;
 
@@ -240,6 +273,28 @@ export default function FinancialsPage() {
           </div>
         )}
 
+        {/* Month selector (daily mode only) */}
+        {period === "daily" && (
+          <div>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
+              textTransform: "uppercase", marginBottom: 10 }}>Month</div>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              style={{ background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
+                fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
+                padding: "9px 32px 9px 14px", cursor: "pointer",
+                appearance: "none", WebkitAppearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A91'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}>
+              {MONTH_NAMES.map((name, i) => (
+                <option key={i + 1} value={i + 1}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Period toggle */}
         <div>
           <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
@@ -268,7 +323,7 @@ export default function FinancialsPage() {
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .5s ease both" }}>
         <StatCard
-          label={period === "daily" ? "Net Revenue (30d)" : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
+          label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
           delta={4.2} accentColor={COLORS.AQUA} />
         <StatCard
