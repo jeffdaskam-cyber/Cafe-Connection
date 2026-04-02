@@ -10,6 +10,7 @@ import Widget from "../Widget.jsx";
 import { useWidget } from "../../hooks/useWidget.js";
 import { fetchSetupReport } from "../../firebase.js";
 import { COLORS, RADIUS } from "../../theme.js";
+import { launchEmailComposer } from "../../utils/emailLauncher.js";
 
 function base64ToBlobUrl(base64) {
   const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
@@ -181,6 +182,19 @@ export default function SetUpReportWidget({ config = {} }) {
         loading={loading}
         error={error}
         onRetry={reload}
+        actions={[
+          {
+            icon: "📧",
+            label: "Email",
+            onClick: () => launchEmailComposer(
+              "Set Up Report",
+              "",
+              label,
+              report?.downloadUrl || ""
+            ),
+          },
+          { label: "↻ Refresh", onClick: reload },
+        ]}
       >
         {!report ? (
           <div style={{
