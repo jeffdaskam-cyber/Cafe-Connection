@@ -162,9 +162,13 @@ export default function FinancialsPage() {
   const [fiscalYear,    setFiscalYear]    = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
+  // ── Compute query start date for daily subscription ────────────────────────
+  const calendarYear = getCalendarYear(fiscalYear, selectedMonth);
+  const monthStartDate = new Date(calendarYear, selectedMonth - 1, 1);
+
   // ── Real-time Firestore subscriptions via shared hook ──────────────────────
   const { data: metrics,  loading: metricsLoading  } = useWidgetSubscription(
-    (cb) => subscribeToCampus(campus, cb), [campus]
+    (cb) => subscribeToCampus(campus, cb, monthStartDate), [campus, selectedMonth, fiscalYear]
   );
   const { data: allDocs,  loading: allDocsLoading  } = useWidgetSubscription(
     (cb) => subscribeAllReports(campus, cb), [campus]
@@ -197,12 +201,10 @@ export default function FinancialsPage() {
     ? monthlyData.filter(d => inFiscalYear(d.monthKey, fiscalYear))
     : monthlyData;
 
-  const calendarYear = getCalendarYear(fiscalYear, selectedMonth);
   const now = new Date();
   const isCurrentMonth =
     selectedMonth === now.getMonth() + 1 &&
     calendarYear === now.getFullYear();
-  const monthStartDate = new Date(calendarYear, selectedMonth - 1, 1);
   const monthEndDate = isCurrentMonth
     ? now
     : new Date(calendarYear, selectedMonth, 0, 23, 59, 59, 999);

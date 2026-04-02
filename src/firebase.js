@@ -222,9 +222,12 @@ export async function getEventOrdersByWeek(weekOfIso) {
 
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────
 // campus: specific campus name OR "All Campuses" to merge all three live
-export function subscribeToCampus(campus, callback) {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+export function subscribeToCampus(campus, callback, startDate) {
+  const sinceDate = startDate || (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d;
+  })();
 
   if (campus === "All Campuses") {
     const ALL   = ["Mesa Lab", "Foothills", "Center Green"];
@@ -233,7 +236,7 @@ export function subscribeToCampus(campus, callback) {
       const q = query(
         collection(db, "daily_metrics"),
         where("campus", "==", c),
-        where("date",   ">=", thirtyDaysAgo),
+        where("date",   ">=", sinceDate),
         orderBy("date", "asc")
       );
       return onSnapshot(q, snap => {
@@ -247,7 +250,7 @@ export function subscribeToCampus(campus, callback) {
   const q = query(
     collection(db, "daily_metrics"),
     where("campus", "==", campus),
-    where("date",   ">=", thirtyDaysAgo),
+    where("date",   ">=", sinceDate),
     orderBy("date", "asc")
   );
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
