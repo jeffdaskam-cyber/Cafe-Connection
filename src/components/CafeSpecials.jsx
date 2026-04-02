@@ -13,11 +13,10 @@
 import { useWidget } from "../hooks/useWidget.js";
 import { fetchSpecials } from "../firebase.js";
 import Widget from "./Widget.jsx";
-import { CAMPUS_COLOR } from "./CampusSelector.jsx";
 import { COLORS } from "../theme.js";
 
 export default function CafeSpecials({ weekOf, campus }) {
-  const accent = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
+  const accent = COLORS.AQUA;
 
   const {
     data:    specialsData,

@@ -67,7 +67,7 @@ function CampusPills({ value, onChange }) {
 export default function SalesSummaryWidget({ config = {} }) {
   const [activeCampus, setActiveCampus] = useState(config.campus ?? "Mesa Lab");
   const isAll       = activeCampus === ALL_CAMPUSES;
-  const accentColor = isAll ? COLORS.AQUA : (CAMPUS_COLOR[activeCampus] ?? COLORS.AQUA);
+  const accentColor = COLORS.AQUA;
 
   const { data: docs, loading, error } = useWidgetSubscription(
     (cb) => subscribeToCampus(activeCampus, cb),

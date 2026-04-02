@@ -352,22 +352,22 @@ export default function FinancialsPage() {
         <StatCard
           label={period === "daily" ? "Avg Daily Checks" : period === "monthly" ? "Avg Monthly Checks" : "Avg Annual Checks"}
           value={loading ? "—" : (avgVolume || "—")}
-          delta={-1.8} accentColor={COLORS.LAQUA} />
+          delta={-1.8} accentColor={COLORS.AQUA} />
         <StatCard
           label="Total Lunch Checks"
           value={loading ? "—" : (totalEvents || "—")}
-          delta={11.3} accentColor={color} />
+          delta={11.3} accentColor={COLORS.AQUA} />
       </div>
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .55s ease both" }}>
         <StatCard
           label="Avg Check"
           value={loading ? "—" : fmtMoney(avgCheck)}
-          delta={0} accentColor="#E8871E" />
+          delta={0} accentColor={COLORS.AQUA} />
         <StatCard
           label="Avg Daily Revenue"
           value={loading ? "—" : fmtMoney(avgDailyRevenue)}
-          delta={0} accentColor="#6366F1" />
+          delta={0} accentColor={COLORS.AQUA} />
       </div>
 
       {/* ── Charts ── */}
@@ -409,7 +409,7 @@ export default function FinancialsPage() {
           title="Total Cafe Volume"
           subtitle={`Total checks · ${campus}`}
           icon="📈"
-          accentColor={COLORS.LAQUA}
+          accentColor={COLORS.AQUA}
           loading={loading}
           empty={!loading && chartData.length === 0}
           emptyMessage={`No ${period} data yet for ${campus}`}

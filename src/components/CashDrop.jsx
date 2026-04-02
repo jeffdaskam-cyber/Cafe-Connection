@@ -116,7 +116,7 @@ export default function CashDrop({ campus }) {
       title="Cash Drop"
       subtitle={campus}
       icon="💵"
-      accentColor={accent}
+      accentColor={COLORS.AQUA}
     >
       {/* ── Form ── */}
       <form onSubmit={handleSubmit}>

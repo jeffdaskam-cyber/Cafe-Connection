@@ -37,7 +37,7 @@ function UploadZone({ onDrop, uploadState }) {
   });
 
   const { status, campus, errorMsg } = uploadState;
-  const accentColor = (status === "SUCCESS" && campus) ? (CAMPUS_COLOR[campus] ?? COLORS.AQUA) : COLORS.AQUA;
+  const accentColor = COLORS.AQUA;
 
   const icon = isProcessing        ? "⏳"
     : status === "SUCCESS"         ? "✓"

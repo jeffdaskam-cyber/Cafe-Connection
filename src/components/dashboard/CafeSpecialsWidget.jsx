@@ -56,7 +56,7 @@ function CampusPills({ value, onChange }) {
 
 export default function CafeSpecialsWidget({ config = {} }) {
   const [activeCampus, setActiveCampus] = useState(config.campus ?? "Mesa Lab");
-  const accentColor = CAMPUS_COLOR[activeCampus] ?? COLORS.AQUA;
+  const accentColor = COLORS.AQUA;
   const weekOf      = currentMonday();
 
   const { data: specials, loading, error, reload } = useWidget(

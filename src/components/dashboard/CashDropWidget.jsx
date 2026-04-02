@@ -8,7 +8,6 @@
  */
 
 import Widget from "../Widget.jsx";
-import { CAMPUS_COLOR } from "../CampusSelector.jsx";
 import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeRecentCashDrops } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
@@ -27,7 +26,7 @@ function fmtDate(ts) {
 
 export default function CashDropWidget({ config = {} }) {
   const campus      = config.campus ?? "Mesa Lab";
-  const accentColor = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
+  const accentColor = COLORS.AQUA;
 
   const { data: drops, loading, error } = useWidgetSubscription(
     (cb) => subscribeRecentCashDrops(campus, cb),
