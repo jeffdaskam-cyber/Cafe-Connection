@@ -16,7 +16,9 @@ import {
 } from "recharts";
 import { subscribeToCampus, subscribeAllReports } from "./firebase.js";
 import Widget from "./components/Widget.jsx";
-import CampusSelector, { CAMPUS_COLOR } from "./components/CampusSelector.jsx";
+import CampusSelector, { CAMPUSES, CAMPUS_COLOR } from "./components/CampusSelector.jsx";
+
+const FINANCIALS_CAMPUSES = [...CAMPUSES, "All Campuses"];
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
@@ -267,7 +269,7 @@ export default function FinancialsPage() {
         <div>
           <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
             textTransform: "uppercase", marginBottom: 10 }}>Campus</div>
-          <CampusSelector value={campus} onChange={setCampus} />
+          <CampusSelector value={campus} onChange={setCampus} campuses={FINANCIALS_CAMPUSES} />
         </div>
 
         {/* Fiscal year (hidden in annual view — FY is the axis itself) */}
