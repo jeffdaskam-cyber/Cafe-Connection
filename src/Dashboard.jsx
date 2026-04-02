@@ -247,8 +247,12 @@ export default function FinancialsPage() {
 
   const statSource  = period === "daily" ? aggregatedDaily : period === "monthly" ? filteredMonthly : annualData;
   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
-  const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
+  const totalChecks = statSource.reduce((s, d) => s + (d.total_checks || 0), 0);
+  const avgVolume   = statSource.length ? Math.round(totalChecks / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
+  const avgCheck    = totalChecks > 0 ? totalSales / totalChecks : 0;
+  const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
+  const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
 
   const dailyRangeLabel = isCurrentMonth
     ? `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear} (MTD)`
@@ -339,7 +343,7 @@ export default function FinancialsPage() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div style={{ display: "flex", gap: 18, marginBottom: 24,
+      <div style={{ display: "flex", gap: 18, marginBottom: 12,
         animation: "ucar-fadein .5s ease both" }}>
         <StatCard
           label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
@@ -353,6 +357,17 @@ export default function FinancialsPage() {
           label="Total Lunch Checks"
           value={loading ? "—" : (totalEvents || "—")}
           delta={11.3} accentColor={color} />
+      </div>
+      <div style={{ display: "flex", gap: 18, marginBottom: 24,
+        animation: "ucar-fadein .55s ease both" }}>
+        <StatCard
+          label="Avg Check"
+          value={loading ? "—" : fmtMoney(avgCheck)}
+          delta={0} accentColor="#E8871E" />
+        <StatCard
+          label="Avg Daily Revenue"
+          value={loading ? "—" : fmtMoney(avgDailyRevenue)}
+          delta={0} accentColor="#6366F1" />
       </div>
 
       {/* ── Charts ── */}
