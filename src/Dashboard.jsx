@@ -339,7 +339,7 @@ export default function FinancialsPage() {
       </div>
 
       {/* ── Charts ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20,
         marginBottom: 28, animation: "ucar-fadein .6s ease both" }}>
 
         {/* Cafe Sales */}
