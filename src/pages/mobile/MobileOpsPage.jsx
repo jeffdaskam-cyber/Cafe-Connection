@@ -1,16 +1,11 @@
 /**
- * MobileOpsPage — mobile-friendly ops: Schedule Notes + Cash Drop.
- *
- * Schedule Notes are org-wide (single doc per week), using
- * subscribeScheduleNote / saveScheduleNote from firebase.js.
+ * MobileOpsPage — mobile-friendly ops: Cash Drop.
  *
  * Cash Drops are per-campus, using addCashDrop / subscribeRecentCashDrops.
  */
 
 import { useState, useEffect } from "react";
 import {
-  subscribeScheduleNote,
-  saveScheduleNote,
   addCashDrop,
   subscribeRecentCashDrops,
 } from "../../firebase.js";
@@ -36,65 +31,8 @@ export default function MobileOpsPage() {
         {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
 
-      <ScheduleNotesSection />
       <CashDropSection campus={campus} />
     </div>
-  );
-}
-
-// ── Schedule Notes (org-wide, per week) ───────────────────────────────────────
-
-function ScheduleNotesSection() {
-  const { user } = useAuth();
-  const weekOf = getCurrentMonday();
-  const [body,    setBody]    = useState("");
-  const [saving,  setSaving]  = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsub = subscribeScheduleNote(weekOf, (data) => {
-      setBody(data?.body ?? "");
-      setLoading(false);
-    });
-    return unsub;
-  }, [weekOf]);
-
-  async function handleSave() {
-    if (!user) return;
-    setSaving(true);
-    try {
-      await saveScheduleNote(weekOf, body, user.uid, user.email);
-    } catch (err) {
-      console.error("[MobileOpsPage] Save note error:", err);
-    }
-    setSaving(false);
-  }
-
-  return (
-    <section style={sectionStyle}>
-      <h3 style={subheadStyle}>Schedule Notes</h3>
-      <p style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>Week of {weekOf}</p>
-      {loading ? (
-        <p style={mutedStyle}>Loading...</p>
-      ) : (
-        <>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Add notes for this week..."
-            rows={4}
-            style={textareaStyle}
-          />
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            style={buttonStyle(saving)}
-          >
-            {saving ? "Saving..." : "Save Notes"}
-          </button>
-        </>
-      )}
-    </section>
   );
 }
 
@@ -220,11 +158,6 @@ const selectStyle   = {
 const sectionStyle  = {
   background: "#fff", borderRadius: 10, padding: 16,
   marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-};
-const textareaStyle = {
-  width: "100%", borderRadius: 8, border: "1px solid #ccc",
-  fontSize: 14, padding: "10px 12px", boxSizing: "border-box",
-  resize: "vertical", marginBottom: 8, fontFamily: "inherit",
 };
 const inputStyle = {
   width: "100%", borderRadius: 8, border: "1px solid #ccc",

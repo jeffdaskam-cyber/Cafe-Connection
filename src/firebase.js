@@ -287,26 +287,6 @@ export function subscribeEventOrdersForWeek(weekOf, callback) {
   });
 }
 
-// ── Schedule Notes (org-wide, per week) ──────────────────────────────────
-// doc ID: note_{weekOf}  e.g. "note_2026-03-09"
-export function subscribeScheduleNote(weekOf, callback) {
-  const docRef = doc(db, "schedule_notes", `note_${weekOf}`);
-  return onSnapshot(docRef, snap => {
-    callback(snap.exists() ? snap.data() : null);
-  });
-}
-
-export async function saveScheduleNote(weekOf, body, uid, email) {
-  const docRef = doc(db, "schedule_notes", `note_${weekOf}`);
-  await setDoc(docRef, {
-    weekOf,
-    body,
-    updated_by:    email,
-    updated_by_uid: uid,
-    updated_at:    serverTimestamp(),
-  }, { merge: true });
-}
-
 // ── Cafe Specials (per campus + week) ────────────────────────────────────
 // doc ID: specials_{weekOf}_{campus_underscored}  e.g. "specials_2026-03-09_Mesa_Lab"
 function specialsDocId(weekOf, campus) {

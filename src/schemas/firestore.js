@@ -172,24 +172,6 @@ export const SETUP_REPORTS_SCHEMA = {
 };
 
 /**
- * schedule_notes
- * Manager notes attached to a specific week's schedule.
- * Displayed in the Weekly Ops tab alongside the schedule table.
- *
- * Document ID: "note_{YYYY-MM-DD}_{CampusName}" — Monday of the week
- */
-export const SCHEDULE_NOTES_SCHEMA = {
-  campus:     "String — one of CAMPUSES",
-  weekOf:     "String — ISO Monday date",
-  body:       "String — note content (supports plain text; markdown rendering planned)",
-  pinned:     "Boolean — whether this note is pinned to the top",
-  created_by: "String — UID",
-  created_at: "Timestamp",
-  updated_at: "Timestamp",
-  status:     "String — 'active' | 'archived'",
-};
-
-/**
  * cafe_specials
  * Weekly menu specials displayed in the Weekly Ops tab.
  *
@@ -273,7 +255,6 @@ export const SCHEMA_REGISTRY = {
   beos:                BEOS_SCHEMA,
   event_reports:       EVENT_REPORTS_SCHEMA,
   setup_reports:       SETUP_REPORTS_SCHEMA,
-  schedule_notes:      SCHEDULE_NOTES_SCHEMA,
   cafe_specials:       CAFE_SPECIALS_SCHEMA,
   cash_drops:          CASH_DROPS_SCHEMA,
   generated_reports:   GENERATED_REPORTS_SCHEMA,

@@ -70,12 +70,6 @@ service cloud.firestore {
       allow write: if isAuthedUCAR();
     }
 
-    // ── schedule_notes ─────────────────────────────────────────────────────
-    match /schedule_notes/{doc} {
-      allow read:  if isAuthedUCAR();
-      allow write: if isAuthedUCAR();
-    }
-
     // ── cafe_specials ──────────────────────────────────────────────────────
     match /cafe_specials/{doc} {
       allow read:  if isAuthedUCAR();
