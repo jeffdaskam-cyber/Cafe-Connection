@@ -1,49 +1,32 @@
 /**
  * FirstRunWizard — Phase 8 dashboard personalization setup wizard.
  *
- * A 4-step modal shown on first login after Phase 8 deployment:
+ * A 3-step modal shown on first login after Phase 8 deployment:
  *   Step 0 — Display name entry (first run only)
- *   Step 1 — Welcome + primary campus selection (first run only)
- *   Step 2 — Widget picker (toggle which widgets to display)
- *   Step 3 — All set (confirmation before saving; first run only)
+ *   Step 1 — Widget picker (toggle which widgets to display)
+ *   Step 2 — All set (confirmation before saving; first run only)
  *
  * Also used as the "Edit Dashboard" picker (startAtStep=1) by passing
  * the current prefs as initialPrefs. In edit mode only the widget picker
- * is shown; the name and campus steps are skipped entirely.
+ * is shown; the name step is skipped entirely.
  *
  * Props:
  *   initialPrefs   {object|null}  — current prefs (null = brand new user)
  *   onSave         {(prefs) => Promise<void>}  — called with final prefs on save
- *   onClose        {() => void}   — called when user cancels (Step 1 only; disabled if !setupDone)
+ *   onClose        {() => void}   — called when user cancels (edit mode only)
  *   allowClose     {boolean}      — whether an × close button is shown
- *   startAtStep    {number}       — 0 (default) or 1 to skip welcome
+ *   startAtStep    {number}       — 0 (default) or 1 to skip name step
  */
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { WIDGET_REGISTRY, defaultPrefs } from "../../registries/widgetRegistry.js";
-import { CAMPUSES } from "../../schemas/firestore.js";
 import { COLORS, SHADOWS, RADIUS } from "../../theme.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 
-const CAMPUS_COLOR = {
-  "Mesa Lab":     COLORS.AQUA,
-  "Foothills":    COLORS.LAQUA,
-  "Center Green": COLORS.AQUA_DARK,
-};
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function buildDefaultWidgets(campus) {
-  return defaultPrefs(campus).widgets;
-}
-
-// Deep-clone widgets and apply campus override to campus-aware entries
-function applyCampus(widgets, campus) {
-  return widgets.map(w => {
-    const meta = WIDGET_REGISTRY.find(r => r.widgetId === w.widgetId);
-    if (!meta?.needsCampus) return w;
-    return { ...w, config: { ...(w.config ?? {}), campus } };
-  });
+function buildDefaultWidgets() {
+  return defaultPrefs().widgets;
 }
 
 // ── Step indicator ─────────────────────────────────────────────────────────────
@@ -109,70 +92,8 @@ function StepName({ name, setName, onNext }) {
   );
 }
 
-// ── Step 1: Welcome + campus ───────────────────────────────────────────────────
-function StepWelcome({ campus, setCampus, onBack, onNext }) {
-  return (
-    <div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 8 }}>
-        Welcome to your Dashboard
-      </div>
-      <div style={{ fontSize: 13, color: COLORS.TEXT_SECONDARY, lineHeight: 1.65, marginBottom: 28, maxWidth: 440 }}>
-        Let's personalize your home page. Pick your primary campus and choose
-        the widgets you'd like to see every day.
-      </div>
-
-      <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.TEXT_MUTED, letterSpacing: "1.2px",
-        textTransform: "uppercase", marginBottom: 12 }}>
-        Primary Campus
-      </div>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 32 }}>
-        {CAMPUSES.map(c => {
-          const active = campus === c;
-          const color  = CAMPUS_COLOR[c] ?? COLORS.AQUA;
-          return (
-            <button key={c} onClick={() => setCampus(c)} style={{
-              padding: "10px 20px", borderRadius: RADIUS.MD,
-              border: `1.5px solid ${active ? color : COLORS.BORDER}`,
-              background: active ? `${color}14` : "transparent",
-              color: active ? color : COLORS.TEXT_SECONDARY,
-              fontFamily: "'Poppins',sans-serif",
-              fontWeight: 600, fontSize: 12, cursor: "pointer",
-              transition: "all .18s",
-              boxShadow: active ? `0 0 12px ${color}22` : "none",
-            }}>
-              {c}
-            </button>
-          );
-        })}
-      </div>
-
-      <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={onBack} style={{
-          background: "transparent", border: `1px solid ${COLORS.BORDER}`,
-          borderRadius: RADIUS.MD, padding: "10px 22px", cursor: "pointer",
-          fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-          fontSize: 12, color: COLORS.TEXT_SECONDARY, transition: "all .18s",
-        }}>
-          ← Back
-        </button>
-        <button onClick={onNext} style={{
-          background: COLORS.AQUA,
-          border: "none", borderRadius: RADIUS.MD,
-          padding: "11px 28px", cursor: "pointer",
-          fontFamily: "'Poppins',sans-serif",
-          fontWeight: 700, fontSize: 13, color: COLORS.TEXT_ON_ACCENT,
-          boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
-          transition: "all .18s",
-        }}>
-          Next →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Step 2: Widget picker ──────────────────────────────────────────────────────
-function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
+// ── Step 1: Widget picker ──────────────────────────────────────────────────────
+function StepWidgets({ widgets, setWidgets, onBack, onNext, isEdit }) {
    function toggle(widgetId) {
     setWidgets(prev => {
       const exists = prev.some(w => w.widgetId === widgetId);
@@ -239,11 +160,6 @@ function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
                 <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, marginTop: 3, lineHeight: 1.5 }}>
                   {meta.description}
                 </div>
-                {meta.needsCampus && (
-                  <div style={{ fontSize: 9, color: COLORS.TEXT_DISABLED, marginTop: 4 }}>
-                    Campus: {campus}
-                  </div>
-                )}
               </div>
             </button>
           );
@@ -281,7 +197,7 @@ function StepWidgets({ widgets, setWidgets, campus, onBack, onNext, isEdit }) {
   );
 }
 
-// ── Step 3: All set ────────────────────────────────────────────────────────────
+// ── Step 2: All set ────────────────────────────────────────────────────────────
 function StepDone({ enabledCount, saving, saveErr, onDone }) {
   return (
     <div style={{ textAlign: "center", paddingTop: 16 }}>
@@ -332,29 +248,13 @@ export default function FirstRunWizard({
   const { user } = useAuth();
   const isEdit = startAtStep > 0;
 
-  // Derive initial state from existing prefs
-  const initialCampus = (() => {
-    if (!initialPrefs?.widgets) return "Mesa Lab";
-    const first = initialPrefs.widgets.find(w =>
-      WIDGET_REGISTRY.find(r => r.widgetId === w.widgetId)?.needsCampus && w.config?.campus
-    );
-    return first?.config?.campus ?? "Mesa Lab";
-  })();
-
   const [step,        setStep]        = useState(startAtStep);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
-  const [campus,      setCampus]      = useState(initialCampus);
   const [widgets,     setWidgets]     = useState(() =>
-    initialPrefs?.widgets ?? buildDefaultWidgets(initialCampus)
+    initialPrefs?.widgets ?? buildDefaultWidgets()
   );
   const [saving,  setSaving]  = useState(false);
   const [saveErr, setSaveErr] = useState(null);
-
-  // When campus changes (Step 1), reapply campus to campus-aware widgets
-  function handleCampusChange(c) {
-    setCampus(c);
-    setWidgets(prev => applyCampus(prev, c));
-  }
 
   function handleBack() {
     setStep(s => s - 1);
@@ -364,7 +264,7 @@ export default function FirstRunWizard({
     if (isEdit) {
       handleSave();
     } else {
-      setStep(3);
+      setStep(2);
     }
   }
 
@@ -388,7 +288,7 @@ export default function FirstRunWizard({
     }
   }
 
-  const TOTAL_STEPS   = isEdit ? 1 : 4;
+  const TOTAL_STEPS   = isEdit ? 1 : 3;
   const enabledCount  = widgets.filter(w => w.enabled).length;
 
   return createPortal(
@@ -440,25 +340,16 @@ export default function FirstRunWizard({
             onNext={() => setStep(1)}
           />
         )}
-        {step === 1 && !isEdit && (
-          <StepWelcome
-            campus={campus}
-            setCampus={handleCampusChange}
-            onBack={handleBack}
-            onNext={() => setStep(2)}
-          />
-        )}
-        {(step === 2 || (isEdit && step === 1)) && (
+        {(step === 1 || (isEdit && step === 1)) && (
           <StepWidgets
             widgets={widgets}
             setWidgets={setWidgets}
-            campus={campus}
             onBack={handleBack}
             onNext={handleWidgetsDone}
             isEdit={isEdit}
           />
         )}
-        {step === 3 && !isEdit && (
+        {step === 2 && !isEdit && (
           <StepDone
             enabledCount={enabledCount}
             saving={saving}

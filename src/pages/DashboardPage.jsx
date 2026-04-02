@@ -12,7 +12,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useDashboardPrefs } from "../hooks/useDashboardPrefs.js";
-import { widgetById, defaultPrefs, WIDGET_REGISTRY } from "../registries/widgetRegistry.js";
+import { widgetById, defaultPrefs } from "../registries/widgetRegistry.js";
 import FirstRunWizard from "../components/dashboard/FirstRunWizard.jsx";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
@@ -126,15 +126,6 @@ export default function DashboardPage() {
     .filter(w => w.enabled)
     .sort((a, b) => a.position - b.position);
 
-  // Get the user's primary campus (from first campus-aware enabled widget)
-  const primaryCampus = (() => {
-    const cw = (prefs?.widgets ?? []).find(w => {
-      const meta = WIDGET_REGISTRY.find(r => r.widgetId === w.widgetId);
-      return meta?.needsCampus && w.config?.campus;
-    });
-    return cw?.config?.campus ?? "Mesa Lab";
-  })();
-
   if (prefsLoading) return <PageSkeleton />;
 
   return (
@@ -190,7 +181,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, fontWeight: 500, lineHeight: 1.65 }}>
               {enabledWidgets.length > 0
-                ? `Your dashboard — ${enabledWidgets.length} widget${enabledWidgets.length !== 1 ? "s" : ""} active · Primary campus: ${primaryCampus}`
+                ? `Your dashboard — ${enabledWidgets.length} widget${enabledWidgets.length !== 1 ? "s" : ""} active`
                 : "No widgets enabled. Click Edit Dashboard to choose what to show here."}
             </div>
             {saveErr && (
