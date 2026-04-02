@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebase.js";
 import { useRole } from "../hooks/useRole.js";
 import Widget from "../components/Widget.jsx";
@@ -23,15 +23,25 @@ export default function AdminPage() {
 
   async function handleRoleChange(uid, newRole) {
     setSaving(uid);
-    const ref = doc(db, "user_roles", uid);
-    await updateDoc(ref, {
-      role:       newRole,
-      assignedBy: auth.currentUser.uid,
-      assignedAt: serverTimestamp(),
-    });
-    setUsers((prev) =>
-      prev.map((u) => (u.id === uid ? { ...u, role: newRole } : u))
-    );
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const res = await fetch("/api/update-user-role", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ targetUid: uid, role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update role");
+      setUsers((prev) =>
+        prev.map((u) => (u.id === uid ? { ...u, role: newRole } : u))
+      );
+    } catch (err) {
+      console.error("[AdminPage] Role change failed:", err);
+      alert(`Role change failed: ${err.message}`);
+    }
     setSaving(null);
   }
 

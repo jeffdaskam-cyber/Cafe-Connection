@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { fetchEventReport, fetchSetupReport, fetchSchedulePdf, getEventOrdersByWeek } from "../../firebase.js";
+import { useRole } from "../../hooks/useRole.js";
 import { getNextSunday, addWeeks, formatWeekLabel } from "../WeekSelector.jsx";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
@@ -256,6 +257,7 @@ function PacketWeekSelector({ value, onChange }) {
 const INITIAL_SECTION = { status: "idle", images: [], error: null };
 
 export default function WeeklyPacketReport() {
+  const { isManager } = useRole();
   const [selectedWeek, setSelectedWeek] = useState(getNextSunday);
 
   const [schedule, setSchedule]       = useState(INITIAL_SECTION);
@@ -478,7 +480,8 @@ export default function WeeklyPacketReport() {
           />
         </div>
 
-        {/* Print button */}
+        {/* Print button — manager+ only */}
+        {isManager && (
         <button
           onClick={handlePrint}
           disabled={anyLoading || sectionsLoaded === 0}
@@ -498,6 +501,7 @@ export default function WeeklyPacketReport() {
         >
           {anyLoading ? "Loading..." : `Print Packet (${sectionsLoaded} section${sectionsLoaded !== 1 ? "s" : ""})`}
         </button>
+        )}
 
       </div>
     </Widget>

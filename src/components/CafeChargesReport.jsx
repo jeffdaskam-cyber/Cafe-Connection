@@ -8,6 +8,7 @@
 
 import { useState } from "react";
 import { getCafeChargesData } from "../firebase.js";
+import { useRole } from "../hooks/useRole.js";
 import Widget from "./Widget.jsx";
 import { CAMPUS_COLOR } from "./CampusSelector.jsx";
 import { COLORS } from "../theme.js";
@@ -71,6 +72,7 @@ function aggregateCampus(docs) {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function CafeChargesReport() {
+  const { isManager } = useRole();
   const now = new Date();
   const defaultStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   const defaultEnd   = now.toISOString().slice(0, 10);
@@ -195,8 +197,8 @@ export default function CafeChargesReport() {
           </div>
         </div>
 
-        {/* ── Generate button ── */}
-        {status === "idle" && (
+        {/* ── Generate button — manager+ only ── */}
+        {status === "idle" && isManager && (
           <button onClick={handleGenerate}
             style={{ width: "100%", padding: "11px 0", borderRadius: 8, border: "none",
               background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT, fontFamily: "'Poppins',sans-serif",

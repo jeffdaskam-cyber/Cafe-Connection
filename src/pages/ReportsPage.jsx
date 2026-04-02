@@ -13,6 +13,7 @@
 
 import { useState } from "react";
 import { getMonthEndData } from "../firebase.js";
+import { useRole } from "../hooks/useRole.js";
 import Widget              from "../components/Widget.jsx";
 import CafeChargesReport   from "../components/CafeChargesReport.jsx";
 import WeeklyPacketReport  from "../components/reports/WeeklyPacketReport.jsx";
@@ -31,6 +32,7 @@ function fmtMoney(n) {
 
 // ── Month-End Report ───────────────────────────────────────────────────────────
 function MonthEndReport() {
+  const { isManager } = useRole();
   const now = new Date();
   const [month,      setMonth]      = useState(now.getMonth() + 1);
   const [year,       setYear]       = useState(now.getFullYear());
@@ -132,8 +134,8 @@ function MonthEndReport() {
           </div>
         </div>
 
-        {/* Generate button */}
-        {status === "idle" && (
+        {/* Generate button — manager+ only */}
+        {status === "idle" && isManager && (
           <button onClick={handleGenerate}
             style={{ width: "100%", padding: "11px 0", borderRadius: RADIUS.SM, border: "none",
               background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,

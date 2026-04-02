@@ -20,6 +20,7 @@ import {
   subscribeEventOrdersForWeek,
 } from "./firebase.js";
 import { useWidget, useWidgetSubscription } from "./hooks/useWidget.js";
+import { useRole } from "./hooks/useRole.js";
 
 import Widget          from "./components/Widget.jsx";
 import WeekSelector,   { getCurrentMonday } from "./components/WeekSelector.jsx";
@@ -83,6 +84,7 @@ function EventOrderUpload({ onUpload, uploadState }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function WeeklyOps() {
+  const { isAdministrator, isManager } = useRole();
   const [weekOf,        setWeekOf]        = useState(getCurrentMonday);
   const [campus,        setCampus]        = useState(CAMPUSES[0]);
   const [uploadState,   setUploadState]   = useState("IDLE");
@@ -389,10 +391,13 @@ export default function WeeklyOps() {
           <CashDrop campus={campus} />
         </div>
 
-        {/* DropBox */}
+        {/* DropBox — manager+ only */}
+        {isManager && (
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <DropBox />
         </div>
+        )}
+
 
         {/* Event Orders */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
@@ -401,7 +406,7 @@ export default function WeeklyOps() {
             subtitle="Most recent first · click to open"
             icon="📁"
             accentColor={COLORS.AQUA}
-            actions={[{
+            actions={isAdministrator ? [{
               label: emailCheckState === "loading"
                 ? "Checking\u2026"
                 : emailCheckState !== "idle"
@@ -409,12 +414,14 @@ export default function WeeklyOps() {
                 : "Check for new orders",
               onClick: handleCheckEmailOrders,
               disabled: emailCheckState === "loading",
-            }]}
+            }] : []}
           >
-            {/* Upload zone */}
+            {/* Upload zone — manager+ only */}
+            {isManager && (
             <div style={{ marginBottom: 16 }}>
               <EventOrderUpload onUpload={handleEventOrderUpload} uploadState={uploadState} />
             </div>
+            )}
 
             {/* Library list */}
             {!eventOrders || eventOrders.length === 0 ? (
