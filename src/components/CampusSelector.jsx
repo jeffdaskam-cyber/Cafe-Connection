@@ -20,11 +20,12 @@ import { useState } from "react";
 import { COLORS } from "../theme.js";
 
 // ── Campus constants (exported for use in other modules) ──────────────────────
-export const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
+export const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green", "All Campuses"];
 export const CAMPUS_COLOR = {
-  "Mesa Lab":     "#00A2B4",
-  "Foothills":    "#34E1F4",
-  "Center Green": "#00818F",
+  "Mesa Lab":       "#00A2B4",
+  "Foothills":      "#34E1F4",
+  "Center Green":   "#00818F",
+  "All Campuses":   "#8B5CF6",
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────

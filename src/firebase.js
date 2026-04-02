@@ -258,6 +258,23 @@ export function subscribeToCampus(campus, callback, startDate) {
 
 // ── Listen to ALL reports for a campus ───────────────────────────────────
 export function subscribeAllReports(campus, callback) {
+  if (campus === "All Campuses") {
+    const ALL   = ["Mesa Lab", "Foothills", "Center Green"];
+    const cache = {};
+    const unsubs = ALL.map(c => {
+      const q = query(
+        collection(db, "daily_metrics"),
+        where("campus", "==", c),
+        orderBy("date", "asc")
+      );
+      return onSnapshot(q, snap => {
+        cache[c] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        callback(Object.values(cache).flat());
+      });
+    });
+    return () => unsubs.forEach(u => u());
+  }
+
   const q = query(
     collection(db, "daily_metrics"),
     where("campus", "==", campus),

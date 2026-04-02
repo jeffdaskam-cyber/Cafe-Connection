@@ -223,12 +223,26 @@ export default function FinancialsPage() {
       })
     : safeMetrics;
 
+  // Aggregate daily data by date when showing All Campuses
+  const aggregatedDaily = (() => {
+    if (campus !== "All Campuses" || period !== "daily") return filteredDaily;
+    const byDate = {};
+    filteredDaily.forEach(d => {
+      const key = fmt(d.date);
+      if (!byDate[key]) byDate[key] = { net_revenue: 0, total_checks: 0, lunch_checks: 0, date: d.date };
+      byDate[key].net_revenue  += d.net_revenue  || 0;
+      byDate[key].total_checks += d.total_checks || 0;
+      byDate[key].lunch_checks += d.lunch_checks || 0;
+    });
+    return Object.values(byDate);
+  })();
+
   const chartData =
-    period === "daily"   ? filteredDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue || 0, cafe_volume: d.total_checks || 0, event_volume: d.lunch_checks || 0 })) :
+    period === "daily"   ? aggregatedDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue || 0, cafe_volume: d.total_checks || 0, event_volume: d.lunch_checks || 0 })) :
     period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
                            annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
 
-  const statSource  = period === "daily" ? filteredDaily : period === "monthly" ? filteredMonthly : annualData;
+  const statSource  = period === "daily" ? aggregatedDaily : period === "monthly" ? filteredMonthly : annualData;
   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
   const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
