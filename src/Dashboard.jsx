@@ -78,7 +78,7 @@ function buildAnnualData(monthlyData) {
 // ── Variance helpers ───────────────────────────────────────────────────────────
 function calcVariance(current, prior) {
   if (prior === 0 || prior == null) return 0;
-  return ((current - prior) / Math.abs(prior)) * 100;
+  return Math.round(((current - prior) / Math.abs(prior)) * 1000) / 10;
 }
 
 function getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, calendarYear) {
