@@ -1,17 +1,16 @@
 /**
- * AccountingReport — Monthly accounting summary for a single campus.
+ * AccountingReport — Monthly accounting summary for all three campuses.
  *
- * Queries daily_metrics for the selected month + campus and sums the five
- * fields accounting needs: Net Revenue, Total Tax, Payroll, Credit Card,
- * and Cash Deposit (cash_drop).
+ * Queries daily_metrics for the selected month across Mesa Lab, Foothills,
+ * and Center Green, summing the five fields accounting needs: Net Revenue,
+ * Total Tax, Payroll, Credit Card, and Cash Deposit (cash_drop).
  *
- * Supports a print flow via a portal-rendered container outside #root so
- * @media print can hide the app shell and show only the table.
+ * Supports Excel download and Gmail compose for emailing the report.
  */
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { fetchAccountingData } from "../../firebase.js";
+import { generateAndDownloadAccountingExcel } from "../../utils/accountingExport.js";
 import { useRole } from "../../hooks/useRole.js";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
@@ -35,7 +34,7 @@ function fmtMoney(n) {
   return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// ── Print table (rendered both in-widget and in print portal) ────────────────
+// ── Table for a single campus (rendered once per campus in results) ──────────
 function AccountingTable({ campus, month, year, data }) {
   const monthName = MONTH_NAMES[month - 1];
   const rows = [
@@ -87,21 +86,23 @@ export default function AccountingReport() {
   const { isManager } = useRole();
   const prev = prevMonth();
 
-  const [campus,  setCampus]  = useState("Mesa Lab");
-  const [month,   setMonth]   = useState(prev.month);
-  const [year,    setYear]    = useState(prev.year);
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [month,       setMonth]       = useState(prev.month);
+  const [year,        setYear]        = useState(prev.year);
+  const [allData,     setAllData]     = useState(null);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   const now        = new Date();
   const yearRange  = [now.getFullYear(), now.getFullYear() - 1, now.getFullYear() - 2];
 
   async function generate() {
-    setLoading(true); setError(null); setData(null);
+    setLoading(true); setError(null); setAllData(null);
     try {
-      const result = await fetchAccountingData(campus, year, month);
-      setData(result);
+      const results = await Promise.all(
+        CAMPUSES.map(campus => fetchAccountingData(campus, year, month))
+      );
+      setAllData(CAMPUSES.map((campus, i) => ({ campus, ...results[i] })));
     } catch (e) {
       console.error("[AccountingReport] fetch failed:", e);
       setError(e.message || "Could not fetch data.");
@@ -111,8 +112,27 @@ export default function AccountingReport() {
   }
 
   function handleReset() {
-    setData(null);
+    setAllData(null);
     setError(null);
+  }
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      await generateAndDownloadAccountingExcel(year, month);
+    } catch (e) {
+      console.error("[AccountingReport] Excel export failed:", e);
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleDownloadAndEmail() {
+    await handleDownload();
+    // Small delay so the download dialog appears before Gmail opens
+    setTimeout(() => {
+      launchAccountingEmail(MONTH_NAMES[month - 1], year);
+    }, 600);
   }
 
   // Shared select style matching ReportsPage pattern
@@ -138,118 +158,108 @@ export default function AccountingReport() {
     fontFamily: "'Poppins',sans-serif",
   };
 
-  // Print portal container (outside #root — hidden normally, visible @media print)
-  const printPortal = data
-    ? createPortal(
-        <div id="accounting-report-print-container">
-          <AccountingTable campus={campus} month={month} year={year} data={data} />
-        </div>,
-        document.body
-      )
-    : null;
-
   return (
-    <>
-      {printPortal}
-      <Widget
-        title="Monthly Accounting Report"
-        subtitle="Five-field accounting summary"
-        icon="🧾"
-        accentColor={COLORS.AQUA}
-        loading={loading}
-        error={error ? "Could not fetch data. Check your Firestore connection and try again." : null}
-        onRetry={handleReset}
-      >
-        <div style={{ paddingTop: 4 }}>
+    <Widget
+      title="Monthly Accounting Report"
+      subtitle="Five-field accounting summary"
+      icon="🧾"
+      accentColor={COLORS.AQUA}
+      loading={loading}
+      error={error ? "Could not fetch data. Check your Firestore connection and try again." : null}
+      onRetry={handleReset}
+    >
+      <div style={{ paddingTop: 4 }}>
 
-          {/* ── Controls ── */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-            <div style={{ flex: 2 }}>
-              <div style={labelStyle}>Campus</div>
-              <select
-                value={campus}
-                onChange={e => { setCampus(e.target.value); handleReset(); }}
-                style={{ ...selectStyle, width: "100%" }}
-              >
-                {CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div style={{ flex: 2 }}>
-              <div style={labelStyle}>Month</div>
-              <select
-                value={month}
-                onChange={e => { setMonth(Number(e.target.value)); handleReset(); }}
-                style={{ ...selectStyle, width: "100%" }}
-              >
-                {MONTH_NAMES.map((m, i) => (
-                  <option key={i + 1} value={i + 1}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={labelStyle}>Year</div>
-              <select
-                value={year}
-                onChange={e => { setYear(Number(e.target.value)); handleReset(); }}
-                style={{ ...selectStyle, width: "100%" }}
-              >
-                {yearRange.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* ── Generate button — manager+ only ── */}
-          {!data && !loading && isManager && (
-            <button
-              onClick={generate}
-              style={{ width: "100%", padding: "11px 0", borderRadius: RADIUS.SM,
-                border: "none", background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
-                fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 13,
-                cursor: "pointer" }}
+        {/* ── Controls ── */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+          <div style={{ flex: 2 }}>
+            <div style={labelStyle}>Month</div>
+            <select
+              value={month}
+              onChange={e => { setMonth(Number(e.target.value)); handleReset(); }}
+              style={{ ...selectStyle, width: "100%" }}
             >
-              Generate {MONTH_NAMES[month - 1]} {year} Report
-            </button>
-          )}
-
-          {/* ── Results ── */}
-          {data && (
-            <div>
-              {/* Print / Email / Reset actions */}
-              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-                <button
-                  onClick={() => window.print()}
-                  style={{ flex: 1, padding: "10px 0", borderRadius: RADIUS.SM,
-                    border: "none", background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
-                    fontFamily: "'Poppins',sans-serif", fontWeight: 700,
-                    fontSize: 12, cursor: "pointer" }}
-                >
-                  Print
-                </button>
-                <button
-                  onClick={() => launchAccountingEmail(MONTH_NAMES[month - 1], year)}
-                  style={{ flex: 1, padding: "10px 0", borderRadius: RADIUS.SM,
-                    border: "none", background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
-                    fontFamily: "'Poppins',sans-serif", fontWeight: 700,
-                    fontSize: 12, cursor: "pointer" }}
-                >
-                  Email
-                </button>
-                <button
-                  onClick={handleReset}
-                  style={{ padding: "10px 18px", borderRadius: RADIUS.SM,
-                    border: `1px solid ${COLORS.BORDER}`, background: "transparent",
-                    color: COLORS.TEXT_SECONDARY, fontFamily: "'Poppins',sans-serif",
-                    fontWeight: 600, fontSize: 12, cursor: "pointer" }}
-                >
-                  ← New Report
-                </button>
-              </div>
-
-              <AccountingTable campus={campus} month={month} year={year} data={data} />
-            </div>
-          )}
+              {MONTH_NAMES.map((m, i) => (
+                <option key={i + 1} value={i + 1}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={labelStyle}>Year</div>
+            <select
+              value={year}
+              onChange={e => { setYear(Number(e.target.value)); handleReset(); }}
+              style={{ ...selectStyle, width: "100%" }}
+            >
+              {yearRange.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
         </div>
-      </Widget>
-    </>
+
+        {/* ── Generate button — manager+ only ── */}
+        {!allData && !loading && isManager && (
+          <button
+            onClick={generate}
+            style={{ width: "100%", padding: "11px 0", borderRadius: RADIUS.SM,
+              border: "none", background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
+              fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 13,
+              cursor: "pointer" }}
+          >
+            Generate {MONTH_NAMES[month - 1]} {year} Report
+          </button>
+        )}
+
+        {/* ── Results ── */}
+        {allData && (
+          <div>
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                style={{ flex: 1, padding: "10px 0", borderRadius: RADIUS.SM, border: "none",
+                  background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
+                  fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 12,
+                  cursor: downloading ? "not-allowed" : "pointer", opacity: downloading ? 0.7 : 1 }}
+              >
+                {downloading ? "Preparing\u2026" : "\u2B07 Download Excel"}
+              </button>
+              <button
+                onClick={handleDownloadAndEmail}
+                disabled={downloading}
+                style={{ flex: 1, padding: "10px 0", borderRadius: RADIUS.SM, border: "none",
+                  background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
+                  fontFamily: "'Poppins',sans-serif", fontWeight: 700, fontSize: 12,
+                  cursor: downloading ? "not-allowed" : "pointer", opacity: downloading ? 0.7 : 1 }}
+              >
+                {downloading ? "Preparing\u2026" : "\u2709 Download & Email"}
+              </button>
+              <button
+                onClick={handleReset}
+                style={{ padding: "10px 18px", borderRadius: RADIUS.SM,
+                  border: `1px solid ${COLORS.BORDER}`, background: "transparent",
+                  color: COLORS.TEXT_SECONDARY, fontFamily: "'Poppins',sans-serif",
+                  fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+              >
+                \u2190 New Report
+              </button>
+            </div>
+
+            {/* Helper note */}
+            <p style={{ fontSize: 10, color: COLORS.TEXT_MUTED, marginBottom: 16,
+              fontFamily: "'Poppins',sans-serif", fontStyle: "italic" }}>
+              Attach the downloaded file before sending the email.
+            </p>
+
+            {/* Three-campus summary */}
+            {allData.map(({ campus, ...data }) => (
+              <div key={campus} style={{ marginBottom: 20 }}>
+                <AccountingTable campus={campus} month={month} year={year} data={data} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Widget>
   );
 }
