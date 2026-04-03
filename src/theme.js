@@ -16,8 +16,8 @@
  */
 // ─── Page & Surface ────────────────────────────────────────────────────────────
 export const COLORS = {
-  // Page background — UCAR Dark Blue
-  BG_PAGE:          '#00357A',
+  // Page background — UCAR Medium Gray
+  BG_PAGE:          '#E0DDD9',
   // Card / widget / panel surface
   BG_SURFACE:       '#FFFFFF',
   // Slightly tinted surface for nested panels, table rows, input backgrounds
