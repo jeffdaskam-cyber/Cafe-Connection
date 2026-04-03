@@ -482,6 +482,8 @@ export async function createUserRoleIfMissing(user) {
 }
 
 // ── Fetch monthly accounting data (5-field summary) for a single campus ──────
+// If a period document exists for the month, it is used exclusively.
+// Otherwise all daily documents for the month are summed.
 export async function fetchAccountingData(campus, year, month) {
   const startDate = Timestamp.fromDate(new Date(year, month - 1, 1));
   const endDate   = Timestamp.fromDate(new Date(year, month,     1));
@@ -494,32 +496,48 @@ export async function fetchAccountingData(campus, year, month) {
   );
 
   const snap = await getDocs(q);
+  const docs = snap.docs.map(d => d.data());
 
+  const r2 = n => Math.round(n * 100) / 100;
+
+  // Prefer the period document when one exists — avoids double-counting
+  // when both a period report and individual daily documents are present.
+  const periodDoc = docs.find(d => d.report_type === "period");
+  if (periodDoc) {
+    return {
+      netRevenue:  r2(periodDoc.net_revenue  ?? 0),
+      totalTax:    r2(periodDoc.total_taxes  ?? 0),
+      payroll:     r2(periodDoc.payroll      ?? 0),
+      creditCard:  r2(periodDoc.credit_card  ?? 0),
+      cashDeposit: r2(periodDoc.cash_drop    ?? 0),
+      docCount: 1,
+      source: "period",
+    };
+  }
+
+  // No period document — sum daily documents
   let netRevenue  = 0;
   let totalTax    = 0;
   let payroll     = 0;
   let creditCard  = 0;
   let cashDeposit = 0;
-  let docCount    = 0;
 
-  snap.forEach(d => {
-    const data = d.data();
-    netRevenue  += data.net_revenue  ?? 0;
-    totalTax    += data.total_taxes  ?? 0;
-    payroll     += data.payroll      ?? 0;
-    creditCard  += data.credit_card  ?? 0;
-    cashDeposit += data.cash_drop    ?? 0;
-    docCount++;
+  docs.forEach(d => {
+    netRevenue  += d.net_revenue  ?? 0;
+    totalTax    += d.total_taxes  ?? 0;
+    payroll     += d.payroll      ?? 0;
+    creditCard  += d.credit_card  ?? 0;
+    cashDeposit += d.cash_drop    ?? 0;
   });
 
-  const r2 = n => Math.round(n * 100) / 100;
   return {
     netRevenue:  r2(netRevenue),
     totalTax:    r2(totalTax),
     payroll:     r2(payroll),
     creditCard:  r2(creditCard),
     cashDeposit: r2(cashDeposit),
-    docCount,
+    docCount: docs.length,
+    source: "daily",
   };
 }
 
