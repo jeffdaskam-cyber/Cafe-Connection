@@ -523,33 +523,3 @@ export async function fetchAccountingData(campus, year, month) {
   };
 }
 
-export async function getMonthEndData(year, month) {
-  const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];
-  const startDate   = Timestamp.fromDate(new Date(year, month - 1, 1));
-  const endDate     = Timestamp.fromDate(new Date(year, month, 1));
-  const results     = {};
-
-  await Promise.all(CAMPUSES.map(async (campus) => {
-    const q    = query(collection(db, "daily_metrics"),
-      where("campus", "==", campus),
-      where("date",   ">=", startDate),
-      where("date",   "<",  endDate),
-      orderBy("date", "asc"));
-    const snap = await getDocs(q);
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const periodDoc = docs.find(d => d.report_type === "period");
-    if (periodDoc) {
-      results[campus] = { total_taxes: periodDoc.total_taxes ?? null, cash_drop: periodDoc.cash_drop ?? null, source: "period" };
-    } else {
-      const total_taxes = docs.reduce((s, d) => s + (d.total_taxes ?? 0), 0);
-      const cash_drop   = docs.reduce((s, d) => s + (d.cash_drop   ?? 0), 0);
-      results[campus]   = {
-        total_taxes: docs.length > 0 ? Math.round(total_taxes * 100) / 100 : null,
-        cash_drop:   docs.length > 0 ? Math.round(cash_drop   * 100) / 100 : null,
-        source:      docs.length > 0 ? "daily" : "none",
-      };
-    }
-  }));
-
-  return results;
-}
