@@ -75,6 +75,52 @@ function buildAnnualData(monthlyData) {
   return Object.values(byFY).sort((a, b) => a.fy - b.fy);
 }
 
+// ── Variance helpers ───────────────────────────────────────────────────────────
+function calcVariance(current, prior) {
+  if (prior === 0 || prior == null) return 0;
+  return ((current - prior) / Math.abs(prior)) * 100;
+}
+
+function getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, calendarYear) {
+  if (period === "daily") {
+    // Prior period = previous calendar month, looked up via monthlyData
+    const currentKey = `${calendarYear}-${String(selectedMonth).padStart(2, "0")}`;
+    const idx = monthlyData.findIndex(m => m.monthKey === currentKey);
+    if (idx <= 0) return null;
+    const prior = monthlyData[idx - 1];
+    return {
+      totalSales:  prior.net_revenue  || 0,
+      totalChecks: prior.total_checks || 0,
+      totalEvents: prior.lunch_checks || 0,
+      avgVolume:   prior.total_checks || 0,
+      avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
+    };
+  }
+  if (period === "monthly") {
+    if (monthlyData.length < 2) return null;
+    const prior = monthlyData[monthlyData.length - 2];
+    return {
+      totalSales:  prior.net_revenue  || 0,
+      totalChecks: prior.total_checks || 0,
+      totalEvents: prior.lunch_checks || 0,
+      avgVolume:   prior.total_checks || 0,
+      avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
+    };
+  }
+  if (period === "annual") {
+    if (annualData.length < 2) return null;
+    const prior = annualData[annualData.length - 2];
+    return {
+      totalSales:  prior.net_revenue  || 0,
+      totalChecks: prior.total_checks || 0,
+      totalEvents: prior.lunch_checks || 0,
+      avgVolume:   Math.round((prior.total_checks || 0) / 12),
+      avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
+    };
+  }
+  return null;
+}
+
 function fmt(d) {
   if (!d) return "";
   const dt = d.toDate ? d.toDate() : new Date(d);
@@ -254,6 +300,14 @@ export default function FinancialsPage() {
   const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
   const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
 
+  // ── Variance (period-over-period) ──────────────────────────────────────────
+  const priorMetrics    = getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, calendarYear);
+  const revenueDelta    = priorMetrics ? calcVariance(totalSales,     priorMetrics.totalSales)  : 0;
+  const checksDelta     = priorMetrics ? calcVariance(avgVolume,      priorMetrics.avgVolume)   : 0;
+  const eventsDelta     = priorMetrics ? calcVariance(totalEvents,    priorMetrics.totalEvents) : 0;
+  const checkAvgDelta   = priorMetrics ? calcVariance(avgCheck,       priorMetrics.avgCheck)    : 0;
+  const dailyRevDelta   = priorMetrics ? calcVariance(totalSales,     priorMetrics.totalSales)  : 0;
+
   const dailyRangeLabel = isCurrentMonth
     ? `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear} (MTD)`
     : `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear}`;
@@ -348,26 +402,26 @@ export default function FinancialsPage() {
         <StatCard
           label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
-          delta={4.2} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : revenueDelta} accentColor={COLORS.AQUA} />
         <StatCard
           label={period === "daily" ? "Avg Daily Checks" : period === "monthly" ? "Avg Monthly Checks" : "Avg Annual Checks"}
           value={loading ? "—" : (avgVolume || "—")}
-          delta={-1.8} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : checksDelta} accentColor={COLORS.AQUA} />
         <StatCard
           label="Total Lunch Checks"
           value={loading ? "—" : (totalEvents || "—")}
-          delta={11.3} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : eventsDelta} accentColor={COLORS.AQUA} />
       </div>
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .55s ease both" }}>
         <StatCard
           label="Avg Check"
           value={loading ? "—" : fmtMoney(avgCheck)}
-          delta={0} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA} />
         <StatCard
           label="Avg Daily Revenue"
           value={loading ? "—" : fmtMoney(avgDailyRevenue)}
-          delta={0} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : dailyRevDelta} accentColor={COLORS.AQUA} />
       </div>
 
       {/* ── Charts ── */}
