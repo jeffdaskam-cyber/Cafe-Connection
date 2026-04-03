@@ -481,6 +481,48 @@ export async function createUserRoleIfMissing(user) {
   }
 }
 
+// ── Fetch monthly accounting data (5-field summary) for a single campus ──────
+export async function fetchAccountingData(campus, year, month) {
+  const startDate = Timestamp.fromDate(new Date(year, month - 1, 1));
+  const endDate   = Timestamp.fromDate(new Date(year, month,     1));
+
+  const q = query(
+    collection(db, "daily_metrics"),
+    where("campus", "==", campus),
+    where("date",   ">=", startDate),
+    where("date",   "<",  endDate)
+  );
+
+  const snap = await getDocs(q);
+
+  let netRevenue  = 0;
+  let totalTax    = 0;
+  let payroll     = 0;
+  let creditCard  = 0;
+  let cashDeposit = 0;
+  let docCount    = 0;
+
+  snap.forEach(d => {
+    const data = d.data();
+    netRevenue  += data.net_revenue  ?? 0;
+    totalTax    += data.total_taxes  ?? 0;
+    payroll     += data.payroll      ?? 0;
+    creditCard  += data.credit_card  ?? 0;
+    cashDeposit += data.cash_drop    ?? 0;
+    docCount++;
+  });
+
+  const r2 = n => Math.round(n * 100) / 100;
+  return {
+    netRevenue:  r2(netRevenue),
+    totalTax:    r2(totalTax),
+    payroll:     r2(payroll),
+    creditCard:  r2(creditCard),
+    cashDeposit: r2(cashDeposit),
+    docCount,
+  };
+}
+
 export async function getMonthEndData(year, month) {
   const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];
   const startDate   = Timestamp.fromDate(new Date(year, month - 1, 1));

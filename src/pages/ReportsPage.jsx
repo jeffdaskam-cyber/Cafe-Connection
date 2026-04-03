@@ -17,6 +17,7 @@ import { useRole } from "../hooks/useRole.js";
 import Widget              from "../components/Widget.jsx";
 import CafeChargesReport   from "../components/CafeChargesReport.jsx";
 import WeeklyPacketReport  from "../components/reports/WeeklyPacketReport.jsx";
+import AccountingReport    from "../components/reports/AccountingReport.jsx";
 
 import { COLORS, RADIUS } from "../theme.js";
 
@@ -212,7 +213,7 @@ export default function ReportsPage() {
           fontFamily: "'Poppins',sans-serif" }}>Reports</div>
         <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, fontWeight: 500,
           maxWidth: 560, lineHeight: 1.6, fontFamily: "'Poppins',sans-serif" }}>
-          Generate, copy, and print operational reports. All four report types are live.
+          Generate, copy, and print operational reports. All report types are live.
         </div>
       </div>
 
@@ -221,10 +222,11 @@ export default function ReportsPage() {
         textTransform: "uppercase", marginBottom: 14, fontFamily: "'Poppins',sans-serif" }}>
         Accounting
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20,
         marginBottom: 32, animation: "ucar-fadein .5s ease both" }}>
         <MonthEndReport />
         <CafeChargesReport />
+        <AccountingReport />
       </div>
 
       {/* ── Operations reports ── */}

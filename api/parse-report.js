@@ -149,8 +149,10 @@ export default async function handler(req, res) {
       ...(metrics.period_start          !== undefined && { period_start:          metrics.period_start          }),
       ...(metrics.period_end            !== undefined && { period_end:            metrics.period_end            }),
       // Month-end accounting fields
-      ...(metrics.total_taxes !== undefined && { total_taxes: metrics.total_taxes }),
-      ...(metrics.cash_drop   !== undefined && { cash_drop:   metrics.cash_drop   }),
+      ...(metrics.total_taxes !== undefined && { total_taxes:  metrics.total_taxes  }),
+      ...(metrics.cash_drop   !== undefined && { cash_drop:    metrics.cash_drop    }),
+      ...(metrics.payroll     !== undefined && { payroll:      metrics.payroll      }),
+      ...(metrics.credit_card !== undefined && { credit_card:  metrics.credit_card  }),
       source_file:  fileName,
       parse_method: isExcel ? "excel" : "pdf",
       last_updated: admin.firestore.FieldValue.serverTimestamp(),
@@ -312,6 +314,51 @@ async function parseExcel(buffer) {
     }
   }
 
+  // ── TENDERS section — Payroll and Credit Card ─────────────────────────────
+  // Anchor: col F (index 6) = "TENDERS" → header row immediately after →
+  // find "Total" column (index > 10) → scan data rows below header.
+  let payroll    = null;
+  let creditCard = 0;
+  const tendersAnchor = findInCol(6, "TENDERS");
+  if (tendersAnchor) {
+    const tendersHeaderRow = tendersAnchor.row + 1;
+    // Find the rightmost "Total" header in columns > 10
+    let tendersTotalCol = null;
+    for (let c = 11; c <= ws.columnCount; c++) {
+      const v = strVal(tendersHeaderRow, c);
+      if (v && v.toLowerCase() === "total") {
+        tendersTotalCol = c;
+        break;
+      }
+    }
+    if (tendersTotalCol) {
+      for (let r = tendersHeaderRow + 1; r <= ws.rowCount; r++) {
+        const colF = strVal(r, 6);
+        const colB = strVal(r, 2);
+        const colC = strVal(r, 3);
+        // Stop when we hit the CASH POSITION section
+        if ((colB && colB.toLowerCase() === "cash position") ||
+            (colC && colC.toLowerCase() === "cash position")) break;
+        if (!colF) continue; // skip blank rows
+        const label = colF.toLowerCase();
+        const val   = numVal(r, tendersTotalCol) || 0;
+        if (label.startsWith("payroll")) {
+          payroll = val;
+        } else if (
+          !label.startsWith("cash") &&
+          !label.startsWith("event services") &&
+          !label.startsWith("subtotal") &&
+          !label.startsWith("total")
+        ) {
+          creditCard += val;
+        }
+      }
+      creditCard = Math.round(creditCard * 100) / 100;
+    }
+  }
+  if (payroll === null)   console.warn("[parseExcel] Could not find payroll — TENDERS section may have changed.");
+  if (creditCard === 0)   console.warn("[parseExcel] Credit card total is 0 — verify TENDERS section.");
+
   // ── Validate required fields ───────────────────────────────────────────────
   const missing = [];
   if (totalChecks     === null) missing.push("total_checks");
@@ -337,6 +384,8 @@ async function parseExcel(buffer) {
     breakfast_avg_check:   round2(breakfastAvgCheck),
     total_taxes:           round2(totalTaxes),
     cash_drop:             round2(cashDrop),
+    payroll:               round2(payroll),
+    credit_card:           creditCard || null,
   };
 }
 
@@ -388,7 +437,7 @@ async function parsePdf(buffer) {
     net_revenue: netRevenue, total_checks: totalChecks,
     lunch_avg_check: lunchAvgCheck, gross_revenue: grossRevenue, discounts,
     // Not available from PDF
-    total_taxes: null, cash_drop: null,
+    total_taxes: null, cash_drop: null, payroll: null, credit_card: null,
   };
 }
 

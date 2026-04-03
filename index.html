@@ -12,6 +12,34 @@
       html { font-size: 16px; }
       body { background: #F1F0EE; }
       #root { zoom: 1.35; }
+
+      /* ── Accounting Report print styles ── */
+      #accounting-report-print-container {
+        display: none;
+        position: absolute;
+        left: -9999px;
+        visibility: hidden;
+      }
+      @media print {
+        #root { display: none !important; }
+        #accounting-report-print-container {
+          display: block !important;
+          position: static !important;
+          left: auto !important;
+          visibility: visible !important;
+          padding: 32px;
+          font-family: Arial, sans-serif;
+          font-size: 12pt;
+        }
+        .accounting-report-table table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        .accounting-report-table td {
+          padding: 8px 12px;
+          border-bottom: 1px solid #ddd;
+        }
+      }
     </style>
     <!-- PDF.js for canvas-based PDF rendering (Weekly Packet print) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
