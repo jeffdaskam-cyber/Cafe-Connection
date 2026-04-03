@@ -15,6 +15,7 @@ import { fetchAccountingData } from "../../firebase.js";
 import { useRole } from "../../hooks/useRole.js";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
+import { launchAccountingEmail } from "../../utils/emailLauncher.js";
 
 const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];
 const MONTH_NAMES = ["January","February","March","April","May","June",
@@ -213,7 +214,7 @@ export default function AccountingReport() {
           {/* ── Results ── */}
           {data && (
             <div>
-              {/* Print + Reset actions */}
+              {/* Print / Email / Reset actions */}
               <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
                 <button
                   onClick={() => window.print()}
@@ -223,6 +224,15 @@ export default function AccountingReport() {
                     fontSize: 12, cursor: "pointer" }}
                 >
                   Print
+                </button>
+                <button
+                  onClick={() => launchAccountingEmail(MONTH_NAMES[month - 1], year)}
+                  style={{ flex: 1, padding: "10px 0", borderRadius: RADIUS.SM,
+                    border: "none", background: COLORS.AQUA, color: COLORS.TEXT_ON_ACCENT,
+                    fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+                    fontSize: 12, cursor: "pointer" }}
+                >
+                  Email
                 </button>
                 <button
                   onClick={handleReset}
