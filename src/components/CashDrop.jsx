@@ -12,7 +12,6 @@ import { useState, useEffect } from "react";
 import { addCashDrop, removeCashDrop, subscribeRecentCashDrops } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
-import { CAMPUS_COLOR } from "./CampusSelector.jsx";
 import { COLORS, RADIUS } from "../theme.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -29,7 +28,7 @@ function fmtTimestamp(ts) {
 // ── Component ──────────────────────────────────────────────────────────────────
 export default function CashDrop({ campus }) {
   const { user } = useAuth();
-  const accent = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
+  const accent = COLORS.AQUA;
 
   // Form state
   const [amount, setAmount] = useState("");

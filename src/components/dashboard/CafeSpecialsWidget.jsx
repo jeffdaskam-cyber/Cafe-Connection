@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import Widget from "../Widget.jsx";
-import { CAMPUS_COLOR, CAMPUSES } from "../CampusSelector.jsx";
+import { CAMPUSES } from "../CampusSelector.jsx";
 import { useWidget } from "../../hooks/useWidget.js";
 import { fetchSpecials } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
@@ -28,7 +28,7 @@ function CampusPills({ value, onChange }) {
     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
       {CAMPUSES.map(c => {
         const active = c === value;
-        const color  = CAMPUS_COLOR[c] ?? COLORS.AQUA;
+        const color  = COLORS.AQUA;
         return (
           <button
             key={c}

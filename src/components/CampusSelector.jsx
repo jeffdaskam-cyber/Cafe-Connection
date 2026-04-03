@@ -13,7 +13,7 @@
  *
  * Exported constants:
  *   CAMPUSES       — ["Mesa Lab", "Foothills", "Center Green"]
- *   CAMPUS_COLOR   — { "Mesa Lab": "#00A2B4", ... }
+ *   CAMPUS_COLOR   — { "Mesa Lab": "#00A2B4", ... } (all campuses use UCAR Aqua)
  */
 
 import { useState } from "react";
@@ -23,9 +23,9 @@ import { COLORS } from "../theme.js";
 export const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 export const CAMPUS_COLOR = {
   "Mesa Lab":       "#00A2B4",
-  "Foothills":      "#34E1F4",
-  "Center Green":   "#00818F",
-  "All Campuses":   "#8B5CF6",
+  "Foothills":      "#00A2B4",
+  "Center Green":   "#00A2B4",
+  "All Campuses":   "#00A2B4",
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import { subscribeToCampus, subscribeAllReports } from "./firebase.js";
 import Widget from "./components/Widget.jsx";
-import CampusSelector, { CAMPUSES, CAMPUS_COLOR } from "./components/CampusSelector.jsx";
+import CampusSelector, { CAMPUSES } from "./components/CampusSelector.jsx";
 
 const FINANCIALS_CAMPUSES = [...CAMPUSES, "All Campuses"];
 import { useWidgetSubscription } from "./hooks/useWidget.js";
@@ -182,7 +182,7 @@ export default function FinancialsPage() {
   const safeAllDocs = allDocs  ?? [];
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const color       = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
+  const color       = COLORS.AQUA;
   const monthlyData = buildMonthlyData(safeAllDocs);
   const annualData  = buildAnnualData(monthlyData);
   const fiscalYears = annualData.map(d => d.label);

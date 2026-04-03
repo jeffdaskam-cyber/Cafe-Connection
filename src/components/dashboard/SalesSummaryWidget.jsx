@@ -12,7 +12,7 @@
 
 import { useState } from "react";
 import Widget from "../Widget.jsx";
-import { CAMPUS_COLOR, CAMPUSES } from "../CampusSelector.jsx";
+import { CAMPUSES } from "../CampusSelector.jsx";
 import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeToCampus } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
@@ -38,7 +38,7 @@ function CampusPills({ value, onChange }) {
     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
       {SELECTOR_CAMPUSES.map(c => {
         const active = c === value;
-        const color  = c === ALL_CAMPUSES ? COLORS.AQUA : (CAMPUS_COLOR[c] ?? COLORS.AQUA);
+        const color  = COLORS.AQUA;
         return (
           <button
             key={c}

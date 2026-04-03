@@ -21,7 +21,6 @@ import WeeklyPacketReport  from "../components/reports/WeeklyPacketReport.jsx";
 import { COLORS, RADIUS } from "../theme.js";
 
 const CAMPUSES     = ["Mesa Lab", "Foothills", "Center Green"];
-const CAMPUS_COLOR = { "Mesa Lab": "#00A2B4", "Foothills": "#34E1F4", "Center Green": "#00818F" };
 const MONTH_NAMES  = ["January","February","March","April","May","June",
                       "July","August","September","October","November","December"];
 
@@ -153,13 +152,12 @@ function MonthEndReport() {
               {CAMPUSES.map(c => {
                 const src     = reportData[c]?.source;
                 const hasData = src && src !== "none";
-                const cc      = CAMPUS_COLOR[c];
                 return (
                   <div key={c} style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px",
                     borderRadius: 20, fontFamily: "'Poppins',sans-serif",
-                    background: hasData ? `${cc}18` : `${COLORS.WARNING}18`,
-                    border: `1px solid ${hasData ? cc + "55" : COLORS.WARNING + "55"}`,
-                    color: hasData ? cc : COLORS.WARNING,
+                    background: hasData ? `${COLORS.AQUA}18` : `${COLORS.WARNING}18`,
+                    border: `1px solid ${hasData ? COLORS.AQUA + "55" : COLORS.WARNING + "55"}`,
+                    color: hasData ? COLORS.AQUA : COLORS.WARNING,
                     letterSpacing: "0.04em", textTransform: "uppercase" }}>
                     {c} · {src === "period" ? "period report" : src === "daily" ? "summed daily" : "no data"}
                   </div>

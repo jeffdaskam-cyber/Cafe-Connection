@@ -12,11 +12,7 @@ import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeEventReports, subscribeSetupReports } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
 
-const CAMPUS_BADGE = {
-  "Mesa Lab":     { bg: "#00A2B418", color: "#00A2B4" },
-  "Foothills":    { bg: "#34E1F418", color: "#34E1F4" },
-  "Center Green": { bg: "#00818F18", color: "#00818F" },
-};
+const CAMPUS_BADGE_STYLE = { bg: `${COLORS.AQUA}18`, color: COLORS.AQUA };
 
 function fmtDate(ts) {
   if (!ts) return "—";
@@ -65,7 +61,7 @@ export default function RecentReportsWidget({ config = {} }) {
       {reports.length > 0 && (
         <div>
           {reports.map((r, i) => {
-            const b = CAMPUS_BADGE[r.campus] ?? { bg: `${COLORS.AQUA}18`, color: COLORS.AQUA };
+            const b = CAMPUS_BADGE_STYLE;
             return (
               <div key={r.id ?? i} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "flex-start",
