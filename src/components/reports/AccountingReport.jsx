@@ -241,7 +241,7 @@ export default function AccountingReport() {
                   color: COLORS.TEXT_SECONDARY, fontFamily: "'Poppins',sans-serif",
                   fontWeight: 600, fontSize: 12, cursor: "pointer" }}
               >
-                \u2190 New Report
+                New Report
               </button>
             </div>
 
