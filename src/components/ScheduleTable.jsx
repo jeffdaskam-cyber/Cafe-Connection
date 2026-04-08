@@ -10,7 +10,7 @@ const SCHED_SUBHEAD_ALT = "#0a2a5a";
 const YELLOW = "#FFDD31";
 
 // Only these labels create top-level campus sections.
-const CAMPUS_NAMES = ["Mesa Lab", "Foothills", "Center Green"];
+const CAMPUS_NAMES = ["Mesa Lab", "Mesa", "Foothills", "Center Green"];
 
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
@@ -134,13 +134,17 @@ export default function ScheduleTable({ rows, colorMap }) {
     }
 
     // ── Sub-section label inside a campus section ───────────────────────────
-    // A row is a sub-label if it has no data in day cols OR has dates in B–F
-    // (a repeated date header row like "Café Thru Line" with Mon–Fri dates).
+    // A row is a sub-label if it has a text label (non-numeric) AND any of:
+    //   - no data in day columns (empty B–F)
+    //   - dates in B–F (repeated date header)
+    //   - header/subheader background color (dark blue like "Café Thru Line")
     if (currentSection?.isCampus) {
       const isSubLabel =
         firstCell &&
         !firstCell.match(/^\d/) &&
-        (row.slice(1).every(c => !c) || hasDateColumns(row));
+        (row.slice(1).every(c => !c) ||
+         hasDateColumns(row) ||
+         (colorInfo && (colorInfo.label === "header" || colorInfo.label === "subheader")));
 
       if (isSubLabel) {
         currentSection.currentSub = { title: firstCell, rows: [] };
