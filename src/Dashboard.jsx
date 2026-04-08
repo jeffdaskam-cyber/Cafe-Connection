@@ -107,17 +107,6 @@ function getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, c
       avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
     };
   }
-  if (period === "annual") {
-    if (annualData.length < 2) return null;
-    const prior = annualData[annualData.length - 2];
-    return {
-      totalSales:  prior.net_revenue  || 0,
-      totalChecks: prior.total_checks || 0,
-      totalEvents: prior.lunch_checks || 0,
-      avgVolume:   Math.round((prior.total_checks || 0) / 12),
-      avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
-    };
-  }
   return null;
 }
 
@@ -287,11 +276,10 @@ export default function FinancialsPage() {
   })();
 
   const chartData =
-    period === "daily"   ? aggregatedDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue || 0, cafe_volume: d.total_checks || 0, event_volume: d.lunch_checks || 0 })) :
-    period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
-                           annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+    period === "daily" ? aggregatedDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue || 0, cafe_volume: d.total_checks || 0, event_volume: d.lunch_checks || 0 })) :
+                         filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
 
-  const statSource  = period === "daily" ? aggregatedDaily : period === "monthly" ? filteredMonthly : annualData;
+  const statSource  = period === "daily" ? aggregatedDaily : filteredMonthly;
   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
   const totalChecks = statSource.reduce((s, d) => s + (d.total_checks || 0), 0);
   const avgVolume   = statSource.length ? Math.round(totalChecks / statSource.length) : 0;
@@ -299,6 +287,10 @@ export default function FinancialsPage() {
   const avgCheck    = totalChecks > 0 ? totalSales / totalChecks : 0;
   const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
   const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
+
+  const totalChecksYTD = monthlyData
+    .filter(d => d.monthKey.startsWith(`${now.getFullYear()}-`))
+    .reduce((s, d) => s + (d.total_checks || 0), 0);
 
   // ── Variance (period-over-period) ──────────────────────────────────────────
   const priorMetrics    = getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, calendarYear);
@@ -312,9 +304,8 @@ export default function FinancialsPage() {
     ? `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear} (MTD)`
     : `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear}`;
 
-  const chartSubtitle = period === "daily"   ? `${dailyRangeLabel} · ${campus}`
-                      : period === "monthly" ? `By month · fiscal year · ${campus}`
-                      :                       `By fiscal year · ${campus}`;
+  const chartSubtitle = period === "daily" ? `${dailyRangeLabel} · ${campus}`
+                      :                     `By month · fiscal year · ${campus}`;
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
@@ -330,8 +321,8 @@ export default function FinancialsPage() {
           <CampusSelector value={campus} onChange={setCampus} campuses={FINANCIALS_CAMPUSES} />
         </div>
 
-        {/* Fiscal year (hidden in annual view — FY is the axis itself) */}
-        {period !== "annual" && fiscalYears.length > 0 && (
+        {/* Fiscal year */}
+        {fiscalYears.length > 0 && (
           <div>
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
               textTransform: "uppercase", marginBottom: 10 }}>Fiscal Year</div>
@@ -378,7 +369,7 @@ export default function FinancialsPage() {
             textTransform: "uppercase", marginBottom: 10 }}>Period</div>
           <div style={{ display: "flex", background: COLORS.BG_SURFACE_ALT,
             border: `1px solid ${COLORS.BORDER}`, borderRadius: RADIUS.SM, padding: 3, gap: 2 }}>
-            {[["daily", "Daily"], ["monthly", "Monthly"], ["annual", "Annual"]].map(([val, label]) => {
+            {[["daily", "Daily"], ["monthly", "Monthly"]].map(([val, label]) => {
               const active = period === val;
               return (
                 <button key={val} onClick={() => setPeriod(val)}
@@ -400,16 +391,16 @@ export default function FinancialsPage() {
       <div style={{ display: "flex", gap: 18, marginBottom: 12,
         animation: "ucar-fadein .5s ease both" }}>
         <StatCard
-          label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
+          label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : "Net Revenue (Monthly)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
           delta={loading || !priorMetrics ? 0 : revenueDelta} accentColor={COLORS.AQUA} />
         <StatCard
-          label={period === "daily" ? "Avg Daily Checks" : period === "monthly" ? "Avg Monthly Checks" : "Avg Annual Checks"}
+          label={period === "daily" ? "Avg Daily Checks" : "Avg Monthly Checks"}
           value={loading ? "—" : (avgVolume || "—")}
           delta={loading || !priorMetrics ? 0 : checksDelta} accentColor={COLORS.AQUA} />
         <StatCard
-          label="Total Lunch Checks"
-          value={loading ? "—" : (totalEvents || "—")}
+          label={period === "daily" ? "Total Checks MTD" : "Total Checks YTD"}
+          value={loading ? "—" : ((period === "daily" ? totalChecks : totalChecksYTD) || "—")}
           delta={loading || !priorMetrics ? 0 : eventsDelta} accentColor={COLORS.AQUA} />
       </div>
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
@@ -419,7 +410,7 @@ export default function FinancialsPage() {
           value={loading ? "—" : fmtMoney(avgCheck)}
           delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA} />
         <StatCard
-          label="Avg Daily Revenue"
+          label={period === "monthly" ? "AVG Monthly Revenue" : "Avg Daily Revenue"}
           value={loading ? "—" : fmtMoney(avgDailyRevenue)}
           delta={loading || !priorMetrics ? 0 : dailyRevDelta} accentColor={COLORS.AQUA} />
       </div>
