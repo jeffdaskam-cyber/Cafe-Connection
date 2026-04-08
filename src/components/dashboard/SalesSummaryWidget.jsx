@@ -128,7 +128,7 @@ export default function SalesSummaryWidget({ config = {} }) {
 
   return (
     <Widget
-      title="Sales Summary"
+      title="Cafe Sales Summary"
       subtitle={activeCampus}
       icon="📊"
       accentColor={accentColor}

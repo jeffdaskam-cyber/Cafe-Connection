@@ -70,7 +70,7 @@ function LoadingScreen() {
 const TABS = [
   { id: "dashboard",  label: "Dashboard"  },
   { id: "weeklyops",  label: "Weekly Ops" },
-  { id: "financials", label: "Financials" },
+  { id: "financials", label: "Cafe Sales" },
   { id: "reports",    label: "Reports"    },
 ];
 
