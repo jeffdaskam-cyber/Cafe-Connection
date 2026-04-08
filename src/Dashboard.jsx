@@ -415,7 +415,7 @@ export default function FinancialsPage() {
       <div style={{ display: "flex", gap: 18, marginBottom: 12,
         animation: "ucar-fadein .5s ease both" }}>
         <StatCard
-          label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : "Net Revenue (Monthly)"}
+          label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : "Net Revenue (YTD)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
           delta={loading || !priorMetrics ? 0 : revenueDelta} accentColor={COLORS.AQUA} />
         <StatCard
@@ -435,7 +435,7 @@ export default function FinancialsPage() {
           delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA} />
         <StatCard
           label={period === "monthly" ? "AVG Monthly Revenue" : "Avg Daily Revenue"}
-          value={loading ? "—" : fmtMoney(avgDailyRevenue)}
+          value={loading ? "—" : `$${Math.round(avgDailyRevenue).toLocaleString("en-US")}`}
           delta={loading || !priorMetrics ? 0 : dailyRevDelta} accentColor={COLORS.AQUA} />
       </div>
 
