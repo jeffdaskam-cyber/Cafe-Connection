@@ -61,6 +61,28 @@ function buildMonthlyData(docs) {
   });
   return Object.values(byMonth).sort(sortByFiscalMonth);
 }
+// ── All-campus monthly aggregation ────────────────────────────────────────────
+// buildMonthlyData prefers period docs over daily docs to avoid double-counting
+// within a single campus. When all campuses are combined, we must run it per-campus
+// first so that preference logic is applied correctly, then sum across campuses.
+function buildMonthlyDataAllCampuses(docs) {
+  const campuses = [...new Set(docs.map(d => d.campus).filter(Boolean))];
+  if (campuses.length === 0) return buildMonthlyData(docs);
+
+  const byMonth = {};
+  campuses.forEach(c => {
+    buildMonthlyData(docs.filter(d => d.campus === c)).forEach(m => {
+      if (!byMonth[m.monthKey])
+        byMonth[m.monthKey] = { monthKey: m.monthKey, label: m.label,
+          net_revenue: 0, total_checks: 0, lunch_checks: 0 };
+      byMonth[m.monthKey].net_revenue  += m.net_revenue;
+      byMonth[m.monthKey].total_checks += m.total_checks;
+      byMonth[m.monthKey].lunch_checks += m.lunch_checks;
+    });
+  });
+  return Object.values(byMonth).sort(sortByFiscalMonth);
+}
+
 function buildAnnualData(monthlyData) {
   const byFY = {};
   monthlyData.forEach(m => {
@@ -218,7 +240,9 @@ export default function FinancialsPage() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
   const color       = COLORS.AQUA;
-  const monthlyData = buildMonthlyData(safeAllDocs);
+  const monthlyData = campus === "All Campuses"
+    ? buildMonthlyDataAllCampuses(safeAllDocs)
+    : buildMonthlyData(safeAllDocs);
   const annualData  = buildAnnualData(monthlyData);
   const fiscalYears = annualData.map(d => d.label);
 
