@@ -9,9 +9,8 @@ const SCHED_SUBHEAD_BG  = "#1a4a7a";
 const SCHED_SUBHEAD_ALT = "#0a2a5a";
 const YELLOW = "#FFDD31";
 
-// Staff position/role names that must always render as data rows, never as
-// section dividers — regardless of background color or empty day columns.
-const STAFF_POSITION_RE = /thru\s*line/i;
+// Only these labels create top-level campus sections.
+const CAMPUS_NAMES = ["Mesa Lab", "Foothills", "Center Green"];
 
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
@@ -36,16 +35,21 @@ function formatDateHeader(raw) {
   return { day, date };
 }
 
-// ── Detect if a row is a campus header row (campus name + 5 date values) ──────
-function isCampusHeaderRow(row) {
-  if (!row[0]) return false;
-  // B–F should all look like date strings (contain a month name or slash-date)
+// ── Check if columns B–F contain date values ─────────────────────────────────
+function hasDateColumns(row) {
   const dateCols = row.slice(1, 6).filter(Boolean);
   if (dateCols.length < 3) return false;
   return dateCols.every(v => {
     const s = String(v);
     return s.includes("2026") || s.includes("2025") || /\d{1,2}\/\d{1,2}/.test(s);
   });
+}
+
+// ── Detect if a row is a campus header row (known campus name + dates) ────────
+function isCampusHeaderRow(row) {
+  if (!row[0]) return false;
+  const label = row[0].toString().trim();
+  return CAMPUS_NAMES.includes(label) && hasDateColumns(row);
 }
 
 // ── Merge consecutive rows sharing same name (col-A merged cell pattern) ──────
@@ -130,14 +134,13 @@ export default function ScheduleTable({ rows, colorMap }) {
     }
 
     // ── Sub-section label inside a campus section ───────────────────────────
-    // A row is a sub-section label only if it has no data in day columns AND
-    // is not a known staff position/role name (those are always data rows).
+    // A row is a sub-label if it has no data in day cols OR has dates in B–F
+    // (a repeated date header row like "Café Thru Line" with Mon–Fri dates).
     if (currentSection?.isCampus) {
       const isSubLabel =
         firstCell &&
         !firstCell.match(/^\d/) &&
-        !STAFF_POSITION_RE.test(firstCell) &&
-        row.slice(1).every(c => !c); // no data in day cols
+        (row.slice(1).every(c => !c) || hasDateColumns(row));
 
       if (isSubLabel) {
         currentSection.currentSub = { title: firstCell, rows: [] };
@@ -250,8 +253,7 @@ export default function ScheduleTable({ rows, colorMap }) {
             {mergedRows.map(({ cells, ri, ri2, isMerged }, rowIdx) => {
               const nameCell    = (cells[0] || "").toString().trim();
               const isSubHeader = colorMap[`${ri},0`] &&
-                classifyColor(colorMap[`${ri},0`])?.label === "subheader" &&
-                !STAFF_POSITION_RE.test(nameCell);
+                classifyColor(colorMap[`${ri},0`])?.label === "subheader";
 
               if (isSubHeader) {
                 return (
