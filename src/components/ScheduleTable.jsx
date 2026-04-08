@@ -9,6 +9,10 @@ const SCHED_SUBHEAD_BG  = "#1a4a7a";
 const SCHED_SUBHEAD_ALT = "#0a2a5a";
 const YELLOW = "#FFDD31";
 
+// Staff position/role names that must always render as data rows, never as
+// section dividers — regardless of background color or empty day columns.
+const STAFF_POSITION_RE = /thru\s*line/i;
+
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
   if (!rgb) return null;
@@ -128,8 +132,6 @@ export default function ScheduleTable({ rows, colorMap }) {
     // ── Sub-section label inside a campus section ───────────────────────────
     // A row is a sub-section label only if it has no data in day columns AND
     // is not a known staff position/role name (those are always data rows).
-    const STAFF_POSITION_RE = /thru\s*line/i;
-
     if (currentSection?.isCampus) {
       const isSubLabel =
         firstCell &&
@@ -248,7 +250,8 @@ export default function ScheduleTable({ rows, colorMap }) {
             {mergedRows.map(({ cells, ri, ri2, isMerged }, rowIdx) => {
               const nameCell    = (cells[0] || "").toString().trim();
               const isSubHeader = colorMap[`${ri},0`] &&
-                classifyColor(colorMap[`${ri},0`])?.label === "subheader";
+                classifyColor(colorMap[`${ri},0`])?.label === "subheader" &&
+                !STAFF_POSITION_RE.test(nameCell);
 
               if (isSubHeader) {
                 return (
