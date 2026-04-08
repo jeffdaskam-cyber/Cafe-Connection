@@ -118,18 +118,23 @@ export default function ScheduleTable({ rows, colorMap }) {
         colorInfo,
         isCampus: true,
         dayCols: localCols,          // use these instead of globalDayCols
-        subSections: [],             // "Café Thru Line" etc. live here
+        subSections: [],
         currentSub: null,
       };
       sections.push(currentSection);
       return;
     }
 
-    // ── Sub-section label inside a campus section (e.g. "Café Thru Line") ──
+    // ── Sub-section label inside a campus section ───────────────────────────
+    // A row is a sub-section label only if it has no data in day columns AND
+    // is not a known staff position/role name (those are always data rows).
+    const STAFF_POSITION_RE = /thru\s*line/i;
+
     if (currentSection?.isCampus) {
       const isSubLabel =
         firstCell &&
         !firstCell.match(/^\d/) &&
+        !STAFF_POSITION_RE.test(firstCell) &&
         row.slice(1).every(c => !c); // no data in day cols
 
       if (isSubLabel) {
