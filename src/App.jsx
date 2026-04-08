@@ -129,7 +129,7 @@ function AppShell() {
 
           {/* Wordmark */}
           <div style={{ display: "flex", alignItems: "center", zIndex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: "0.02em", color: COLORS.TEXT_PRIMARY }}>
+            <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: "0.02em", color: COLORS.TEXT_PRIMARY }}>
               <span style={{ color: COLORS.AQUA }}>UCAR</span> Cafe Connection
             </div>
           </div>
