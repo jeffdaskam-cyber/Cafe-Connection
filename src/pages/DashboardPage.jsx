@@ -166,14 +166,12 @@ export default function DashboardPage() {
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
 
       <style>{`
-        @keyframes peelOff {
-          0%   { transform: perspective(600px) rotateY(0deg)   rotate(0deg)   scale(1);    opacity: 1; }
-          40%  { transform: perspective(600px) rotateY(-25deg) rotate(-6deg)  scale(1.05); opacity: 1; }
-          100% { transform: perspective(600px) rotateY(-90deg) rotate(-15deg) scale(0.6) translateX(60px); opacity: 0; }
+        @keyframes slideOffRight {
+          0%   { transform: translateX(0);     opacity: 1; }
+          100% { transform: translateX(120px); opacity: 0; }
         }
         .note-exiting {
-          animation: peelOff 400ms ease-in forwards;
-          transform-origin: left center;
+          animation: slideOffRight 350ms ease-in forwards;
           pointer-events: none;
         }
       `}</style>
