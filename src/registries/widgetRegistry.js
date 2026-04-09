@@ -18,7 +18,7 @@
 export const WIDGET_REGISTRY = [
   {
     widgetId:       "sales_summary",
-    label:          "Sales Summary",
+    label:          "Cafe Sales Summary",
     icon:           "📊",
     description:    "Net revenue and check counts for your campus — most recent reports.",
     needsCampus:    true,

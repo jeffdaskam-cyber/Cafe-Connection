@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase.js";
+import { db, getDashboardNotes, addDashboardNote, deleteDashboardNote } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { useDashboardPrefs } from "../hooks/useDashboardPrefs.js";
 import { widgetById, defaultPrefs } from "../registries/widgetRegistry.js";
@@ -93,6 +93,10 @@ export default function DashboardPage() {
   const [editOpen,      setEditOpen]      = useState(false);
   const [seedAttempted, setSeedAttempted] = useState(false);
   const [firestoreDisplayName, setFirestoreDisplayName] = useState(null);
+  const [notes,        setNotes]        = useState([]);
+  const [addNoteOpen,  setAddNoteOpen]  = useState(false);
+  const [noteText,     setNoteText]     = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Read displayName from Firestore users doc (written by FirstRunWizard).
   // Falls back to email-derived name if not yet set.
@@ -108,6 +112,11 @@ export default function DashboardPage() {
     const firstName = user?.email?.split("@")[0]?.split(".")[0] ?? "";
     return firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : "there";
   })();
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    getDashboardNotes(user.uid).then(setNotes);
+  }, [user?.uid]);
 
   // When prefs finish loading: if no doc exists, seed defaults and open wizard
   useEffect(() => {
@@ -125,6 +134,21 @@ export default function DashboardPage() {
   const enabledWidgets = (prefs?.widgets ?? [])
     .filter(w => w.enabled)
     .sort((a, b) => a.position - b.position);
+
+  async function handleAddNote() {
+    await addDashboardNote(user.uid, noteText);
+    const updated = await getDashboardNotes(user.uid);
+    setNotes(updated);
+    setNoteText('');
+    setAddNoteOpen(false);
+  }
+
+  async function handleDeleteNote() {
+    await deleteDashboardNote(user.uid, deleteTarget.id);
+    const updated = await getDashboardNotes(user.uid);
+    setNotes(updated);
+    setDeleteTarget(null);
+  }
 
   if (prefsLoading) return <PageSkeleton />;
 
@@ -191,74 +215,161 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Edit Dashboard button */}
-          <button
-            onClick={() => setEditOpen(true)}
-            title="Edit your dashboard widgets"
-            style={{
-              background: "transparent",
-              border: `1px solid ${COLORS.BORDER}`,
-              borderRadius: RADIUS.SM, padding: "8px 18px",
-              cursor: "pointer",
-              fontFamily: "'Poppins',sans-serif",
-              fontWeight: 600, fontSize: 11,
-              color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
-              transition: "all .18s",
-              flexShrink: 0,
-              display: "flex", alignItems: "center", gap: 6,
-            }}>
-            ✦ Edit Dashboard
-          </button>
+          {/* Dashboard controls */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => setEditOpen(true)}
+              title="Edit your dashboard widgets"
+              style={{
+                background: "transparent",
+                border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, padding: "8px 18px",
+                cursor: "pointer",
+                fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 11,
+                color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
+                transition: "all .18s",
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+              ✦ Edit Dashboard
+            </button>
+            <button
+              onClick={() => notes.length < 4 && setAddNoteOpen(true)}
+              title="Add a sticky note"
+              style={{
+                background: "transparent",
+                border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, padding: "8px 18px",
+                cursor: notes.length >= 4 ? "not-allowed" : "pointer",
+                fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 11,
+                color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
+                transition: "all .18s",
+                display: "flex", alignItems: "center", gap: 6,
+                opacity: notes.length >= 4 ? 0.4 : 1,
+              }}>
+              + Add Note
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Widget Grid ── */}
-      {enabledWidgets.length === 0 ? (
-        <div style={{
-          textAlign: "center", padding: "64px 32px",
-          border: `1.5px dashed ${COLORS.BORDER}`, borderRadius: RADIUS.LG,
-          animation: "ucar-fadein .6s ease both",
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🧩</div>
-          <div style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, fontWeight: 600, marginBottom: 8 }}>
-            No widgets enabled
-          </div>
-          <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 24 }}>
-            Click <span style={{ color: COLORS.AQUA }}>Edit Dashboard</span> to add widgets to your home page.
-          </div>
-          <button onClick={() => setEditOpen(true)} style={{
-            background: COLORS.AQUA,
-            border: "none", borderRadius: RADIUS.MD,
-            padding: "10px 24px", cursor: "pointer",
-            fontFamily: "'Poppins',sans-serif",
-            fontWeight: 700, fontSize: 12, color: COLORS.TEXT_ON_ACCENT,
-            boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
-          }}>
-            ✦ Edit Dashboard
-          </button>
-        </div>
-      ) : (
-        <div style={{
-          columnCount: 3,
-          columnGap: 16,
-          animation: "ucar-fadein .6s ease both",
-        }}>
-          {enabledWidgets.map(w => {
-            const meta      = widgetById(w.widgetId);
-            const Component = WIDGET_COMPONENTS[w.widgetId];
-            if (!Component || !meta) return null;
-            return (
-              <div
-                 key={w.widgetId}
-                 style={{
-                 breakInside: "avoid",
-                 marginBottom: 16,
-                 }}
-                 >
-                <Component config={w.config ?? {}} />
+      {/* ── Widget Grid + Notes Panel ── */}
+      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '16px', width: '100%' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {enabledWidgets.length === 0 ? (
+            <div style={{
+              textAlign: "center", padding: "64px 32px",
+              border: `1.5px dashed ${COLORS.BORDER}`, borderRadius: RADIUS.LG,
+              animation: "ucar-fadein .6s ease both",
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🧩</div>
+              <div style={{ fontSize: 14, color: COLORS.TEXT_SECONDARY, fontWeight: 600, marginBottom: 8 }}>
+                No widgets enabled
               </div>
-            );
-          })}
+              <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 24 }}>
+                Click <span style={{ color: COLORS.AQUA }}>Edit Dashboard</span> to add widgets to your home page.
+              </div>
+              <button onClick={() => setEditOpen(true)} style={{
+                background: COLORS.AQUA,
+                border: "none", borderRadius: RADIUS.MD,
+                padding: "10px 24px", cursor: "pointer",
+                fontFamily: "'Poppins',sans-serif",
+                fontWeight: 700, fontSize: 12, color: COLORS.TEXT_ON_ACCENT,
+                boxShadow: `0 4px 16px ${COLORS.AQUA}33`,
+              }}>
+                ✦ Edit Dashboard
+              </button>
+            </div>
+          ) : (
+            <div style={{
+              columnCount: 3,
+              columnGap: 16,
+              animation: "ucar-fadein .6s ease both",
+            }}>
+              {enabledWidgets.map(w => {
+                const meta      = widgetById(w.widgetId);
+                const Component = WIDGET_COMPONENTS[w.widgetId];
+                if (!Component || !meta) return null;
+                return (
+                  <div
+                     key={w.widgetId}
+                     style={{
+                     breakInside: "avoid",
+                     marginBottom: 16,
+                     }}
+                     >
+                    <Component config={w.config ?? {}} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── Notes Panel ── */}
+        <div style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => (
+            <div
+              key={note.id}
+              onClick={() => setDeleteTarget(note)}
+              style={{
+                width: '200px',
+                height: '120px',
+                background: '#FFF9C4',
+                border: '1px solid #F0E060',
+                borderRadius: '3px',
+                boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
+                padding: '10px',
+                fontSize: '13px',
+                lineHeight: '1.4',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+              }}
+            >
+              {note.text}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Add Note Modal ── */}
+      {addNoteOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: RADIUS.MD, padding: '24px', width: '320px', maxWidth: '90vw', boxShadow: SHADOWS.SM }}>
+            <p style={{ fontWeight: 'bold', margin: '0 0 8px 0' }}>Add a Note</p>
+            <textarea
+              maxLength={200}
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              rows={4}
+              style={{ width: '100%', resize: 'none', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+            <p style={{ fontSize: '12px', color: '#888', textAlign: 'right', margin: '4px 0 12px 0' }}>
+              {noteText.length} / 200
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setAddNoteOpen(false); setNoteText(''); }}>Cancel</button>
+              <button disabled={!noteText.trim()} onClick={handleAddNote}>Add</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Note Modal ── */}
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: RADIUS.MD, padding: '24px', width: '320px', maxWidth: '90vw', boxShadow: SHADOWS.SM }}>
+            <p style={{ margin: '0 0 8px 0' }}>Delete this note?</p>
+            <p style={{ fontSize: '13px', color: '#555', fontStyle: 'italic', margin: '0 0 16px 0' }}>
+              {deleteTarget.text}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button onClick={handleDeleteNote}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
 

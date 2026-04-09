@@ -16,8 +16,8 @@
  */
 // ─── Page & Surface ────────────────────────────────────────────────────────────
 export const COLORS = {
-  // Page background — UCAR Light Gray
-  BG_PAGE:          '#F1F0EE',
+  // Page background — UCAR Medium Gray
+  BG_PAGE:          '#E0DDD9',
   // Card / widget / panel surface
   BG_SURFACE:       '#FFFFFF',
   // Slightly tinted surface for nested panels, table rows, input backgrounds
@@ -48,9 +48,9 @@ export const COLORS = {
   NAV_TEXT_ACTIVE:  '#00A2B4',   // active tab label
   NAV_INDICATOR:    '#00A2B4',   // active tab underline indicator
   // ─── Chart colors ──────────────────────────────────────────────────────────
-  CHART_1:          '#00A2B4',   // Mesa Lab
-  CHART_2:          '#34E1F4',   // Foothills — lighten stroke, use on white bg
-  CHART_3:          '#00818F',   // Center Green
+  CHART_1:          '#00A2B4',   // UCAR Aqua — all campuses unified
+  CHART_2:          '#00A2B4',   // UCAR Aqua — all campuses unified
+  CHART_3:          '#00A2B4',   // UCAR Aqua — all campuses unified
   CHART_GRID:       '#E4E1DC',   // recharts CartesianGrid stroke
   CHART_AXIS:       '#5A7A91',   // recharts axis tick text
   // ─── Status ────────────────────────────────────────────────────────────────

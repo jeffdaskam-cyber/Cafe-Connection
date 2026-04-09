@@ -4,6 +4,27 @@
  */
 
 /**
+ * @param {string} monthName - e.g., "March"
+ * @param {number} year      - e.g., 2026
+ */
+export function launchAccountingEmail(monthName, year) {
+  const subject = `Cafe Month-End Sales Report — ${monthName} ${year}`;
+
+  const body = [
+    'Good afternoon,',
+    '',
+    `Please find attached the Cafe Month-End Sales report for ${monthName} ${year}.`,
+    '',
+    'Please let me know if you have any questions.',
+    '',
+    'Thanks,',
+  ].join('\n');
+
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(gmailUrl, '_blank');
+}
+
+/**
  * @param {string} reportType - e.g., "Staff Schedule", "Set Up Report", "Event Report"
  * @param {string} campus     - e.g., "Center Green", "Foothills", "Mesa Lab"
  * @param {string} weekLabel  - e.g., "Week of March 31, 2026"

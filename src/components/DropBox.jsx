@@ -15,12 +15,6 @@ import { uploadReport, parseReport } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import { COLORS } from "../theme.js";
 
-const CAMPUS_COLOR = {
-  "Mesa Lab":     "#00A2B4",
-  "Foothills":    "#34E1F4",
-  "Center Green": "#00818F",
-};
-
 // ── Upload state machine ───────────────────────────────────────────────────────
 // IDLE → UPLOADING → PROCESSING → SUCCESS | ERROR
 
@@ -37,7 +31,7 @@ function UploadZone({ onDrop, uploadState }) {
   });
 
   const { status, campus, errorMsg } = uploadState;
-  const accentColor = (status === "SUCCESS" && campus) ? (CAMPUS_COLOR[campus] ?? COLORS.AQUA) : COLORS.AQUA;
+  const accentColor = COLORS.AQUA;
 
   const icon = isProcessing        ? "⏳"
     : status === "SUCCESS"         ? "✓"
@@ -91,9 +85,9 @@ function UploadZone({ onDrop, uploadState }) {
         <div style={{
           display: "inline-block", marginTop: 12, padding: "4px 14px",
           borderRadius: 20,
-          background: `${CAMPUS_COLOR[campus] ?? COLORS.AQUA}18`,
-          border: `1px solid ${CAMPUS_COLOR[campus] ?? COLORS.AQUA}55`,
-          color: CAMPUS_COLOR[campus] ?? COLORS.AQUA,
+          background: `${COLORS.AQUA}18`,
+          border: `1px solid ${COLORS.AQUA}55`,
+          color: COLORS.AQUA,
           fontSize: 11, fontWeight: 700,
           fontFamily: "'Poppins',sans-serif",
           letterSpacing: "0.04em", textTransform: "uppercase",

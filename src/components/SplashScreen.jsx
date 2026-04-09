@@ -22,9 +22,9 @@ export const SHOW_SPLASH = true;
 
 // ── Timing (ms) ───────────────────────────────────────────────────────────────
 const T_CURSOR_APPEAR = 350;   // delay before cursor shows after mount
-const T_BLINK         = 900;   // 3 cycles × 300 ms
-const T_CHAR          = 68;    // per-character typing interval
-const T_HOLD          = 1000;   // pause after last char before fade
+const T_BLINK         = 1200;   // 3 cycles × 300 ms
+const T_CHAR          = 100;    // per-character typing interval
+const T_HOLD          = 2000;   // pause after last char before fade
 const T_FADE          = 700;   // CSS opacity transition duration
 
 const FULL_TEXT = "Cafe Connection";

@@ -7,7 +7,7 @@
  * and the schedule/specials fetch wrappers.
  */
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, getDoc, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, getDoc, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc, arrayUnion } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getAuth, getIdToken, setPersistence, browserLocalPersistence } from "firebase/auth";
 
@@ -222,9 +222,12 @@ export async function getEventOrdersByWeek(weekOfIso) {
 
 // ── Listen to last 30 days of daily metrics for a campus ─────────────────
 // campus: specific campus name OR "All Campuses" to merge all three live
-export function subscribeToCampus(campus, callback) {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+export function subscribeToCampus(campus, callback, startDate) {
+  const sinceDate = startDate || (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d;
+  })();
 
   if (campus === "All Campuses") {
     const ALL   = ["Mesa Lab", "Foothills", "Center Green"];
@@ -233,7 +236,7 @@ export function subscribeToCampus(campus, callback) {
       const q = query(
         collection(db, "daily_metrics"),
         where("campus", "==", c),
-        where("date",   ">=", thirtyDaysAgo),
+        where("date",   ">=", sinceDate),
         orderBy("date", "asc")
       );
       return onSnapshot(q, snap => {
@@ -247,7 +250,7 @@ export function subscribeToCampus(campus, callback) {
   const q = query(
     collection(db, "daily_metrics"),
     where("campus", "==", campus),
-    where("date",   ">=", thirtyDaysAgo),
+    where("date",   ">=", sinceDate),
     orderBy("date", "asc")
   );
   return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
@@ -255,6 +258,23 @@ export function subscribeToCampus(campus, callback) {
 
 // ── Listen to ALL reports for a campus ───────────────────────────────────
 export function subscribeAllReports(campus, callback) {
+  if (campus === "All Campuses") {
+    const ALL   = ["Mesa Lab", "Foothills", "Center Green"];
+    const cache = {};
+    const unsubs = ALL.map(c => {
+      const q = query(
+        collection(db, "daily_metrics"),
+        where("campus", "==", c),
+        orderBy("date", "asc")
+      );
+      return onSnapshot(q, snap => {
+        cache[c] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        callback(Object.values(cache).flat());
+      });
+    });
+    return () => unsubs.forEach(u => u());
+  }
+
   const q = query(
     collection(db, "daily_metrics"),
     where("campus", "==", campus),
@@ -461,33 +481,92 @@ export async function createUserRoleIfMissing(user) {
   }
 }
 
-export async function getMonthEndData(year, month) {
-  const CAMPUSES    = ["Mesa Lab", "Foothills", "Center Green"];
-  const startDate   = Timestamp.fromDate(new Date(year, month - 1, 1));
-  const endDate     = Timestamp.fromDate(new Date(year, month, 1));
-  const results     = {};
-
-  await Promise.all(CAMPUSES.map(async (campus) => {
-    const q    = query(collection(db, "daily_metrics"),
-      where("campus", "==", campus),
-      where("date",   ">=", startDate),
-      where("date",   "<",  endDate),
-      orderBy("date", "asc"));
-    const snap = await getDocs(q);
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const periodDoc = docs.find(d => d.report_type === "period");
-    if (periodDoc) {
-      results[campus] = { total_taxes: periodDoc.total_taxes ?? null, cash_drop: periodDoc.cash_drop ?? null, source: "period" };
-    } else {
-      const total_taxes = docs.reduce((s, d) => s + (d.total_taxes ?? 0), 0);
-      const cash_drop   = docs.reduce((s, d) => s + (d.cash_drop   ?? 0), 0);
-      results[campus]   = {
-        total_taxes: docs.length > 0 ? Math.round(total_taxes * 100) / 100 : null,
-        cash_drop:   docs.length > 0 ? Math.round(cash_drop   * 100) / 100 : null,
-        source:      docs.length > 0 ? "daily" : "none",
-      };
-    }
-  }));
-
-  return results;
+// ── Dashboard Notes ───────────────────────────────────────────────────────────
+export async function getDashboardNotes(uid) {
+  const ref  = doc(db, 'user_dashboard_prefs', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return [];
+  return snap.data().notes ?? [];
 }
+
+export async function addDashboardNote(uid, text) {
+  const ref      = doc(db, 'user_dashboard_prefs', uid);
+  const snap     = await getDoc(ref);
+  const existing = snap.exists() ? (snap.data().notes ?? []) : [];
+  if (existing.length >= 4) return;
+  const newNote = {
+    id:        crypto.randomUUID(),
+    text:      text.trim().slice(0, 200),
+    createdAt: Date.now(),
+  };
+  await setDoc(ref, { notes: arrayUnion(newNote) }, { merge: true });
+}
+
+export async function deleteDashboardNote(uid, noteId) {
+  const ref     = doc(db, 'user_dashboard_prefs', uid);
+  const snap    = await getDoc(ref);
+  if (!snap.exists()) return;
+  const updated = (snap.data().notes ?? []).filter(n => n.id !== noteId);
+  await setDoc(ref, { notes: updated }, { merge: true });
+}
+
+// ── Fetch monthly accounting data (5-field summary) for a single campus ──────
+// If a period document exists for the month, it is used exclusively.
+// Otherwise all daily documents for the month are summed.
+export async function fetchAccountingData(campus, year, month) {
+  const startDate = Timestamp.fromDate(new Date(year, month - 1, 1));
+  const endDate   = Timestamp.fromDate(new Date(year, month,     1));
+
+  const q = query(
+    collection(db, "daily_metrics"),
+    where("campus", "==", campus),
+    where("date",   ">=", startDate),
+    where("date",   "<",  endDate)
+  );
+
+  const snap = await getDocs(q);
+  const docs = snap.docs.map(d => d.data());
+
+  const r2 = n => Math.round(n * 100) / 100;
+
+  // Prefer the period document when one exists — avoids double-counting
+  // when both a period report and individual daily documents are present.
+  const periodDoc = docs.find(d => d.report_type === "period");
+  if (periodDoc) {
+    return {
+      netRevenue:  r2(periodDoc.net_revenue  ?? 0),
+      totalTax:    r2(periodDoc.total_taxes  ?? 0),
+      payroll:     r2(periodDoc.payroll      ?? 0),
+      creditCard:  r2(periodDoc.credit_card  ?? 0),
+      cashDeposit: r2(periodDoc.cash_drop    ?? 0),
+      docCount: 1,
+      source: "period",
+    };
+  }
+
+  // No period document — sum daily documents
+  let netRevenue  = 0;
+  let totalTax    = 0;
+  let payroll     = 0;
+  let creditCard  = 0;
+  let cashDeposit = 0;
+
+  docs.forEach(d => {
+    netRevenue  += d.net_revenue  ?? 0;
+    totalTax    += d.total_taxes  ?? 0;
+    payroll     += d.payroll      ?? 0;
+    creditCard  += d.credit_card  ?? 0;
+    cashDeposit += d.cash_drop    ?? 0;
+  });
+
+  return {
+    netRevenue:  r2(netRevenue),
+    totalTax:    r2(totalTax),
+    payroll:     r2(payroll),
+    creditCard:  r2(creditCard),
+    cashDeposit: r2(cashDeposit),
+    docCount: docs.length,
+    source: "daily",
+  };
+}
+

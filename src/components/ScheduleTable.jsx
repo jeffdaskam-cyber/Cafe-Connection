@@ -9,6 +9,9 @@ const SCHED_SUBHEAD_BG  = "#1a4a7a";
 const SCHED_SUBHEAD_ALT = "#0a2a5a";
 const YELLOW = "#FFDD31";
 
+// Only these labels create top-level campus sections.
+const CAMPUS_NAMES = ["Mesa Lab", "Mesa", "Foothills", "Center Green"];
+
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
   if (!rgb) return null;
@@ -32,16 +35,21 @@ function formatDateHeader(raw) {
   return { day, date };
 }
 
-// ── Detect if a row is a campus header row (campus name + 5 date values) ──────
-function isCampusHeaderRow(row) {
-  if (!row[0]) return false;
-  // B–F should all look like date strings (contain a month name or slash-date)
+// ── Check if columns B–F contain date values ─────────────────────────────────
+function hasDateColumns(row) {
   const dateCols = row.slice(1, 6).filter(Boolean);
   if (dateCols.length < 3) return false;
   return dateCols.every(v => {
     const s = String(v);
     return s.includes("2026") || s.includes("2025") || /\d{1,2}\/\d{1,2}/.test(s);
   });
+}
+
+// ── Detect if a row is a campus header row (known campus name + dates) ────────
+function isCampusHeaderRow(row) {
+  if (!row[0]) return false;
+  const label = row[0].toString().trim();
+  return CAMPUS_NAMES.includes(label) && hasDateColumns(row);
 }
 
 // ── Merge consecutive rows sharing same name (col-A merged cell pattern) ──────
@@ -118,19 +126,25 @@ export default function ScheduleTable({ rows, colorMap }) {
         colorInfo,
         isCampus: true,
         dayCols: localCols,          // use these instead of globalDayCols
-        subSections: [],             // "Café Thru Line" etc. live here
+        subSections: [],
         currentSub: null,
       };
       sections.push(currentSection);
       return;
     }
 
-    // ── Sub-section label inside a campus section (e.g. "Café Thru Line") ──
+    // ── Sub-section label inside a campus section ───────────────────────────
+    // A row is a sub-label if it has a text label (non-numeric) AND any of:
+    //   - no data in day columns (empty B–F)
+    //   - dates in B–F (repeated date header)
+    //   - header/subheader background color (dark blue like "Café Thru Line")
     if (currentSection?.isCampus) {
       const isSubLabel =
         firstCell &&
         !firstCell.match(/^\d/) &&
-        row.slice(1).every(c => !c); // no data in day cols
+        (row.slice(1).every(c => !c) ||
+         hasDateColumns(row) ||
+         (colorInfo && (colorInfo.label === "header" || colorInfo.label === "subheader")));
 
       if (isSubLabel) {
         currentSection.currentSub = { title: firstCell, rows: [] };

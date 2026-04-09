@@ -10,7 +10,6 @@ import { useState } from "react";
 import { getCafeChargesData } from "../firebase.js";
 import { useRole } from "../hooks/useRole.js";
 import Widget from "./Widget.jsx";
-import { CAMPUS_COLOR } from "./CampusSelector.jsx";
 import { COLORS } from "../theme.js";
 
 const CAMPUSES     = ["Mesa Lab", "Foothills", "Center Green"];
@@ -214,7 +213,7 @@ export default function CafeChargesReport() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
               {targets.map(c => {
                 const d   = reportData[c];
-                const cc  = CAMPUS_COLOR[c] ?? COLORS.AQUA;
+                const cc  = COLORS.AQUA;
                 const src = d?.source;
                 return (
                   <div key={c} style={{

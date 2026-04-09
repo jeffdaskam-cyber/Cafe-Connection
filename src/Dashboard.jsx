@@ -16,7 +16,9 @@ import {
 } from "recharts";
 import { subscribeToCampus, subscribeAllReports } from "./firebase.js";
 import Widget from "./components/Widget.jsx";
-import CampusSelector, { CAMPUS_COLOR } from "./components/CampusSelector.jsx";
+import CampusSelector, { CAMPUSES } from "./components/CampusSelector.jsx";
+
+const FINANCIALS_CAMPUSES = [...CAMPUSES, "All Campuses"];
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
@@ -59,18 +61,75 @@ function buildMonthlyData(docs) {
   });
   return Object.values(byMonth).sort(sortByFiscalMonth);
 }
+// ── All-campus monthly aggregation ────────────────────────────────────────────
+// buildMonthlyData prefers period docs over daily docs to avoid double-counting
+// within a single campus. When all campuses are combined, we must run it per-campus
+// first so that preference logic is applied correctly, then sum across campuses.
+function buildMonthlyDataAllCampuses(docs) {
+  const campuses = [...new Set(docs.map(d => d.campus).filter(Boolean))];
+  if (campuses.length === 0) return buildMonthlyData(docs);
+
+  const byMonth = {};
+  campuses.forEach(c => {
+    buildMonthlyData(docs.filter(d => d.campus === c)).forEach(m => {
+      if (!byMonth[m.monthKey])
+        byMonth[m.monthKey] = { monthKey: m.monthKey, label: m.label,
+          net_revenue: 0, total_checks: 0, lunch_checks: 0 };
+      byMonth[m.monthKey].net_revenue  += m.net_revenue;
+      byMonth[m.monthKey].total_checks += m.total_checks;
+      byMonth[m.monthKey].lunch_checks += m.lunch_checks;
+    });
+  });
+  return Object.values(byMonth).sort(sortByFiscalMonth);
+}
+
 function buildAnnualData(monthlyData) {
   const byFY = {};
   monthlyData.forEach(m => {
     const [year, month] = m.monthKey.split("-").map(Number);
     const fy    = month >= 10 ? year : year - 1;
-    const label = `FY${fy}\u2013${String(fy + 1).slice(2)}`;
+    const label = `FY${String(fy + 1).slice(2)}`;
     if (!byFY[fy]) byFY[fy] = { fy, label, net_revenue: 0, total_checks: 0, lunch_checks: 0 };
     byFY[fy].net_revenue  += m.net_revenue;
     byFY[fy].total_checks += m.total_checks;
     byFY[fy].lunch_checks += m.lunch_checks;
   });
   return Object.values(byFY).sort((a, b) => a.fy - b.fy);
+}
+
+// ── Variance helpers ───────────────────────────────────────────────────────────
+function calcVariance(current, prior) {
+  if (prior === 0 || prior == null) return 0;
+  return Math.round(((current - prior) / Math.abs(prior)) * 1000) / 10;
+}
+
+function getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, calendarYear) {
+  if (period === "daily") {
+    // Prior period = previous calendar month, looked up via monthlyData
+    const currentKey = `${calendarYear}-${String(selectedMonth).padStart(2, "0")}`;
+    const idx = monthlyData.findIndex(m => m.monthKey === currentKey);
+    if (idx <= 0) return null;
+    const prior = monthlyData[idx - 1];
+    return {
+      totalSales:  prior.net_revenue  || 0,
+      totalChecks: prior.total_checks || 0,
+      totalEvents: prior.lunch_checks || 0,
+      avgVolume:   prior.total_checks || 0,
+      avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
+    };
+  }
+  if (period === "monthly") {
+    if (monthlyData.length < 2) return null;
+    const prior = monthlyData[monthlyData.length - 2];
+    return {
+      totalSales:  prior.net_revenue  || 0,
+      totalChecks: prior.total_checks || 0,
+      totalEvents: prior.lunch_checks || 0,
+      avgVolume:   prior.total_checks || 0,
+      avgCheck:    prior.total_checks > 0 ? prior.net_revenue / prior.total_checks : 0,
+    };
+  }
+  return null;
 }
 
 function fmt(d) {
@@ -142,14 +201,34 @@ const CustomTooltip = ({ active, payload, label }) => {
 // ── Financials Page ────────────────────────────────────────────────────────────
 // Renamed from Dashboard → FinancialsPage as part of Phase 1 tab architecture refactor.
 // This component is now rendered under the "Financials" tab in App.jsx.
+const MONTH_NAMES = [
+  "January", "February", "March", "April",
+  "May", "June", "July", "August",
+  "September", "October", "November", "December",
+];
+
+function getCalendarYear(fyLabel, month) {
+  if (!fyLabel) return new Date().getFullYear();
+  const match = fyLabel.match(/FY(\d{2})/);
+  if (!match) return new Date().getFullYear();
+  const fyEnd = 2000 + parseInt(match[1]); // e.g. "FY26" → 2026
+  // FY26 = Oct 2025 – Sep 2026: Oct-Dec → fyEnd - 1, Jan-Sep → fyEnd
+  return month >= 10 ? fyEnd - 1 : fyEnd;
+}
+
 export default function FinancialsPage() {
-  const [campus,     setCampus]     = useState("Mesa Lab");
-  const [period,     setPeriod]     = useState("daily");
-  const [fiscalYear, setFiscalYear] = useState(null);
+  const [campus,        setCampus]        = useState("Mesa Lab");
+  const [period,        setPeriod]        = useState("daily");
+  const [fiscalYear,    setFiscalYear]    = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+
+  // ── Compute query start date for daily subscription ────────────────────────
+  const calendarYear = getCalendarYear(fiscalYear, selectedMonth);
+  const monthStartDate = new Date(calendarYear, selectedMonth - 1, 1);
 
   // ── Real-time Firestore subscriptions via shared hook ──────────────────────
   const { data: metrics,  loading: metricsLoading  } = useWidgetSubscription(
-    (cb) => subscribeToCampus(campus, cb), [campus]
+    (cb) => subscribeToCampus(campus, cb, monthStartDate), [campus, selectedMonth, fiscalYear]
   );
   const { data: allDocs,  loading: allDocsLoading  } = useWidgetSubscription(
     (cb) => subscribeAllReports(campus, cb), [campus]
@@ -160,8 +239,10 @@ export default function FinancialsPage() {
   const safeAllDocs = allDocs  ?? [];
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const color       = CAMPUS_COLOR[campus] ?? COLORS.AQUA;
-  const monthlyData = buildMonthlyData(safeAllDocs);
+  const color       = COLORS.AQUA;
+  const monthlyData = campus === "All Campuses"
+    ? buildMonthlyDataAllCampuses(safeAllDocs)
+    : buildMonthlyData(safeAllDocs);
   const annualData  = buildAnnualData(monthlyData);
   const fiscalYears = annualData.map(d => d.label);
 
@@ -175,36 +256,80 @@ export default function FinancialsPage() {
     if (!fyLabel) return true;
     const [year, month] = monthKey.split("-").map(Number);
     const fy = month >= 10 ? year : year - 1;
-    return `FY${fy}\u2013${String(fy + 1).slice(2)}` === fyLabel;
+    return `FY${String(fy + 1).slice(2)}` === fyLabel;
   }
 
   const filteredMonthly = period === "monthly"
     ? monthlyData.filter(d => inFiscalYear(d.monthKey, fiscalYear))
     : monthlyData;
 
+  const now = new Date();
+  const isCurrentMonth =
+    selectedMonth === now.getMonth() + 1 &&
+    calendarYear === now.getFullYear();
+  const monthEndDate = isCurrentMonth
+    ? now
+    : new Date(calendarYear, selectedMonth, 0, 23, 59, 59, 999);
+
   const filteredDaily = period === "daily"
     ? safeMetrics.filter(d => {
-        if (!fiscalYear) return true;
         const dt = d.date?.toDate ? d.date.toDate() : new Date(d.date);
-        const m = dt.getMonth() + 1, y = dt.getFullYear();
-        const fy = m >= 10 ? y : y - 1;
-        return `FY${fy}\u2013${String(fy + 1).slice(2)}` === fiscalYear;
+        // Fiscal year filter
+        if (fiscalYear) {
+          const m = dt.getMonth() + 1, y = dt.getFullYear();
+          const fy = m >= 10 ? y : y - 1;
+          if (`FY${String(fy + 1).slice(2)}` !== fiscalYear) return false;
+        }
+        // Month filter
+        return dt >= monthStartDate && dt <= monthEndDate;
       })
     : safeMetrics;
 
+  // Aggregate daily data by date when showing All Campuses
+  const aggregatedDaily = (() => {
+    if (campus !== "All Campuses" || period !== "daily") return filteredDaily;
+    const byDate = {};
+    filteredDaily.forEach(d => {
+      const key = fmt(d.date);
+      if (!byDate[key]) byDate[key] = { net_revenue: 0, total_checks: 0, lunch_checks: 0, date: d.date };
+      byDate[key].net_revenue  += d.net_revenue  || 0;
+      byDate[key].total_checks += d.total_checks || 0;
+      byDate[key].lunch_checks += d.lunch_checks || 0;
+    });
+    return Object.values(byDate);
+  })();
+
   const chartData =
-    period === "daily"   ? filteredDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue || 0, cafe_volume: d.total_checks || 0, event_volume: d.lunch_checks || 0 })) :
-    period === "monthly" ? filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks })) :
-                           annualData.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
+    period === "daily" ? aggregatedDaily.map(d => ({ date: fmt(d.date), cafe_sales: d.net_revenue || 0, cafe_volume: d.total_checks || 0, event_volume: d.lunch_checks || 0 })) :
+                         filteredMonthly.map(d => ({ date: d.label, cafe_sales: d.net_revenue, cafe_volume: d.total_checks, event_volume: d.lunch_checks }));
 
-  const statSource  = period === "daily" ? filteredDaily : period === "monthly" ? filteredMonthly : annualData;
+  const statSource  = period === "daily" ? aggregatedDaily : filteredMonthly;
   const totalSales  = statSource.reduce((s, d) => s + (d.net_revenue  || 0), 0);
-  const avgVolume   = statSource.length ? Math.round(statSource.reduce((s, d) => s + (d.total_checks || 0), 0) / statSource.length) : 0;
+  const totalChecks = statSource.reduce((s, d) => s + (d.total_checks || 0), 0);
+  const avgVolume   = statSource.length ? Math.round(totalChecks / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
+  const avgCheck    = totalChecks > 0 ? totalSales / totalChecks : 0;
+  const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
+  const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
 
-  const chartSubtitle = period === "daily"   ? `Last 30 days · ${campus}`
-                      : period === "monthly" ? `By month · fiscal year · ${campus}`
-                      :                       `By fiscal year · ${campus}`;
+  const totalChecksYTD = monthlyData
+    .filter(d => d.monthKey.startsWith(`${now.getFullYear()}-`))
+    .reduce((s, d) => s + (d.total_checks || 0), 0);
+
+  // ── Variance (period-over-period) ──────────────────────────────────────────
+  const priorMetrics    = getPriorPeriodMetrics(period, monthlyData, annualData, selectedMonth, calendarYear);
+  const revenueDelta    = priorMetrics ? calcVariance(totalSales,     priorMetrics.totalSales)  : 0;
+  const checksDelta     = priorMetrics ? calcVariance(avgVolume,      priorMetrics.avgVolume)   : 0;
+  const eventsDelta     = priorMetrics ? calcVariance(totalEvents,    priorMetrics.totalEvents) : 0;
+  const checkAvgDelta   = priorMetrics ? calcVariance(avgCheck,       priorMetrics.avgCheck)    : 0;
+  const dailyRevDelta   = priorMetrics ? calcVariance(totalSales,     priorMetrics.totalSales)  : 0;
+
+  const dailyRangeLabel = isCurrentMonth
+    ? `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear} (MTD)`
+    : `${MONTH_NAMES[selectedMonth - 1]} ${calendarYear}`;
+
+  const chartSubtitle = period === "daily" ? `${dailyRangeLabel} · ${campus}`
+                      :                     `By month · fiscal year · ${campus}`;
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
@@ -217,11 +342,11 @@ export default function FinancialsPage() {
         <div>
           <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
             textTransform: "uppercase", marginBottom: 10 }}>Campus</div>
-          <CampusSelector value={campus} onChange={setCampus} />
+          <CampusSelector value={campus} onChange={setCampus} campuses={FINANCIALS_CAMPUSES} />
         </div>
 
-        {/* Fiscal year (hidden in annual view — FY is the axis itself) */}
-        {period !== "annual" && fiscalYears.length > 0 && (
+        {/* Fiscal year */}
+        {fiscalYears.length > 0 && (
           <div>
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
               textTransform: "uppercase", marginBottom: 10 }}>Fiscal Year</div>
@@ -240,13 +365,35 @@ export default function FinancialsPage() {
           </div>
         )}
 
+        {/* Month selector (daily mode only) */}
+        {period === "daily" && (
+          <div>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
+              textTransform: "uppercase", marginBottom: 10 }}>Month</div>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              style={{ background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
+                fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
+                padding: "9px 32px 9px 14px", cursor: "pointer",
+                appearance: "none", WebkitAppearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A91'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}>
+              {MONTH_NAMES.map((name, i) => (
+                <option key={i + 1} value={i + 1}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Period toggle */}
         <div>
           <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
             textTransform: "uppercase", marginBottom: 10 }}>Period</div>
           <div style={{ display: "flex", background: COLORS.BG_SURFACE_ALT,
             border: `1px solid ${COLORS.BORDER}`, borderRadius: RADIUS.SM, padding: 3, gap: 2 }}>
-            {[["daily", "Daily"], ["monthly", "Monthly"], ["annual", "Annual"]].map(([val, label]) => {
+            {[["daily", "Daily"], ["monthly", "Monthly"]].map(([val, label]) => {
               const active = period === val;
               return (
                 <button key={val} onClick={() => setPeriod(val)}
@@ -265,24 +412,35 @@ export default function FinancialsPage() {
       </div>
 
       {/* ── Stat cards ── */}
-      <div style={{ display: "flex", gap: 18, marginBottom: 24,
+      <div style={{ display: "flex", gap: 18, marginBottom: 12,
         animation: "ucar-fadein .5s ease both" }}>
         <StatCard
-          label={period === "daily" ? "Net Revenue (30d)" : period === "monthly" ? "Net Revenue (Monthly)" : "Net Revenue (Annual)"}
+          label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : "Net Revenue (YTD)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
-          delta={4.2} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : revenueDelta} accentColor={COLORS.AQUA} />
         <StatCard
-          label={period === "daily" ? "Avg Daily Checks" : period === "monthly" ? "Avg Monthly Checks" : "Avg Annual Checks"}
+          label={period === "daily" ? "Avg Daily Checks" : "Avg Monthly Checks"}
           value={loading ? "—" : (avgVolume || "—")}
-          delta={-1.8} accentColor={COLORS.LAQUA} />
+          delta={loading || !priorMetrics ? 0 : checksDelta} accentColor={COLORS.AQUA} />
         <StatCard
-          label={period === "daily" ? "Avg Lunch Checks" : "Total Lunch Checks"}
-          value={loading ? "—" : (totalEvents || "—")}
-          delta={11.3} accentColor={color} />
+          label={period === "daily" ? "Total Checks MTD" : "Total Checks YTD"}
+          value={loading ? "—" : ((period === "daily" ? totalChecks : totalChecksYTD) || "—")}
+          delta={loading || !priorMetrics ? 0 : eventsDelta} accentColor={COLORS.AQUA} />
+      </div>
+      <div style={{ display: "flex", gap: 18, marginBottom: 24,
+        animation: "ucar-fadein .55s ease both" }}>
+        <StatCard
+          label="Avg Check"
+          value={loading ? "—" : fmtMoney(avgCheck)}
+          delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA} />
+        <StatCard
+          label={period === "monthly" ? "AVG Monthly Revenue" : "Avg Daily Revenue"}
+          value={loading ? "—" : `$${Math.round(avgDailyRevenue).toLocaleString("en-US")}`}
+          delta={loading || !priorMetrics ? 0 : dailyRevDelta} accentColor={COLORS.AQUA} />
       </div>
 
       {/* ── Charts ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20,
         marginBottom: 28, animation: "ucar-fadein .6s ease both" }}>
 
         {/* Cafe Sales */}
@@ -320,7 +478,7 @@ export default function FinancialsPage() {
           title="Total Cafe Volume"
           subtitle={`Total checks · ${campus}`}
           icon="📈"
-          accentColor={COLORS.LAQUA}
+          accentColor={COLORS.AQUA}
           loading={loading}
           empty={!loading && chartData.length === 0}
           emptyMessage={`No ${period} data yet for ${campus}`}
