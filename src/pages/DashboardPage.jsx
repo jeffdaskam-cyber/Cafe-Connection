@@ -97,6 +97,7 @@ export default function DashboardPage() {
   const [addNoteOpen,  setAddNoteOpen]  = useState(false);
   const [noteText,     setNoteText]     = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [exitingNoteIds, setExitingNoteIds] = useState(new Set());
 
   // Read displayName from Firestore users doc (written by FirstRunWizard).
   // Falls back to email-derived name if not yet set.
@@ -143,17 +144,39 @@ export default function DashboardPage() {
     setAddNoteOpen(false);
   }
 
-  async function handleDeleteNote() {
-    await deleteDashboardNote(user.uid, deleteTarget.id);
+  function handleDeleteNote() {
+    setExitingNoteIds(prev => new Set(prev).add(deleteTarget.id));
+    setDeleteTarget(null);
+  }
+
+  async function handleNoteAnimationEnd(noteId) {
+    setExitingNoteIds(prev => {
+      const next = new Set(prev);
+      next.delete(noteId);
+      return next;
+    });
+    await deleteDashboardNote(user.uid, noteId);
     const updated = await getDashboardNotes(user.uid);
     setNotes(updated);
-    setDeleteTarget(null);
   }
 
   if (prefsLoading) return <PageSkeleton />;
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
+
+      <style>{`
+        @keyframes peelOff {
+          0%   { transform: perspective(600px) rotateY(0deg)   rotate(0deg)   scale(1);    opacity: 1; }
+          40%  { transform: perspective(600px) rotateY(-25deg) rotate(-6deg)  scale(1.05); opacity: 1; }
+          100% { transform: perspective(600px) rotateY(-90deg) rotate(-15deg) scale(0.6) translateX(60px); opacity: 0; }
+        }
+        .note-exiting {
+          animation: peelOff 400ms ease-in forwards;
+          transform-origin: left center;
+          pointer-events: none;
+        }
+      `}</style>
 
       {/* ── First-run wizard ── */}
       {wizardOpen && (
@@ -314,28 +337,33 @@ export default function DashboardPage() {
           }}>
           + Add Note
         </button>
-        {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => (
-          <div
-            key={note.id}
-            onClick={() => setDeleteTarget(note)}
-            style={{
-              width: '200px',
-              height: '120px',
-              background: '#FFF9C4',
-              border: '1px solid #F0E060',
-              borderRadius: '3px',
-              boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
-              padding: '10px',
-              fontSize: '13px',
-              lineHeight: '1.4',
-              overflow: 'hidden',
-              cursor: 'pointer',
-              boxSizing: 'border-box',
-            }}
-          >
-            {note.text}
-          </div>
-        ))}
+        {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => {
+          const isExiting = exitingNoteIds.has(note.id);
+          return (
+            <div
+              key={note.id}
+              className={isExiting ? 'note-exiting' : undefined}
+              onAnimationEnd={isExiting ? () => handleNoteAnimationEnd(note.id) : undefined}
+              onClick={() => !isExiting && setDeleteTarget(note)}
+              style={{
+                width: '200px',
+                height: '120px',
+                background: '#FFF9C4',
+                border: '1px solid #F0E060',
+                borderRadius: '3px',
+                boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
+                padding: '10px',
+                fontSize: '13px',
+                lineHeight: '1.4',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                boxSizing: 'border-box',
+              }}
+            >
+              {note.text}
+            </div>
+          );
+        })}
       </div>
 
       {/* ── Add Note Modal ── */}
