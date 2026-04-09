@@ -150,14 +150,14 @@ export default function DashboardPage() {
   }
 
   async function handleNoteAnimationEnd(noteId) {
+    await deleteDashboardNote(user.uid, noteId);
+    const updated = await getDashboardNotes(user.uid);
+    setNotes(updated);
     setExitingNoteIds(prev => {
       const next = new Set(prev);
       next.delete(noteId);
       return next;
     });
-    await deleteDashboardNote(user.uid, noteId);
-    const updated = await getDashboardNotes(user.uid);
-    setNotes(updated);
   }
 
   if (prefsLoading) return <PageSkeleton />;
