@@ -362,9 +362,11 @@ async function parseExcel(buffer) {
   // ── Validate required fields ───────────────────────────────────────────────
   const missing = [];
   if (totalChecks     === null) missing.push("total_checks");
-  if (lunchAvgCheck   === null) missing.push("lunch_avg_check");
   if (totalNetRevenue === null) missing.push("net_revenue");
   if (missing.length > 0) throw new Error(`Excel parse failed — could not read: ${missing.join(", ")}.`);
+  if (lunchAvgCheck === null && breakfastAvgCheck === null) {
+    console.warn("[parseExcel] Could not find any avg check (lunch or breakfast) — STATISTICS section may have changed.");
+  }
 
   // Note: total_taxes and cash_drop are logged if missing but don't fail the parse
   if (totalTaxes === null) console.warn("[parseExcel] Could not find total_taxes — TAXES section may have changed.");
@@ -374,7 +376,7 @@ async function parseExcel(buffer) {
     date, period_start: periodStart, period_end: periodEnd, detectedCampus,
     net_revenue:           round2(totalNetRevenue),
     total_checks:          totalChecks,
-    lunch_avg_check:       round2(lunchAvgCheck),
+    lunch_avg_check:       round2(lunchAvgCheck ?? breakfastAvgCheck),
     breakfast_net_revenue: round2(breakfastNetRevenue),
     lunch_net_revenue:     round2(lunchNetRevenue),
     gross_revenue:         round2(totalGrossRevenue),
@@ -415,6 +417,9 @@ async function parsePdf(buffer) {
   const lunchAvgMatch = text.match(/Lunch\(2\)\s+\d+\s+\d+\s+\d+\s+\$?([\d,]+\.\d{2})/);
   const lunchAvgCheck = lunchAvgMatch ? parseFloat(lunchAvgMatch[1].replace(/,/g, "")) : null;
 
+  const bfastAvgMatch = text.match(/Breakfast\(1\)\s+\d+\s+\d+\s+\d+\s+\$?([\d,]+\.\d{2})/);
+  const breakfastAvgCheckPdf = bfastAvgMatch ? parseFloat(bfastAvgMatch[1].replace(/,/g, "")) : null;
+
   // Net Revenue
   const revenueMatch = text.match(
     /REVENUE[\s\S]*?Total\s+\$?([\d,]+\.\d{2})\s+[-–]?\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})/
@@ -427,15 +432,14 @@ async function parsePdf(buffer) {
   }
 
   const missing = [];
-  if (totalChecks   === null) missing.push("total_checks");
-  if (lunchAvgCheck === null) missing.push("lunch_avg_check");
-  if (netRevenue    === null) missing.push("net_revenue");
+  if (totalChecks === null) missing.push("total_checks");
+  if (netRevenue  === null) missing.push("net_revenue");
   if (missing.length > 0) throw new Error(`PDF parse failed — could not extract: ${missing.join(", ")}.`);
 
   return {
     date, detectedCampus,
     net_revenue: netRevenue, total_checks: totalChecks,
-    lunch_avg_check: lunchAvgCheck, gross_revenue: grossRevenue, discounts,
+    lunch_avg_check: lunchAvgCheck ?? breakfastAvgCheckPdf, gross_revenue: grossRevenue, discounts,
     // Not available from PDF
     total_taxes: null, cash_drop: null, payroll: null, credit_card: null,
   };
