@@ -215,49 +215,29 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Dashboard controls */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
-            <button
-              onClick={() => setEditOpen(true)}
-              title="Edit your dashboard widgets"
-              style={{
-                background: "transparent",
-                border: `1px solid ${COLORS.BORDER}`,
-                borderRadius: RADIUS.SM, padding: "8px 18px",
-                cursor: "pointer",
-                fontFamily: "'Poppins',sans-serif",
-                fontWeight: 600, fontSize: 11,
-                color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
-                transition: "all .18s",
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
-              ✦ Edit Dashboard
-            </button>
-            <button
-              onClick={() => notes.length < 4 && setAddNoteOpen(true)}
-              title="Add a sticky note"
-              style={{
-                background: "transparent",
-                border: `1px solid ${COLORS.BORDER}`,
-                borderRadius: RADIUS.SM, padding: "8px 18px",
-                cursor: notes.length >= 4 ? "not-allowed" : "pointer",
-                fontFamily: "'Poppins',sans-serif",
-                fontWeight: 600, fontSize: 11,
-                color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
-                transition: "all .18s",
-                display: "flex", alignItems: "center", gap: 6,
-                opacity: notes.length >= 4 ? 0.4 : 1,
-              }}>
-              + Add Note
-            </button>
-          </div>
+          {/* Edit Dashboard button */}
+          <button
+            onClick={() => setEditOpen(true)}
+            title="Edit your dashboard widgets"
+            style={{
+              background: "transparent",
+              border: `1px solid ${COLORS.BORDER}`,
+              borderRadius: RADIUS.SM, padding: "8px 18px",
+              cursor: "pointer",
+              fontFamily: "'Poppins',sans-serif",
+              fontWeight: 600, fontSize: 11,
+              color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
+              transition: "all .18s",
+              flexShrink: 0,
+              display: "flex", alignItems: "center", gap: 6,
+            }}>
+            ✦ Edit Dashboard
+          </button>
         </div>
       </div>
 
-      {/* ── Widget Grid + Notes Panel ── */}
-      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', gap: '16px', width: '100%' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {enabledWidgets.length === 0 ? (
+      {/* ── Widget Grid ── */}
+      {enabledWidgets.length === 0 ? (
             <div style={{
               textAlign: "center", padding: "64px 32px",
               border: `1.5px dashed ${COLORS.BORDER}`, borderRadius: RADIUS.LG,
@@ -304,34 +284,58 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-          )}
-        </div>
+      )}
 
-        {/* ── Notes Panel ── */}
-        <div style={{ width: '200px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => (
-            <div
-              key={note.id}
-              onClick={() => setDeleteTarget(note)}
-              style={{
-                width: '200px',
-                height: '120px',
-                background: '#FFF9C4',
-                border: '1px solid #F0E060',
-                borderRadius: '3px',
-                boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
-                padding: '10px',
-                fontSize: '13px',
-                lineHeight: '1.4',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                boxSizing: 'border-box',
-              }}
-            >
-              {note.text}
-            </div>
-          ))}
-        </div>
+      {/* ── Notes Panel — fixed in right viewport margin ── */}
+      <div style={{
+        position: 'fixed',
+        top: '80px',
+        right: '16px',
+        width: '200px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        zIndex: 100,
+      }}>
+        <button
+          onClick={() => notes.length < 4 && setAddNoteOpen(true)}
+          title="Add a sticky note"
+          style={{
+            background: "transparent",
+            border: `1px solid ${COLORS.BORDER}`,
+            borderRadius: RADIUS.SM, padding: "8px 18px",
+            cursor: notes.length >= 4 ? "not-allowed" : "pointer",
+            fontFamily: "'Poppins',sans-serif",
+            fontWeight: 600, fontSize: 11,
+            color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
+            transition: "all .18s",
+            display: "flex", alignItems: "center", gap: 6,
+            opacity: notes.length >= 4 ? 0.4 : 1,
+          }}>
+          + Add Note
+        </button>
+        {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => (
+          <div
+            key={note.id}
+            onClick={() => setDeleteTarget(note)}
+            style={{
+              width: '200px',
+              height: '120px',
+              background: '#FFF9C4',
+              border: '1px solid #F0E060',
+              borderRadius: '3px',
+              boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
+              padding: '10px',
+              fontSize: '13px',
+              lineHeight: '1.4',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              boxSizing: 'border-box',
+            }}
+          >
+            {note.text}
+          </div>
+        ))}
       </div>
 
       {/* ── Add Note Modal ── */}
