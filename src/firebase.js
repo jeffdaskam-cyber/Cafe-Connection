@@ -493,7 +493,7 @@ export async function addDashboardNote(uid, text) {
   const ref      = doc(db, 'user_dashboard_prefs', uid);
   const snap     = await getDoc(ref);
   const existing = snap.exists() ? (snap.data().notes ?? []) : [];
-  if (existing.length >= 4) return;
+  if (existing.length >= 6) return;
   const newNote = {
     id:        crypto.randomUUID(),
     text:      text.trim().slice(0, 200),

@@ -298,19 +298,19 @@ export default function DashboardPage() {
         zIndex: 100,
       }}>
         <button
-          onClick={() => notes.length < 4 && setAddNoteOpen(true)}
+          onClick={() => notes.length < 6 && setAddNoteOpen(true)}
           title="Add a sticky note"
           style={{
             background: "transparent",
             border: `1px solid ${COLORS.BORDER}`,
             borderRadius: RADIUS.SM, padding: "8px 18px",
-            cursor: notes.length >= 4 ? "not-allowed" : "pointer",
+            cursor: notes.length >= 6 ? "not-allowed" : "pointer",
             fontFamily: "'Poppins',sans-serif",
             fontWeight: 600, fontSize: 11,
             color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
             transition: "all .18s",
             display: "flex", alignItems: "center", gap: 6,
-            opacity: notes.length >= 4 ? 0.4 : 1,
+            opacity: notes.length >= 6 ? 0.4 : 1,
           }}>
           + Add Note
         </button>
