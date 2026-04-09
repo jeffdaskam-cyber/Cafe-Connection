@@ -7,7 +7,7 @@
  * and the schedule/specials fetch wrappers.
  */
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, getDoc, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, getDoc, addDoc, setDoc, doc, limit, serverTimestamp, Timestamp, deleteDoc, arrayUnion } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { getAuth, getIdToken, setPersistence, browserLocalPersistence } from "firebase/auth";
 
@@ -479,6 +479,35 @@ export async function createUserRoleIfMissing(user) {
       createdAt:   serverTimestamp(),
     });
   }
+}
+
+// ── Dashboard Notes ───────────────────────────────────────────────────────────
+export async function getDashboardNotes(uid) {
+  const ref  = doc(db, 'user_dashboard_prefs', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return [];
+  return snap.data().notes ?? [];
+}
+
+export async function addDashboardNote(uid, text) {
+  const ref      = doc(db, 'user_dashboard_prefs', uid);
+  const snap     = await getDoc(ref);
+  const existing = snap.exists() ? (snap.data().notes ?? []) : [];
+  if (existing.length >= 4) return;
+  const newNote = {
+    id:        crypto.randomUUID(),
+    text:      text.trim().slice(0, 200),
+    createdAt: Date.now(),
+  };
+  await setDoc(ref, { notes: arrayUnion(newNote) }, { merge: true });
+}
+
+export async function deleteDashboardNote(uid, noteId) {
+  const ref     = doc(db, 'user_dashboard_prefs', uid);
+  const snap    = await getDoc(ref);
+  if (!snap.exists()) return;
+  const updated = (snap.data().notes ?? []).filter(n => n.id !== noteId);
+  await setDoc(ref, { notes: updated }, { merge: true });
 }
 
 // ── Fetch monthly accounting data (5-field summary) for a single campus ──────
