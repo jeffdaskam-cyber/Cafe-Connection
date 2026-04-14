@@ -8,7 +8,7 @@
 // Returns: { success: true, written: [...] }
 
 import admin from "firebase-admin";
-import * as ExcelJS from "exceljs";
+import ExcelJS from "exceljs";
 
 // ── Firebase Admin Init (singleton) ─────────────────────────────────────────
 let adminApp;
