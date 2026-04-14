@@ -48,6 +48,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── event_revenue ─────────────────────────────────────────────────────
+    // Read/Write: any authenticated UCAR user (writes via Admin SDK + client)
+    match /event_revenue/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
     // ── event_orders ───────────────────────────────────────────────────────
     // Read:   any authenticated UCAR user
     // Create: any authenticated UCAR user (upload via firebase.js)

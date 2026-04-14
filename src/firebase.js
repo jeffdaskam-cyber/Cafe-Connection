@@ -510,6 +510,39 @@ export async function deleteDashboardNote(uid, noteId) {
   await setDoc(ref, { notes: updated }, { merge: true });
 }
 
+// ── Event Revenue — write parsed data to Firestore ────────────────────────────
+// doc ID: eventrev_{YYYY-MM}_{campus_underscored}_{type}
+// type: "internal" or "external"
+// Uses merge:true so re-uploading a report for the same month updates rather
+// than creating duplicates.
+export async function saveEventRevenueDoc({ campus, year, month, type, revenue }) {
+  const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+  const campusSlug = campus.replace(/\s+/g, "_");
+  const docId = `eventrev_${monthKey}_${campusSlug}_${type}`;
+  await setDoc(doc(db, "event_revenue", docId), {
+    campus,
+    year,
+    month,
+    monthKey,
+    type,        // "internal" | "external"
+    revenue,
+    updated_at: serverTimestamp(),
+  }, { merge: true });
+}
+
+// ── Event Revenue — real-time listener for all docs in a fiscal year ──────────
+// Returns an unsubscribe function. Calls callback with array of docs.
+// If fiscalYear is null/undefined, listens to all docs (for initial load).
+// FY26 = Oct 2025 – Sep 2026 (year >= 9 → fyEnd-1, month <= 9 → fyEnd)
+export function subscribeEventRevenue(callback) {
+  const q = query(
+    collection(db, "event_revenue"),
+    orderBy("year", "asc"),
+    orderBy("month", "asc")
+  );
+  return onSnapshot(q, snap => callback(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+}
+
 // ── Fetch monthly accounting data (5-field summary) for a single campus ──────
 // If a period document exists for the month, it is used exclusively.
 // Otherwise all daily documents for the month are summed.

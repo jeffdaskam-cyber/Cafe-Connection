@@ -17,6 +17,7 @@ import ReportsPage  from "./pages/ReportsPage.jsx";
 import AdminPage    from "./pages/AdminPage.jsx";
 import FinancialsPage from "./Dashboard.jsx";
 import WeeklyOps    from "./WeeklyOps.jsx";
+import EventRevenuePage from "./pages/EventRevenuePage.jsx";
 import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
 import { COLORS, SHADOWS } from "./theme.js";
 
@@ -68,10 +69,11 @@ function LoadingScreen() {
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
 const TABS = [
-  { id: "dashboard",  label: "Dashboard"  },
-  { id: "weeklyops",  label: "Weekly Ops" },
-  { id: "financials", label: "Cafe Sales" },
-  { id: "reports",    label: "Reports"    },
+  { id: "dashboard",     label: "Dashboard"      },
+  { id: "weeklyops",     label: "Weekly Ops"     },
+  { id: "financials",    label: "Cafe Sales"      },
+  { id: "eventrevenue",  label: "Event Revenue"  },
+  { id: "reports",       label: "Reports"        },
 ];
 
 // ── Main App Shell ─────────────────────────────────────────────────────────────
@@ -206,6 +208,7 @@ function AppShell() {
         {activeTab === "dashboard"  && <DashboardPage />}
         {activeTab === "weeklyops"  && <WeeklyOps />}
         {activeTab === "financials" && <FinancialsPage />}
+        {activeTab === "eventrevenue" && <EventRevenuePage />}
         {activeTab === "reports"    && <ReportsPage />}
         {activeTab === "admin"      && <AdminPage />}
 
