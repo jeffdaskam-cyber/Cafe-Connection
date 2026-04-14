@@ -454,7 +454,6 @@ export default function EventRevenuePage() {
           loading={loading}
           empty={!loading && chartData.length === 0}
           emptyMessage="No event revenue data yet"
-          emptyIcon="\uD83D\uDCCA"
           expandable
           printable
         >
@@ -482,13 +481,13 @@ export default function EventRevenuePage() {
         marginBottom: 28, animation: "ucar-fadein .65s ease both" }}>
         <UploadZone
           title="Upload Internal Report"
-          subtitle="Internal event revenue \u00b7 .xlsx"
+          subtitle="Internal event revenue"
           reportType="internal"
           requiresMonthYear={true}
         />
         <UploadZone
           title="Upload External Invoices"
-          subtitle="External event invoices \u00b7 .xlsx"
+          subtitle="External event invoices"
           reportType="external"
           requiresMonthYear={false}
         />
