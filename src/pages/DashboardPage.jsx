@@ -316,7 +316,7 @@ export default function DashboardPage() {
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        zIndex: 100,
+        zIndex: 500,
       }}>
         <button
           onClick={() => notes.length < 6 && setAddNoteOpen(true)}
