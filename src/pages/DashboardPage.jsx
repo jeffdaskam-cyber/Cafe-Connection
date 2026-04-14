@@ -91,6 +91,7 @@ export default function DashboardPage() {
 
   const [wizardOpen,    setWizardOpen]    = useState(false);
   const [editOpen,      setEditOpen]      = useState(false);
+  const [notesOpen,     setNotesOpen]     = useState(false);
   const [seedAttempted, setSeedAttempted] = useState(false);
   const [firestoreDisplayName, setFirestoreDisplayName] = useState(null);
   const [notes,        setNotes]        = useState([]);
@@ -236,25 +237,143 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Edit Dashboard button */}
-          <button
-            onClick={() => setEditOpen(true)}
-            title="Edit your dashboard widgets"
-            style={{
-              background: "transparent",
-              border: `1px solid ${COLORS.BORDER}`,
-              borderRadius: RADIUS.SM, padding: "8px 18px",
-              cursor: "pointer",
-              fontFamily: "'Poppins',sans-serif",
-              fontWeight: 600, fontSize: 11,
-              color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
-              transition: "all .18s",
-              flexShrink: 0,
-              display: "flex", alignItems: "center", gap: 6,
-            }}>
-            ✦ Edit Dashboard
-          </button>
+          {/* Right side button stack */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
+
+            {/* Existing Edit Dashboard button */}
+            <button
+              onClick={() => setEditOpen(true)}
+              title="Edit your dashboard widgets"
+              style={{
+                background: "transparent",
+                border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, padding: "8px 18px",
+                cursor: "pointer",
+                fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 11,
+                color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
+                transition: "all .18s",
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+              ✦ Edit Dashboard
+            </button>
+
+            {/* New Notes toggle button */}
+            <button
+              onClick={() => setNotesOpen(prev => !prev)}
+              title="Open notes"
+              style={{
+                background: notesOpen ? COLORS.AQUA : "transparent",
+                border: `1px solid ${notesOpen ? COLORS.AQUA : COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, padding: "8px 18px",
+                cursor: "pointer",
+                fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 11,
+                color: notesOpen ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_SECONDARY,
+                letterSpacing: "0.03em",
+                transition: "all .18s",
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+              📝 Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+            </button>
+
+          </div>
         </div>
+
+        {/* ── Notes Sidebar — renders inside banner when open ── */}
+        {notesOpen && (
+          <div style={{
+            marginTop: 20,
+            borderTop: `1px solid ${COLORS.BORDER}`,
+            paddingTop: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            animation: "ucar-fadein 0.2s ease both",
+          }}>
+
+            {/* Header row */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: COLORS.TEXT_SECONDARY,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}>
+                My Notes
+              </span>
+              <button
+                onClick={() => notes.length < 6 && setAddNoteOpen(true)}
+                title="Add a sticky note"
+                disabled={notes.length >= 6}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${COLORS.BORDER}`,
+                  borderRadius: RADIUS.SM, padding: "5px 14px",
+                  cursor: notes.length >= 6 ? "not-allowed" : "pointer",
+                  fontFamily: "'Poppins',sans-serif",
+                  fontWeight: 600, fontSize: 11,
+                  color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
+                  transition: "all .18s",
+                  opacity: notes.length >= 6 ? 0.4 : 1,
+                }}>
+                + Add Note
+              </button>
+            </div>
+
+            {/* Notes grid — wrapping row of sticky notes */}
+            {notes.length === 0 ? (
+              <div style={{
+                fontSize: 12,
+                color: COLORS.TEXT_MUTED,
+                fontStyle: "italic",
+                paddingBottom: 4,
+              }}>
+                No notes yet. Click + Add Note to create one.
+              </div>
+            ) : (
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+              }}>
+                {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => {
+                  const isExiting = exitingNoteIds.has(note.id);
+                  return (
+                    <div
+                      key={note.id}
+                      className={isExiting ? 'note-exiting' : undefined}
+                      onAnimationEnd={isExiting ? () => handleNoteAnimationEnd(note.id) : undefined}
+                      onClick={() => !isExiting && setDeleteTarget(note)}
+                      style={{
+                        width: '180px',
+                        minHeight: '100px',
+                        background: '#FFF9C4',
+                        border: '1px solid #F0E060',
+                        borderRadius: '3px',
+                        boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
+                        padding: '10px',
+                        fontSize: '13px',
+                        lineHeight: '1.4',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      {note.text}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+          </div>
+        )}
       </div>
 
       {/* ── Widget Grid ── */}
@@ -306,63 +425,6 @@ export default function DashboardPage() {
               })}
             </div>
       )}
-
-      {/* ── Notes Panel — fixed in right viewport margin ── */}
-      <div style={{
-        position: 'fixed',
-        top: '80px',
-        right: '16px',
-        width: '200px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        zIndex: 500,
-      }}>
-        <button
-          onClick={() => notes.length < 6 && setAddNoteOpen(true)}
-          title="Add a sticky note"
-          style={{
-            background: "transparent",
-            border: `1px solid ${COLORS.BORDER}`,
-            borderRadius: RADIUS.SM, padding: "8px 18px",
-            cursor: notes.length >= 6 ? "not-allowed" : "pointer",
-            fontFamily: "'Poppins',sans-serif",
-            fontWeight: 600, fontSize: 11,
-            color: COLORS.TEXT_SECONDARY, letterSpacing: "0.03em",
-            transition: "all .18s",
-            display: "flex", alignItems: "center", gap: 6,
-            opacity: notes.length >= 6 ? 0.4 : 1,
-          }}>
-          + Add Note
-        </button>
-        {[...notes].sort((a, b) => a.createdAt - b.createdAt).map(note => {
-          const isExiting = exitingNoteIds.has(note.id);
-          return (
-            <div
-              key={note.id}
-              className={isExiting ? 'note-exiting' : undefined}
-              onAnimationEnd={isExiting ? () => handleNoteAnimationEnd(note.id) : undefined}
-              onClick={() => !isExiting && setDeleteTarget(note)}
-              style={{
-                width: '200px',
-                height: '120px',
-                background: '#FFF9C4',
-                border: '1px solid #F0E060',
-                borderRadius: '3px',
-                boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
-                padding: '10px',
-                fontSize: '13px',
-                lineHeight: '1.4',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                boxSizing: 'border-box',
-              }}
-            >
-              {note.text}
-            </div>
-          );
-        })}
-      </div>
 
       {/* ── Add Note Modal ── */}
       {addNoteOpen && (
