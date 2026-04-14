@@ -157,7 +157,7 @@ function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height 
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, delta, accentColor }) {
+function StatCard({ label, value, delta, accentColor, showDelta = false }) {
   const pos = delta >= 0;
   return (
     <div style={{ flex: 1, background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG,
@@ -170,10 +170,12 @@ function StatCard({ label, value, delta, accentColor }) {
         fontWeight: 600, textTransform: "uppercase", letterSpacing: "1.2px" }}>{label}</div>
       <div style={{ color: COLORS.TEXT_PRIMARY, fontSize: 28, fontWeight: 700, margin: "8px 0 6px",
         fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.5px" }}>{value}</div>
-      <div style={{ fontSize: 11, fontFamily: "'Poppins',sans-serif", fontWeight: 500,
-        color: pos ? COLORS.SUCCESS : COLORS.WARNING }}>
-        {pos ? "▲" : "▼"} {Math.abs(delta)}% vs last period
-      </div>
+      {showDelta && (
+        <div style={{ fontSize: 11, fontFamily: "'Poppins',sans-serif", fontWeight: 500,
+          color: pos ? COLORS.SUCCESS : COLORS.WARNING }}>
+          {pos ? "▲" : "▼"} {Math.abs(delta)}% vs last period
+        </div>
+      )}
       <div style={{ position: "absolute", bottom: 0, right: 0, opacity: 0.07 }}>
         <WaveGraphic color={accentColor} opacity={1} width={180} height={50} />
       </div>
@@ -417,26 +419,31 @@ export default function FinancialsPage() {
         <StatCard
           label={period === "daily" ? `Net Revenue (${dailyRangeLabel})` : "Net Revenue (YTD)"}
           value={loading ? "—" : `$${(totalSales / 1000).toFixed(1)}k`}
-          delta={loading || !priorMetrics ? 0 : revenueDelta} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : revenueDelta} accentColor={COLORS.AQUA}
+          showDelta={false} />
         <StatCard
           label={period === "daily" ? "Avg Daily Checks" : "Avg Monthly Checks"}
           value={loading ? "—" : (avgVolume || "—")}
-          delta={loading || !priorMetrics ? 0 : checksDelta} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : checksDelta} accentColor={COLORS.AQUA}
+          showDelta={false} />
         <StatCard
           label={period === "daily" ? "Total Checks MTD" : "Total Checks YTD"}
           value={loading ? "—" : ((period === "daily" ? totalChecks : totalChecksYTD) || "—")}
-          delta={loading || !priorMetrics ? 0 : eventsDelta} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : eventsDelta} accentColor={COLORS.AQUA}
+          showDelta={false} />
       </div>
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .55s ease both" }}>
         <StatCard
           label="Avg Check"
           value={loading ? "—" : fmtMoney(avgCheck)}
-          delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA}
+          showDelta={false} />
         <StatCard
           label={period === "monthly" ? "AVG Monthly Revenue" : "Avg Daily Revenue"}
           value={loading ? "—" : `$${Math.round(avgDailyRevenue).toLocaleString("en-US")}`}
-          delta={loading || !priorMetrics ? 0 : dailyRevDelta} accentColor={COLORS.AQUA} />
+          delta={loading || !priorMetrics ? 0 : dailyRevDelta} accentColor={COLORS.AQUA}
+          showDelta={false} />
       </div>
 
       {/* ── Charts ── */}
