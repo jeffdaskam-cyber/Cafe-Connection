@@ -12,11 +12,10 @@ import { useDropzone } from "react-dropzone";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { auth, storage } from "../firebase.js";
 import { subscribeEventRevenue } from "../firebase.js";
 import Widget from "../components/Widget.jsx";
-import CampusSelector, { CAMPUSES } from "../components/CampusSelector.jsx";
 import { useWidgetSubscription } from "../hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
@@ -44,19 +43,10 @@ function getMonthLabel(monthKey) {
 
 // ── Bar color config ──────────────────────────────────────────────────────────
 const BAR_CONFIG = [
-  { key: "internalCG", name: "CG Internal",  color: COLORS.AQUA,     campus: "Center Green" },
-  { key: "internalFL", name: "FL Internal",   color: "#34E1F4",       campus: "Foothills"    },
-  { key: "internalML", name: "ML Internal",   color: COLORS.AQUA_DARK, campus: "Mesa Lab"   },
-  { key: "externalCG", name: "CG External",   color: COLORS.ORANGE,   campus: "Center Green" },
-  { key: "externalFL", name: "FL External",   color: "#FFC55A",       campus: "Foothills"    },
-  { key: "externalML", name: "ML External",   color: "#E08800",       campus: "Mesa Lab"     },
+  { key: "revenueCG", name: "Center Green", color: COLORS.AQUA      },
+  { key: "revenueFL", name: "Foothills",    color: "#34E1F4"         },
+  { key: "revenueML", name: "Mesa Lab",     color: COLORS.AQUA_DARK  },
 ];
-
-const CAMPUS_ACCENT = {
-  "Center Green": COLORS.AQUA,
-  "Foothills":    "#34E1F4",
-  "Mesa Lab":     COLORS.AQUA_DARK,
-};
 
 // ── Wave graphic ──────────────────────────────────────────────────────────────
 function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
@@ -284,7 +274,6 @@ function UploadZone({ title, subtitle, reportType, requiresMonthYear }) {
 
 // ── Event Revenue Page ────────────────────────────────────────────────────────
 export default function EventRevenuePage() {
-  const [selectedCampus, setSelectedCampus] = useState("Mesa Lab");
   const [period, setPeriod]       = useState("Monthly");
   const [fiscalYear, setFiscalYear] = useState(null);
 
@@ -317,20 +306,13 @@ export default function EventRevenuePage() {
           byMonth[d.monthKey] = {
             monthKey: d.monthKey,
             label: getMonthLabel(d.monthKey),
-            internalCG: 0, internalFL: 0, internalML: 0,
-            externalCG: 0, externalFL: 0, externalML: 0,
+            revenueCG: 0, revenueFL: 0, revenueML: 0,
           };
         }
         const entry = byMonth[d.monthKey];
-        if (d.type === "internal") {
-          if (d.campus === "Center Green") entry.internalCG += d.revenue || 0;
-          else if (d.campus === "Foothills") entry.internalFL += d.revenue || 0;
-          else if (d.campus === "Mesa Lab") entry.internalML += d.revenue || 0;
-        } else if (d.type === "external") {
-          if (d.campus === "Center Green") entry.externalCG += d.revenue || 0;
-          else if (d.campus === "Foothills") entry.externalFL += d.revenue || 0;
-          else if (d.campus === "Mesa Lab") entry.externalML += d.revenue || 0;
-        }
+        if (d.campus === "Center Green") entry.revenueCG += d.revenue || 0;
+        else if (d.campus === "Foothills") entry.revenueFL += d.revenue || 0;
+        else if (d.campus === "Mesa Lab")  entry.revenueML += d.revenue || 0;
       });
       return Object.values(byMonth).sort(sortByFiscalMonth);
     } else {
@@ -341,20 +323,13 @@ export default function EventRevenuePage() {
         if (!byFY[fy]) {
           byFY[fy] = {
             label: fy,
-            internalCG: 0, internalFL: 0, internalML: 0,
-            externalCG: 0, externalFL: 0, externalML: 0,
+            revenueCG: 0, revenueFL: 0, revenueML: 0,
           };
         }
         const entry = byFY[fy];
-        if (d.type === "internal") {
-          if (d.campus === "Center Green") entry.internalCG += d.revenue || 0;
-          else if (d.campus === "Foothills") entry.internalFL += d.revenue || 0;
-          else if (d.campus === "Mesa Lab") entry.internalML += d.revenue || 0;
-        } else if (d.type === "external") {
-          if (d.campus === "Center Green") entry.externalCG += d.revenue || 0;
-          else if (d.campus === "Foothills") entry.externalFL += d.revenue || 0;
-          else if (d.campus === "Mesa Lab") entry.externalML += d.revenue || 0;
-        }
+        if (d.campus === "Center Green") entry.revenueCG += d.revenue || 0;
+        else if (d.campus === "Foothills") entry.revenueFL += d.revenue || 0;
+        else if (d.campus === "Mesa Lab")  entry.revenueML += d.revenue || 0;
       });
       return Object.values(byFY).sort((a, b) => a.label.localeCompare(b.label));
     }
@@ -379,13 +354,6 @@ export default function EventRevenuePage() {
       {/* ── Controls bar ── */}
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between",
         marginBottom: 28, flexWrap: "wrap", gap: 16 }}>
-
-        {/* Campus selector */}
-        <div>
-          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
-            textTransform: "uppercase", marginBottom: 10 }}>Campus</div>
-          <CampusSelector value={selectedCampus} onChange={setSelectedCampus} campuses={CAMPUSES} />
-        </div>
 
         {/* Period toggle */}
         <div>
@@ -447,8 +415,8 @@ export default function EventRevenuePage() {
         <Widget
           title="Event Revenue"
           subtitle={period === "Monthly"
-            ? `Internal vs. External by campus \u00b7 ${fiscalYear || ""}`
-            : "Internal vs. External by campus \u00b7 All fiscal years"}
+            ? `Total revenue by campus \u00b7 ${fiscalYear || ""}`
+            : "Total revenue by campus \u00b7 All fiscal years"}
           accentColor={COLORS.AQUA}
           loading={loading}
           empty={!loading && chartData.length === 0}
@@ -467,7 +435,7 @@ export default function EventRevenuePage() {
               <Tooltip content={<EventRevenueTooltip />} />
               {BAR_CONFIG.map(bar => (
                 <Bar key={bar.key} dataKey={bar.key} name={bar.name} fill={bar.color}
-                  fillOpacity={selectedCampus === bar.campus ? 1 : 0.25}
+                  fillOpacity={1}
                   radius={[3, 3, 0, 0]}
                   label={{ position: "top",
                     formatter: v => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v > 0 ? `$${v}` : "",
@@ -476,6 +444,25 @@ export default function EventRevenuePage() {
             </BarChart>
           </ResponsiveContainer>
         </Widget>
+        {/* ── Chart legend ── */}
+        <div style={{
+          display: "flex", gap: 24, justifyContent: "center",
+          marginTop: 12,
+        }}>
+          {BAR_CONFIG.map(bar => (
+            <div key={bar.key} style={{
+              display: "flex", alignItems: "center", gap: 7,
+              fontFamily: "'Poppins',sans-serif", fontSize: 11,
+              color: COLORS.TEXT_SECONDARY, fontWeight: 600,
+            }}>
+              <div style={{
+                width: 12, height: 12, borderRadius: 3,
+                background: bar.color, flexShrink: 0,
+              }} />
+              {bar.name}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Upload zones ── */}
