@@ -435,11 +435,11 @@ export default function EventRevenuePage() {
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .5s ease both" }}>
         <StatCard label="Center Green" value={fmtK(campusTotal("Center Green"))}
-          accentColor={CAMPUS_ACCENT["Center Green"]} />
+          accentColor={COLORS.AQUA} />
         <StatCard label="Foothills" value={fmtK(campusTotal("Foothills"))}
-          accentColor={CAMPUS_ACCENT["Foothills"]} />
+          accentColor={COLORS.AQUA} />
         <StatCard label="Mesa Lab" value={fmtK(campusTotal("Mesa Lab"))}
-          accentColor={CAMPUS_ACCENT["Mesa Lab"]} />
+          accentColor={COLORS.AQUA} />
       </div>
 
       {/* ── Grouped bar chart ── */}
