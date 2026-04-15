@@ -468,7 +468,10 @@ export default function EventRevenuePage() {
               {BAR_CONFIG.map(bar => (
                 <Bar key={bar.key} dataKey={bar.key} name={bar.name} fill={bar.color}
                   fillOpacity={selectedCampus === bar.campus ? 1 : 0.25}
-                  radius={[3, 3, 0, 0]} />
+                  radius={[3, 3, 0, 0]}
+                  label={{ position: "top",
+                    formatter: v => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : v > 0 ? `$${v}` : "",
+                    fill: COLORS.CHART_AXIS, fontSize: 8, fontFamily: "'Poppins'" }} />
               ))}
             </BarChart>
           </ResponsiveContainer>
