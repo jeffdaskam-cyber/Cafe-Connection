@@ -424,7 +424,7 @@ export default function EventRevenuePage() {
           expandable
           printable
         >
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={period === "Annual" ? 400 : 280}>
             <BarChart data={chartData} barCategoryGap="20%" barGap={2}>
               <CartesianGrid strokeDasharray="3 3" stroke={COLORS.CHART_GRID} vertical={false} />
               <XAxis dataKey="label" tick={{ fill: COLORS.CHART_AXIS, fontSize: 9, fontFamily: "'Poppins'" }}
