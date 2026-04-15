@@ -43,7 +43,7 @@ function getMonthLabel(monthKey) {
 
 // ── Bar color config ──────────────────────────────────────────────────────────
 const BAR_CONFIG = [
-  { key: "revenueCG", name: "Center Green", color: COLORS.AQUA      },
+  { key: "revenueCG", name: "", color: COLORS.AQUA      },
   { key: "revenueFL", name: "Foothills",    color: "#34E1F4"         },
   { key: "revenueML", name: "Mesa Lab",     color: COLORS.AQUA_DARK  },
 ];
@@ -402,11 +402,11 @@ export default function EventRevenuePage() {
       {/* ── Stat cards ── */}
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .5s ease both" }}>
-        <StatCard label="Center Green" value={fmtK(campusTotal("Center Green"))}
+        <StatCard label="Center Green YTD" value={fmtK(campusTotal("Center Green"))}
           accentColor={COLORS.AQUA} />
-        <StatCard label="Foothills" value={fmtK(campusTotal("Foothills"))}
+        <StatCard label="Foothills YTD" value={fmtK(campusTotal("Foothills"))}
           accentColor={COLORS.AQUA} />
-        <StatCard label="Mesa Lab" value={fmtK(campusTotal("Mesa Lab"))}
+        <StatCard label="Mesa Lab YTD" value={fmtK(campusTotal("Mesa Lab"))}
           accentColor={COLORS.AQUA} />
       </div>
 
