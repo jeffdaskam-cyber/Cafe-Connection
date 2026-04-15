@@ -181,7 +181,7 @@ function UploadZone({ title, subtitle, reportType, requiresMonthYear }) {
     disabled: isProcessing || (requiresMonthYear && !canUpload),
   });
 
-  const accentColor = reportType === "internal" ? COLORS.AQUA : COLORS.ORANGE;
+  const accentColor = COLORS.AQUA;
   const icon = isProcessing ? "\u23F3"
     : uploadState.status === "SUCCESS" ? "\u2713"
     : uploadState.status === "ERROR" ? "\u2715"
@@ -449,7 +449,6 @@ export default function EventRevenuePage() {
           subtitle={period === "Monthly"
             ? `Internal vs. External by campus \u00b7 ${fiscalYear || ""}`
             : "Internal vs. External by campus \u00b7 All fiscal years"}
-          icon="\uD83D\uDCCA"
           accentColor={COLORS.AQUA}
           loading={loading}
           empty={!loading && chartData.length === 0}
