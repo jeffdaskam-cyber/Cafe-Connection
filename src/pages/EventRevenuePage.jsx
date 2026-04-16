@@ -43,7 +43,7 @@ function getMonthLabel(monthKey) {
 
 // ── Bar color config ──────────────────────────────────────────────────────────
 const BAR_CONFIG = [
-  { key: "revenueCG", name: "", color: COLORS.AQUA      },
+  { key: "revenueCG", name: "Center Green", color: COLORS.AQUA      },
   { key: "revenueFL", name: "Foothills",    color: "#34E1F4"         },
   { key: "revenueML", name: "Mesa Lab",     color: COLORS.AQUA_DARK  },
 ];
