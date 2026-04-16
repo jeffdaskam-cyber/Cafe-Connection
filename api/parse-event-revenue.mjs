@@ -58,10 +58,21 @@ async function writeRevenueDoc(db, campus, year, month, type, revenue) {
   const monthKey   = `${year}-${String(month).padStart(2, "0")}`;
   const campusSlug = campus.replace(/\s+/g, "_");
   const docId      = `eventrev_${monthKey}_${campusSlug}_${type}`;
-  await db.collection("event_revenue").doc(docId).set(
-    { campus, year, month, monthKey, type, revenue, updated_at: admin.firestore.FieldValue.serverTimestamp() },
-    { merge: true }
-  );
+  const ref        = db.collection("event_revenue").doc(docId);
+
+  // Use a transaction so that re-uploads ADD to the existing total
+  // rather than overwriting it. The first upload creates the doc; subsequent
+  // uploads accumulate into it. To reset a month, delete the doc in Firestore first.
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const existing = snap.exists ? (snap.data().revenue || 0) : 0;
+    tx.set(ref, {
+      campus, year, month, monthKey, type,
+      revenue: Math.round((existing + revenue) * 100) / 100,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
   return { campus, year, month, revenue };
 }
 
@@ -112,18 +123,33 @@ export default async function handler(req, res) {
     } else if (reportType === "external") {
       sheet.eachRow((row, rowNum) => {
         if (rowNum === 1) return; // skip header
-        const rawLocation = row.getCell(9).value;  // column I
-        const rawAmount   = row.getCell(11).value; // column K
-        const rawDate     = row.getCell(6).value;  // column F
+        const rawLocation   = row.getCell(9).value;   // column I — Location
+        const rawAmount     = row.getCell(11).value;  // column K — Amount
+        const rawDate       = row.getCell(6).value;   // column F — EventDate
+        const rawTaxGroup   = row.getCell(10).value;  // column J — TaxTypeGrouping
 
         const campus  = campusFromLocation(typeof rawLocation === "string" ? rawLocation : String(rawLocation ?? ""));
         const amount  = parseFloat(rawAmount) || 0;
-        if (!campus || amount === 0 || !rawDate) return;
 
-        const date    = rawDate instanceof Date ? rawDate : new Date(rawDate);
+        // Only count Food and Alcohol rows — exclude Surcharge, Tax 1, Room Charge, etc.
+        const taxGroup = typeof rawTaxGroup === "string" ? rawTaxGroup.trim() : "";
+        const isRevenue = taxGroup === "Food" || taxGroup === "Alcohol";
+        if (!campus || amount === 0 || !rawDate || !isRevenue) return;
+
+        let date;
+        if (rawDate instanceof Date) {
+          date = rawDate;
+        } else if (typeof rawDate === "number") {
+          // Excel serial date → JS Date
+          // Excel epoch is Dec 30, 1899; subtract 25569 days to get Unix epoch days,
+          // then convert to milliseconds. The + 0.5 centres on noon to avoid DST edge cases.
+          date = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+        } else {
+          date = new Date(rawDate);
+        }
         if (isNaN(date.getTime())) return;
-        const rowMonth = date.getMonth() + 1;
-        const rowYear  = date.getFullYear();
+        const rowMonth = date.getUTCMonth() + 1;
+        const rowYear  = date.getUTCFullYear();
 
         const key = `${campus}|${rowYear}|${rowMonth}`;
         totals[key] = (totals[key] || 0) + amount;
