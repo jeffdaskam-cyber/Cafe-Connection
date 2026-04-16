@@ -346,6 +346,8 @@ export default function EventRevenuePage() {
       .reduce((s, d) => s + (d.revenue || 0), 0);
   }
 
+  const totalRevenue = campusTotal("Center Green") + campusTotal("Foothills") + campusTotal("Mesa Lab");
+
   const fmtK = v => loading ? "\u2014" : `$${(v / 1000).toFixed(1)}k`;
 
   return (
@@ -408,6 +410,11 @@ export default function EventRevenuePage() {
           accentColor={COLORS.AQUA} />
         <StatCard label="Mesa Lab YTD" value={fmtK(campusTotal("Mesa Lab"))}
           accentColor={COLORS.AQUA} />
+        <StatCard
+          label={period === "Annual" ? "Total Event Revenue YTD" : `Total Event Revenue ${fiscalYear || ""}`}
+          value={fmtK(totalRevenue)}
+          accentColor={COLORS.AQUA}
+        />
       </div>
 
       {/* ── Grouped bar chart ── */}
