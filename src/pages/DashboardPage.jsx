@@ -89,7 +89,7 @@ function PageSkeleton() {
 // ── Dashboard Page ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { prefs, loading: prefsLoading, saving, saveErr, savePrefs } = useDashboardPrefs();
+  const { prefs, loading: prefsLoading, saveErr, savePrefs } = useDashboardPrefs();
 
   const [wizardOpen,    setWizardOpen]    = useState(false);
   const [editOpen,      setEditOpen]      = useState(false);
@@ -132,7 +132,7 @@ export default function DashboardPage() {
       setSeedAttempted(true);
       setWizardOpen(true);
     }
-  }, [prefsLoading, prefs]);
+  }, [prefsLoading, prefs, seedAttempted, wizardOpen]);
 
   // Sort and filter widgets from prefs
   const enabledWidgets = (prefs?.widgets ?? [])
@@ -355,8 +355,8 @@ export default function DashboardPage() {
                       style={{
                         width: '180px',
                         minHeight: '100px',
-                        background: '#FFF9C4',
-                        border: '1px solid #F0E060',
+                        background: COLORS.NOTE_BG,
+                        border: `1px solid ${COLORS.NOTE_BORDER}`,
                         borderRadius: '3px',
                         boxShadow: '2px 2px 5px rgba(0,0,0,0.15)',
                         padding: '10px',
@@ -431,7 +431,7 @@ export default function DashboardPage() {
       {/* ── Add Note Modal ── */}
       {addNoteOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: RADIUS.MD, padding: '24px', width: '320px', maxWidth: '90vw', boxShadow: SHADOWS.SM }}>
+          <div style={{ background: COLORS.BG_SURFACE, borderRadius: RADIUS.MD, padding: '24px', width: '320px', maxWidth: '90vw', boxShadow: SHADOWS.SM }}>
             <p style={{ fontWeight: 'bold', margin: '0 0 8px 0' }}>Add a Note</p>
             <textarea
               maxLength={200}
@@ -440,7 +440,7 @@ export default function DashboardPage() {
               rows={4}
               style={{ width: '100%', resize: 'none', fontSize: '14px', boxSizing: 'border-box' }}
             />
-            <p style={{ fontSize: '12px', color: '#888', textAlign: 'right', margin: '4px 0 12px 0' }}>
+            <p style={{ fontSize: '12px', color: COLORS.TEXT_MUTED, textAlign: 'right', margin: '4px 0 12px 0' }}>
               {noteText.length} / 200
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -454,9 +454,9 @@ export default function DashboardPage() {
       {/* ── Delete Note Modal ── */}
       {deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: RADIUS.MD, padding: '24px', width: '320px', maxWidth: '90vw', boxShadow: SHADOWS.SM }}>
+          <div style={{ background: COLORS.BG_SURFACE, borderRadius: RADIUS.MD, padding: '24px', width: '320px', maxWidth: '90vw', boxShadow: SHADOWS.SM }}>
             <p style={{ margin: '0 0 8px 0' }}>Delete this note?</p>
-            <p style={{ fontSize: '13px', color: '#555', fontStyle: 'italic', margin: '0 0 16px 0' }}>
+            <p style={{ fontSize: '13px', color: COLORS.TEXT_SECONDARY, fontStyle: 'italic', margin: '0 0 16px 0' }}>
               {deleteTarget.text}
             </p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>

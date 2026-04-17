@@ -13,7 +13,6 @@ import {
   auth,
   fetchSchedule,
   uploadEventOrder,
-  subscribeEventOrders,
   subscribeEventOrdersForWeek,
 } from "./firebase.js";
 import { useWidget, useWidgetSubscription } from "./hooks/useWidget.js";
@@ -30,7 +29,7 @@ import DropBox         from "./components/DropBox.jsx";
 import EventReportWidget from "./components/EventReportWidget.jsx";
 import SetUpReportDrive from "./components/SetUpReportDrive.jsx";
 import VendorPortal from "./components/VendorPortal.jsx";
-import { COLORS, SHADOWS, RADIUS } from "./theme.js";
+import { COLORS, RADIUS } from "./theme.js";
 import { launchEmailComposer } from "./utils/emailLauncher.js";
 
 // ── Event Order Upload Zone ────────────────────────────────────────────────────

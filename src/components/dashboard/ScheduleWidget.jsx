@@ -23,7 +23,7 @@ function currentMonday() {
   return d.toISOString().slice(0, 10);
 }
 
-export default function ScheduleWidget({ config = {} }) {
+export default function ScheduleWidget({ config: _config = {} }) {
   const weekOf  = currentMonday();
   const fetcher = useCallback(() => fetchSchedule(weekOf), [weekOf]);
   const { data, loading, error, reload } = useWidget(fetcher, [weekOf]);

@@ -9,6 +9,17 @@
 import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";
 
+// ─── Required environment variables ──────────────────────────────────────────
+const REQUIRED_ENV = [
+  "FIREBASE_ADMIN_PROJECT_ID",
+  "FIREBASE_ADMIN_CLIENT_EMAIL",
+  "FIREBASE_ADMIN_PRIVATE_KEY",
+  "GOOGLE_SCHEDULE_FOLDER_ID",
+];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) throw new Error(`[get-schedule-pdf] Missing required env var: ${key}`);
+}
+
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 let adminApp;
 try {
@@ -18,9 +29,20 @@ try {
     credential: admin.credential.cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
     }),
   });
+}
+
+// ─── Fetch with timeout ───────────────────────────────────────────────────────
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // ─── Auth verification ────────────────────────────────────────────────────────
@@ -39,9 +61,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // ─── Google OAuth2 token via service account ─────────────────────────────────
 async function getAccessToken() {
   const email      = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  if (!email || !privateKey) throw new Error("Missing service account credentials.");
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n");
 
   const key = await importPKCS8(privateKey, "RS256");
   const now = Math.floor(Date.now() / 1000);
@@ -56,7 +76,7 @@ async function getAccessToken() {
     .setExpirationTime(now + 3600)
     .sign(key);
 
-  const res = await fetch("https://oauth2.googleapis.com/token", {
+  const res = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -65,16 +85,20 @@ async function getAccessToken() {
     }),
   });
 
+  if (!res.ok) throw new Error(`OAuth token request failed: ${res.status}`);
   const data = await res.json();
-  if (!data.access_token) throw new Error(`OAuth token error: ${JSON.stringify(data)}`);
+  if (!data.access_token) throw new Error("OAuth token error: no access_token returned.");
   return data.access_token;
 }
 
 // ─── Drive helpers ────────────────────────────────────────────────────────────
 async function findInFolder(token, parentId, name) {
-  const q   = `'${parentId}' in parents and name = '${name}' and trashed = false`;
+  // Escape single quotes in the name to prevent Drive query injection.
+  const safeName = name.replace(/'/g, "\\'");
+  const q   = `'${parentId}' in parents and name = '${safeName}' and trashed = false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Drive API request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
   return data.files?.[0] || null;
@@ -116,7 +140,6 @@ export default async function handler(req, res) {
   try {
     const token        = await getAccessToken();
     const rootFolderId = process.env.GOOGLE_SCHEDULE_FOLDER_ID;
-    if (!rootFolderId) throw new Error("GOOGLE_SCHEDULE_FOLDER_ID env var not set.");
 
     const monday = weekOfParam
       ? getMondayOf(new Date(weekOfParam + "T12:00:00"))
@@ -166,7 +189,7 @@ export default async function handler(req, res) {
       `&left_margin=0.25`,
       `&right_margin=0.25`,
     ].join('');
-    const pdfRes = await fetch(exportUrl, {
+    const pdfRes = await fetchWithTimeout(exportUrl, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -185,6 +208,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error("[get-schedule-pdf] Error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

@@ -18,7 +18,7 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
-export default function SetUpReportWidget({ config = {} }) {
+export default function SetUpReportWidget({ config: _config = {} }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchSetupReport(), []
   );

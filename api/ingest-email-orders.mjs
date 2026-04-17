@@ -9,6 +9,20 @@
 
 import admin from "firebase-admin";
 
+// ─── Env validation (fail fast at cold start) ────────────────────────────────
+const REQUIRED_ENV = [
+  "FIREBASE_ADMIN_PROJECT_ID",
+  "FIREBASE_ADMIN_CLIENT_EMAIL",
+  "FIREBASE_ADMIN_PRIVATE_KEY",
+  "FIREBASE_STORAGE_BUCKET",
+  "GMAIL_CLIENT_ID",
+  "GMAIL_CLIENT_SECRET",
+  "GMAIL_REFRESH_TOKEN",
+];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) throw new Error(`[ingest-email-orders] Missing required env var: ${key}`);
+}
+
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 let adminApp;
 try {
@@ -18,7 +32,7 @@ try {
     credential: admin.credential.cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
     }),
     storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
   });
@@ -42,9 +56,20 @@ async function verifyRequest(req) {
   await adminApp.auth().verifyIdToken(token);
 }
 
+// ─── Fetch with timeout ───────────────────────────────────────────────────────
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // ─── Gmail OAuth token exchange ───────────────────────────────────────────────
 async function getGmailAccessToken() {
-  const res = await fetch("https://oauth2.googleapis.com/token", {
+  const res = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -54,10 +79,9 @@ async function getGmailAccessToken() {
       grant_type:    "refresh_token",
     }),
   });
+  if (!res.ok) throw new Error(`Gmail OAuth request failed: ${res.status}`);
   const data = await res.json();
-  if (!data.access_token) {
-    throw new Error(`Gmail OAuth error: ${JSON.stringify(data)}`);
-  }
+  if (!data.access_token) throw new Error("Gmail OAuth error: no access_token returned.");
   return data.access_token;
 }
 
@@ -67,7 +91,8 @@ async function getGmailAccessToken() {
 async function listUnprocessedMessages(token) {
   const query = "is:unread has:attachment -label:cafe-connection-processed";
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=10`;
-  const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res  = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Gmail list request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail list error: ${data.error.message}`);
   return data.messages || [];
@@ -75,8 +100,9 @@ async function listUnprocessedMessages(token) {
 
 // Fetch full message to inspect parts and attachments.
 async function getMessage(token, messageId) {
-  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`;
-  const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`;
+  const res  = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Gmail get message request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail get message error: ${data.error.message}`);
   return data;
@@ -84,8 +110,9 @@ async function getMessage(token, messageId) {
 
 // Download attachment bytes by attachmentId.
 async function getAttachment(token, messageId, attachmentId) {
-  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${attachmentId}`;
-  const res  = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`;
+  const res  = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Gmail attachment request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail attachment error: ${data.error.message}`);
   // Gmail returns base64url encoded data — convert to standard base64 then to Buffer
@@ -93,11 +120,12 @@ async function getAttachment(token, messageId, attachmentId) {
   return Buffer.from(base64, "base64");
 }
 
-// Get or create the cafe-connection-processed label ID.
+// Get the cafe-connection-processed label ID.
 async function getProcessedLabelId(token) {
-  const res  = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
+  const res  = await fetchWithTimeout("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
     headers: { Authorization: `Bearer ${token}` },
   });
+  if (!res.ok) throw new Error(`Gmail labels request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail labels error: ${data.error.message}`);
   const label = (data.labels || []).find(l => l.name === "cafe-connection-processed");
@@ -107,8 +135,8 @@ async function getProcessedLabelId(token) {
 
 // Apply the processed label and mark as read.
 async function markProcessed(token, messageId, labelId) {
-  const url  = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/modify`;
-  const res  = await fetch(url, {
+  const url  = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/modify`;
+  const res  = await fetchWithTimeout(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -119,6 +147,7 @@ async function markProcessed(token, messageId, labelId) {
       removeLabelIds: ["UNREAD"],
     }),
   });
+  if (!res.ok) throw new Error(`Gmail modify request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail modify error: ${data.error.message}`);
 }
@@ -219,8 +248,6 @@ export default async function handler(req, res) {
         continue;
       }
 
-      let anyPdfProcessed = false;
-
       for (const { filename, attachmentId } of pdfParts) {
         try {
           // Duplicate check
@@ -236,7 +263,6 @@ export default async function handler(req, res) {
 
           console.log(`[ingest-email-orders] Ingested: ${filename} (${buffer.length} bytes)`);
           results.processed++;
-          anyPdfProcessed = true;
         } catch (err) {
           console.error(`[ingest-email-orders] Error processing ${filename}:`, err);
           results.errors.push({ filename, error: err.message });

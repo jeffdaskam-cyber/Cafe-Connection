@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps, react-hooks/use-memo */
 /**
  * useWidget — lightweight async data hook for widget content.
  *
@@ -42,9 +43,10 @@ export function useWidget(asyncFn, deps = []) {
   }, []);
 
   // Stable reload function — recreated when deps change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
- const asyncFnRef = useRef(asyncFn);
-  asyncFnRef.current = asyncFn;
+  const asyncFnRef = useRef(asyncFn);
+  useEffect(() => {
+    asyncFnRef.current = asyncFn;
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,7 +63,8 @@ export function useWidget(asyncFn, deps = []) {
         setLoading(false);
       }
     }
-  }, deps); // deps spread intentionally; asyncFn should be stable or memoized
+    // deps spread intentionally; asyncFn is captured via ref above
+  }, deps);
 
   useEffect(() => {
     load();
@@ -105,7 +108,6 @@ export function useWidgetSubscription(subscribeFn, deps = []) {
       setLoading(false);
     }
     return () => { if (unsub) unsub(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
   return { data, loading, error };

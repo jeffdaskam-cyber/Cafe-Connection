@@ -100,7 +100,7 @@ The full operational workspace for the current week. A **Week Selector** (Monday
 | **Cafe Specials** | Weekly specials pulled from Google Sheets. Strips public-health disclaimers automatically. |
 | **Cash Drop** | Form to log cash drops; displays a history of drops for the selected week and campus. |
 | **DropBox** | Sales report upload zone (manager+). Accepts PDF/Excel; parses via `/api/parse-report`. |
-| **Event Order Library** | Displays all event orders for the selected week. PDFs auto-ingested via email (`/api/ingest-email-orders`) or uploaded manually. Full-screen PDF preview. |
+| **Event Order Library** | Displays all event orders for the selected week. PDFs uploaded manually; the `/api/ingest-email-orders` endpoint for automatic email ingestion is implemented but not yet activated (see "Deferred Work" below). Full-screen PDF preview. |
 | **Set Up Report** | Pulls the setup report PDF for the week from Google Drive via `/api/get-setup-report`. Full-screen preview, email button. |
 | **Event Report** | Pulls the BEO/event report PDF for the week from Google Drive via `/api/get-event-report`. Full-screen preview, email button. |
 
@@ -201,7 +201,7 @@ All routes require a Firebase ID token in the `Authorization: Bearer <token>` he
 | `/api/get-schedule-pdf` | GET | Export the staff schedule as a landscape PDF |
 | `/api/get-event-report` | GET | Retrieve the BEO/event report PDF from Google Drive |
 | `/api/get-setup-report` | GET | Retrieve the setup report PDF from Google Drive |
-| `/api/ingest-email-orders` | POST | Parse event order PDFs from incoming email and store in Firestore |
+| `/api/ingest-email-orders` | GET | Poll monitored inbox for event-order PDFs, upload to Storage, write to `event_orders`. **Implemented but not yet activated** — requires Gmail OAuth env vars and cron re-enable post-migration. |
 | `/api/parse-event-revenue` | POST | Parse internal or external event revenue `.xlsx` and write to `event_revenue` collection |
 | `/api/update-user-role` | POST | Change a user's role (administrator-only) |
 
@@ -262,9 +262,6 @@ Two new stat cards added to Cafe Sales: **Avg Check** (revenue ÷ checks) and **
 ### Monthly Accounting Report
 A full accounting summary report was added to the Reports tab. It pulls Net Revenue, Total Tax, Payroll, Credit Card, and Cash Deposit for a selected month across all three campuses. Supports UCAR-branded Excel export (with a Daily Totals section) and a pre-filled Gmail compose link.
 
-### Event Order Email Ingestion
-Event order PDFs are now automatically ingested from a monitored email inbox via `/api/ingest-email-orders`, reducing manual upload burden for the operations team.
-
 ### Email Buttons
 Email action buttons (launching the system mail client pre-filled with report content) were added to the Staff Schedule, Set Up Report, and Event Report widgets.
 
@@ -288,6 +285,18 @@ Stat card labels on the Cafe Sales page now dynamically reflect the period conte
 - **Environments**: Production (main branch) and Preview (feature branches) both require environment variables set in the Vercel project dashboard
 - **Firebase**: Rules deployed separately via `firebase deploy --only firestore:rules`
 - **Rollback**: `git revert <sha>` on main triggers an automatic Vercel redeploy to the prior state
+
+---
+
+## Deferred Work (Post-Migration)
+
+The following features are implemented but held until UCAR completes the platform migration:
+
+- **Email auto-ingestion for event orders** — The `/api/ingest-email-orders` endpoint is fully implemented and ready. Activation requires (1) setting the `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and `FIREBASE_STORAGE_BUCKET` env vars in the Vercel dashboard, and (2) re-adding the daily cron entry to `vercel.json`:
+  ```json
+  "crons": [{ "path": "/api/ingest-email-orders", "schedule": "0 14 * * *" }]
+  ```
+  The cron was removed pre-migration to prevent daily failures while env vars were unset.
 
 ---
 

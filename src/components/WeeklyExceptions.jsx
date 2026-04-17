@@ -83,17 +83,6 @@ function buildExceptions(rows, colorMap) {
 
   const colToDate = buildColToDate(rows, dayHeaderIdx, today.getFullYear());
 
-  console.log("[WeeklyExceptions] dayHeaderIdx:", dayHeaderIdx);
-  console.log("[WeeklyExceptions] dayHeaderRow:", JSON.stringify(rows[dayHeaderIdx]));
-  console.log("[WeeklyExceptions] dateRow:", JSON.stringify(rows[dayHeaderIdx + 1]));
-  console.log("[WeeklyExceptions] colToDate:", JSON.stringify(
-    Object.fromEntries(Object.entries(colToDate).map(([k, v]) => [k, v.toLocaleDateString()]))
-  ));
-  console.log("[WeeklyExceptions] colorMap keys (first 10):", JSON.stringify(Object.keys(colorMap).slice(0, 10)));
-  console.log("[WeeklyExceptions] colorMap sample:", JSON.stringify(
-    Object.fromEntries(Object.entries(colorMap).slice(0, 5))
-  ));
-
   const exceptions = [];
   const seen = new Set();
 
@@ -131,10 +120,6 @@ function buildExceptions(rows, colorMap) {
       exceptions.push({ name, date, type: "WFH" });
     }
   }
-
-  console.log("[WeeklyExceptions] exceptions found:", JSON.stringify(
-    exceptions.map(e => ({ name: e.name, type: e.type, date: e.date.toLocaleDateString() }))
-  ));
 
   return exceptions;
 }

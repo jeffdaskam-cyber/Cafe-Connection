@@ -10,6 +10,7 @@ import SalesSummaryWidget  from "../../components/dashboard/SalesSummaryWidget.j
 import ScheduleWidget      from "../../components/dashboard/ScheduleWidget.jsx";
 import CafeSpecialsWidget  from "../../components/dashboard/CafeSpecialsWidget.jsx";
 import CashDropWidget      from "../../components/dashboard/CashDropWidget.jsx";
+import { COLORS } from "../../theme.js";
 
 export default function MobileDashboardPage() {
   return (
@@ -27,4 +28,4 @@ export default function MobileDashboardPage() {
   );
 }
 
-const headingStyle = { fontSize: 16, fontWeight: 700, color: "#00357A", marginBottom: 12 };
+const headingStyle = { fontSize: 16, fontWeight: 700, color: COLORS._DARKBLUE, marginBottom: 12 };

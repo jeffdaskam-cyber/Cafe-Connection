@@ -4,10 +4,9 @@
 
 import { COLORS } from "../theme.js";
 
-const SCHED_HEADER_BG   = "#00357A";
-const SCHED_SUBHEAD_BG  = "#1a4a7a";
-const SCHED_SUBHEAD_ALT = "#0a2a5a";
-const YELLOW = "#FFDD31";
+const SCHED_HEADER_BG   = COLORS._DARKBLUE;
+const SCHED_SUBHEAD_BG  = COLORS.MOBILE_SUBHEAD_BG;
+const SCHED_SUBHEAD_ALT = COLORS.MOBILE_SUBHEAD_ALT;
 
 // Only these labels create top-level campus sections.
 const CAMPUS_NAMES = ["Mesa Lab", "Mesa", "Foothills", "Center Green"];
@@ -16,11 +15,12 @@ const CAMPUS_NAMES = ["Mesa Lab", "Mesa", "Foothills", "Center Green"];
 export function classifyColor(rgb) {
   if (!rgb) return null;
   const { r, g, b } = rgb;
-  if (b > 180 && r < 100 && g > 180) return { label: "WFH", bg: "#00BCD422", border: "#00BCD4", text: "#00BCD4" };
-  if (r < 100 && g > 180 && b > 200) return { label: "WFH", bg: "#00BCD422", border: "#00BCD4", text: "#00BCD4" };
-  if (r > 200 && g > 200 && b < 80)  return { label: "PTO", bg: "#00357A",   border: "#00A2B4", text: "#00A2B4" };
-  if (r < 60  && g < 100 && b > 120) return { label: "header",    bg: SCHED_HEADER_BG,  border: SCHED_HEADER_BG,  text: "#FFFFFF" };
-  if (r < 100 && g < 140 && b > 150) return { label: "subheader", bg: SCHED_SUBHEAD_BG, border: SCHED_SUBHEAD_BG, text: "#FFFFFF" };
+  const WFH_BG = `${COLORS.SCHED_WFH}22`; // 22 = alpha
+  if (b > 180 && r < 100 && g > 180) return { label: "WFH", bg: WFH_BG, border: COLORS.SCHED_WFH, text: COLORS.SCHED_WFH };
+  if (r < 100 && g > 180 && b > 200) return { label: "WFH", bg: WFH_BG, border: COLORS.SCHED_WFH, text: COLORS.SCHED_WFH };
+  if (r > 200 && g > 200 && b < 80)  return { label: "PTO", bg: COLORS._DARKBLUE, border: COLORS.AQUA, text: COLORS.AQUA };
+  if (r < 60  && g < 100 && b > 120) return { label: "header",    bg: SCHED_HEADER_BG,  border: SCHED_HEADER_BG,  text: COLORS.TEXT_ON_ACCENT };
+  if (r < 100 && g < 140 && b > 150) return { label: "subheader", bg: SCHED_SUBHEAD_BG, border: SCHED_SUBHEAD_BG, text: COLORS.TEXT_ON_ACCENT };
   return null;
 }
 
@@ -324,7 +324,7 @@ export default function ScheduleTable({ rows, colorMap }) {
             display: "flex", alignItems: "center",
           }}>
             <div style={{
-              fontSize: 13, fontWeight: 700, color: "#FFFFFF",
+              fontSize: 13, fontWeight: 700, color: COLORS.TEXT_ON_ACCENT,
               fontFamily: "'Poppins',sans-serif", letterSpacing: "0.03em",
             }}>{section.title}</div>
           </div>
@@ -338,7 +338,7 @@ export default function ScheduleTable({ rows, colorMap }) {
                     <div style={{
                       padding: "7px 18px",
                       background: SCHED_SUBHEAD_BG,
-                      color: "#FFFFFF",
+                      color: COLORS.TEXT_ON_ACCENT,
                       fontSize: 11, fontWeight: 600,
                       fontFamily: "'Poppins',sans-serif",
                       letterSpacing: "0.05em",

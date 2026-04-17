@@ -10,6 +10,17 @@
 import admin from "firebase-admin";
 import ExcelJS from "exceljs";
 
+// ── Required environment variables ──────────────────────────────────────────
+const REQUIRED_ENV = [
+  "FIREBASE_ADMIN_PROJECT_ID",
+  "FIREBASE_ADMIN_CLIENT_EMAIL",
+  "FIREBASE_ADMIN_PRIVATE_KEY",
+  "ALLOWED_STORAGE_BUCKET",
+];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) throw new Error(`[parse-event-revenue] Missing required env var: ${key}`);
+}
+
 // ── Firebase Admin Init (singleton) ─────────────────────────────────────────
 let adminApp;
 try {
@@ -19,10 +30,40 @@ try {
     credential: admin.credential.cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
     }),
   });
 }
+
+// ── Fetch with timeout ──────────────────────────────────────────────────────
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// ── SSRF protection: only allow files from our Firebase Storage bucket ──────
+const ALLOWED_STORAGE_HOST   = "firebasestorage.googleapis.com";
+const ALLOWED_STORAGE_BUCKET = process.env.ALLOWED_STORAGE_BUCKET;
+
+function isValidStorageUrl(url) {
+  if (!ALLOWED_STORAGE_BUCKET) return false;
+  try {
+    const { hostname, pathname } = new URL(url);
+    return (
+      hostname === ALLOWED_STORAGE_HOST &&
+      pathname.includes(ALLOWED_STORAGE_BUCKET)
+    );
+  } catch {
+    return false;
+  }
+}
+
+const VALID_REPORT_TYPES = ["internal", "external"];
 
 async function verifyAuth(req) {
   const authHeader = req.headers.authorization;
@@ -82,13 +123,39 @@ export default async function handler(req, res) {
   try { await verifyAuth(req); }
   catch (err) { return res.status(err.status || 401).json({ error: err.message }); }
 
-  const { fileUrl, reportType, month, year } = req.body;
-  if (!fileUrl)     return res.status(400).json({ error: "fileUrl is required" });
-  if (!reportType)  return res.status(400).json({ error: "reportType is required" });
+  const { fileUrl, reportType, month, year } = req.body || {};
+  if (!fileUrl)    return res.status(400).json({ error: "fileUrl is required" });
+  if (!reportType) return res.status(400).json({ error: "reportType is required" });
+
+  // Validate fileUrl is a Firebase Storage URL for this project
+  if (typeof fileUrl !== "string" || !isValidStorageUrl(fileUrl)) {
+    return res.status(400).json({ error: "Invalid fileUrl: must be a Firebase Storage URL for this project." });
+  }
+
+  // Validate reportType against allowlist
+  if (typeof reportType !== "string" || !VALID_REPORT_TYPES.includes(reportType)) {
+    return res.status(400).json({ error: `Invalid reportType. Must be one of: ${VALID_REPORT_TYPES.join(", ")}` });
+  }
+
+  // Validate month/year if provided (required for internal, but pre-validate for both)
+  let monthNum = null;
+  let yearNum  = null;
+  if (month !== undefined && month !== null) {
+    monthNum = Number(month);
+    if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12 || !Number.isInteger(monthNum)) {
+      return res.status(400).json({ error: "Invalid month. Must be an integer 1-12." });
+    }
+  }
+  if (year !== undefined && year !== null) {
+    yearNum = Number(year);
+    if (!Number.isFinite(yearNum) || yearNum < 2000 || yearNum > 2100 || !Number.isInteger(yearNum)) {
+      return res.status(400).json({ error: "Invalid year. Must be an integer 2000-2100." });
+    }
+  }
 
   try {
     // Fetch file from Firebase Storage
-    const fileRes = await fetch(fileUrl);
+    const fileRes = await fetchWithTimeout(fileUrl);
     if (!fileRes.ok) throw new Error(`Failed to fetch file: ${fileRes.status}`);
     const buffer = Buffer.from(await fileRes.arrayBuffer());
 
@@ -102,7 +169,9 @@ export default async function handler(req, res) {
     const totals  = {}; // key: `${campus}|${year}|${month}` → revenue sum
 
     if (reportType === "internal") {
-      if (!month || !year) return res.status(400).json({ error: "month and year required for internal reports" });
+      if (monthNum === null || yearNum === null) {
+        return res.status(400).json({ error: "month and year required for internal reports" });
+      }
 
       sheet.eachRow((row, rowNum) => {
         if (rowNum === 1) return; // skip header
@@ -111,7 +180,7 @@ export default async function handler(req, res) {
         const campus     = normalizeCampus(typeof rawCampus === "string" ? rawCampus : String(rawCampus ?? ""));
         const revenue    = parseFloat(rawRevenue) || 0;
         if (!campus || revenue === 0) return;
-        const key = `${campus}|${year}|${month}`;
+        const key = `${campus}|${yearNum}|${monthNum}`;
         totals[key] = (totals[key] || 0) + revenue;
       });
 
@@ -120,7 +189,8 @@ export default async function handler(req, res) {
         const doc = await writeRevenueDoc(db, campus, Number(y), Number(m), "internal", Math.round(revenue * 100) / 100);
         written.push(doc);
       }
-    } else if (reportType === "external") {
+    } else {
+      // reportType === "external" (validated above)
       sheet.eachRow((row, rowNum) => {
         if (rowNum === 1) return; // skip header
         const rawLocation   = row.getCell(9).value;   // column I — Location
@@ -160,14 +230,12 @@ export default async function handler(req, res) {
         const doc = await writeRevenueDoc(db, campus, Number(y), Number(m), "external", Math.round(revenue * 100) / 100);
         written.push(doc);
       }
-    } else {
-      return res.status(400).json({ error: `Unknown reportType: ${reportType}` });
     }
 
     return res.status(200).json({ success: true, written });
 
   } catch (err) {
     console.error("[parse-event-revenue] Error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 }

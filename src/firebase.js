@@ -21,11 +21,54 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
+// Validate required config at startup — fail fast instead of silent undefined.
+const REQUIRED_CONFIG_KEYS = ["apiKey", "authDomain", "projectId", "storageBucket", "appId"];
+const missingConfig = REQUIRED_CONFIG_KEYS.filter(k => !firebaseConfig[k]);
+if (missingConfig.length) {
+  throw new Error(
+    `Missing required Firebase config: ${missingConfig.map(k => `VITE_FIREBASE_${k.replace(/([A-Z])/g, "_$1").toUpperCase()}`).join(", ")}. Check your .env file.`
+  );
+}
+
 const app = initializeApp(firebaseConfig);
 export const db      = getFirestore(app);
 export const storage = getStorage(app);
 export const auth    = getAuth(app);
 setPersistence(auth, browserLocalPersistence).catch(console.error);
+
+// ── Helper: fetch with timeout + uniform error handling ──────────────────
+async function fetchWithAuth(url, { method = "GET", body, timeoutMs = 30000 } = {}) {
+  const token = await getAuthToken();
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const headers = { Authorization: `Bearer ${token}` };
+    if (body) headers["Content-Type"] = "application/json";
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function parseApiResponse(res, defaultError) {
+  if (!res.ok) {
+    let message = defaultError;
+    try {
+      const err = await res.json();
+      message = err.error || message;
+    } catch {
+      // response body wasn't JSON — fall through to default
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
 
 // ── Upload sales report to Storage and return downloadURL ─────────────────
 export function uploadReport(campus, file, onProgress) {
@@ -77,105 +120,58 @@ async function getAuthToken() {
 
 // ── Call the Vercel serverless parse function ─────────────────────────────
 export async function parseReport(fileUrl, campus, fileName) {
-  const token = await getAuthToken();
-  const res = await fetch("/api/parse-report", {
-    method:  "POST",
-    headers: {
-      "Content-Type":  "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify({ fileUrl, campus, fileName }),
+  const res = await fetchWithAuth("/api/parse-report", {
+    method: "POST",
+    body:   { fileUrl, campus, fileName },
+    timeoutMs: 60000, // parsing a report can take longer than a normal request
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return parseApiResponse(res, "Failed to parse report");
 }
 
 // ── Fetch week's schedule from Google Drive ───────────────────────────────
 // weekOf: ISO Monday string "YYYY-MM-DD" (optional; omit for auto-detect)
 export async function fetchSchedule(weekOf = null) {
-  const token = await getAuthToken();
-  const url   = weekOf ? `/api/get-schedule?weekOf=${weekOf}` : "/api/get-schedule";
-  const res   = await fetch(url, {
-    headers: { "Authorization": `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Failed to fetch schedule");
-  }
-  return res.json();
+  const url = weekOf ? `/api/get-schedule?weekOf=${weekOf}` : "/api/get-schedule";
+  const res = await fetchWithAuth(url);
+  return parseApiResponse(res, "Failed to fetch schedule");
 }
 
 // ── Fetch week's cafe specials from Google Drive ──────────────────────────
 // weekOf: ISO Monday string "YYYY-MM-DD" (optional; omit for auto-detect)
 // campus: e.g. "Mesa Lab" — used to select the campus-specific Drive file
 export async function fetchSpecials(weekOf = null, campus = "Mesa Lab") {
-  const token  = await getAuthToken();
   const params = new URLSearchParams({ campus });
   if (weekOf) params.set("weekOf", weekOf);
-  const url = `/api/get-specials?${params}`;
-  const res = await fetch(url, {
-    headers: { "Authorization": `Bearer ${token}` },
-  });
+  const res = await fetchWithAuth(`/api/get-specials?${params}`);
   if (res.status === 404) return null; // No specials posted yet — show empty state
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Failed to fetch specials");
-  }
-  return res.json();
+  return parseApiResponse(res, "Failed to fetch specials");
 }
 
 // ── Fetch week's event report PDF from Google Drive ─────────────────────
 // weekOf: ISO date string "YYYY-MM-DD" (optional; omit for auto-detect)
 export async function fetchEventReport(weekOf = null) {
-  const token = await getAuthToken();
-  const url = weekOf
-    ? `/api/get-event-report?weekOf=${weekOf}`
-    : "/api/get-event-report";
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const url = weekOf ? `/api/get-event-report?weekOf=${weekOf}` : "/api/get-event-report";
+  const res = await fetchWithAuth(url);
   if (res.status === 404) return null;
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Failed to fetch event report");
-  }
-  return res.json();
+  return parseApiResponse(res, "Failed to fetch event report");
 }
 
 // ── Fetch week's set up report PDF from Google Drive ─────────────────────
 // weekOf: ISO date string "YYYY-MM-DD" (optional; omit for auto-detect)
 export async function fetchSetupReport(weekOf = null) {
-  const token = await getAuthToken();
-  const url = weekOf
-    ? `/api/get-setup-report?weekOf=${weekOf}`
-    : "/api/get-setup-report";
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const url = weekOf ? `/api/get-setup-report?weekOf=${weekOf}` : "/api/get-setup-report";
+  const res = await fetchWithAuth(url);
   if (res.status === 404) return null;
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Failed to fetch setup report");
-  }
-  return res.json();
+  return parseApiResponse(res, "Failed to fetch setup report");
 }
 
 // ── Fetch week's schedule as PDF (for Weekly Packet) ────────────────────
 // weekOf: ISO date string "YYYY-MM-DD" (optional; omit for auto-detect)
 export async function fetchSchedulePdf(weekOf = null) {
-  const token = await getAuthToken();
-  const url = weekOf
-    ? `/api/get-schedule-pdf?weekOf=${weekOf}`
-    : "/api/get-schedule-pdf";
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const url = weekOf ? `/api/get-schedule-pdf?weekOf=${weekOf}` : "/api/get-schedule-pdf";
+  const res = await fetchWithAuth(url);
   if (res.status === 404) return null;
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error || "Failed to fetch schedule PDF");
-  }
-  return res.json();
+  return parseApiResponse(res, "Failed to fetch schedule PDF");
 }
 
 // ── Get event orders matching a week (by filename date parsing) ─────────

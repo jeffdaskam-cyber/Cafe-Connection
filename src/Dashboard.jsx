@@ -241,7 +241,6 @@ export default function FinancialsPage() {
   const safeAllDocs = allDocs  ?? [];
 
   // ── Derived data ───────────────────────────────────────────────────────────
-  const color       = COLORS.AQUA;
   const monthlyData = campus === "All Campuses"
     ? buildMonthlyDataAllCampuses(safeAllDocs)
     : buildMonthlyData(safeAllDocs);

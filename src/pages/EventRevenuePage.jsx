@@ -44,7 +44,7 @@ function getMonthLabel(monthKey) {
 // ── Bar color config ──────────────────────────────────────────────────────────
 const BAR_CONFIG = [
   { key: "revenueCG", name: "Center Green", color: COLORS.AQUA      },
-  { key: "revenueFL", name: "Foothills",    color: "#34E1F4"         },
+  { key: "revenueFL", name: "Foothills",    color: COLORS.LAQUA       },
   { key: "revenueML", name: "Mesa Lab",     color: COLORS.AQUA_DARK  },
 ];
 
@@ -63,7 +63,7 @@ function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height 
 }
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, accentColor, showDelta = false }) {
+function StatCard({ label, value, accentColor }) {
   return (
     <div style={{ flex: 1, background: COLORS.BG_SURFACE, borderRadius: RADIUS.LG,
       padding: "20px 22px", border: `1px solid ${COLORS.BORDER}`,

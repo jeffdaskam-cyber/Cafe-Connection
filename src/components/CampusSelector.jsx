@@ -13,7 +13,7 @@
  *
  * Exported constants:
  *   CAMPUSES       — ["Mesa Lab", "Foothills", "Center Green"]
- *   CAMPUS_COLOR   — { "Mesa Lab": "#00A2B4", ... } (all campuses use UCAR Aqua)
+ *   CAMPUS_COLOR   — per-campus accent color map (all campuses currently use COLORS.AQUA)
  */
 
 import { useState } from "react";
@@ -22,10 +22,10 @@ import { COLORS } from "../theme.js";
 // ── Campus constants (exported for use in other modules) ──────────────────────
 export const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 export const CAMPUS_COLOR = {
-  "Mesa Lab":       "#00A2B4",
-  "Foothills":      "#00A2B4",
-  "Center Green":   "#00A2B4",
-  "All Campuses":   "#00A2B4",
+  "Mesa Lab":     COLORS.AQUA,
+  "Foothills":    COLORS.AQUA,
+  "Center Green": COLORS.AQUA,
+  "All Campuses": COLORS.AQUA,
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────

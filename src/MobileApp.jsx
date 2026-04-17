@@ -13,6 +13,7 @@ import MobileSchedulePage   from "./pages/mobile/MobileSchedulePage.jsx";
 import MobileSpecialsPage   from "./pages/mobile/MobileSpecialsPage.jsx";
 import MobileOpsPage        from "./pages/mobile/MobileOpsPage.jsx";
 import MobileDashboardPage  from "./pages/mobile/MobileDashboardPage.jsx";
+import { COLORS, FONT } from "./theme";
 
 const TABS = [
   { id: "schedule",  label: "Schedule",  icon: "\uD83D\uDCC5" },
@@ -29,10 +30,10 @@ export default function MobileApp() {
     return (
       <div style={{
         height: "100dvh", display: "flex", alignItems: "center",
-        justifyContent: "center", background: "#F1F0EE",
-        fontFamily: "Poppins, Helvetica, sans-serif",
+        justifyContent: "center", background: COLORS.MOBILE_BG,
+        fontFamily: FONT.FAMILY,
       }}>
-        <div style={{ color: "#888", fontSize: 13, fontWeight: 500 }}>Loading...</div>
+        <div style={{ color: COLORS.TEXT_MUTED, fontSize: 13, fontWeight: 500 }}>Loading...</div>
       </div>
     );
   }
@@ -44,15 +45,15 @@ export default function MobileApp() {
       display:       "flex",
       flexDirection: "column",
       height:        "100dvh",
-      background:    "#F1F0EE",
-      fontFamily:    "Poppins, Helvetica, sans-serif",
+      background:    COLORS.MOBILE_BG,
+      fontFamily:    FONT.FAMILY,
       overflow:      "hidden",
     }}>
 
       {/* ── Header ── */}
       <div style={{
-        background:    "#00357A",
-        color:         "#FFFFFF",
+        background:    COLORS.MOBILE_HEADER,
+        color:         COLORS.TEXT_ON_ACCENT,
         padding:       "12px 16px",
         fontSize:      16,
         fontWeight:    700,
@@ -62,7 +63,7 @@ export default function MobileApp() {
         justifyContent: "space-between",
         alignItems:    "center",
       }}>
-        <span><span style={{ color: "#34E1F4" }}>UCAR</span> Cafe Connection</span>
+        <span><span style={{ color: COLORS.LAQUA }}>UCAR</span> Cafe Connection</span>
         <button
           onClick={logout}
           style={{
@@ -93,8 +94,8 @@ export default function MobileApp() {
       <nav style={{
         display:             "grid",
         gridTemplateColumns: `repeat(${TABS.length}, 1fr)`,
-        background:          "#00357A",
-        borderTop:           "1px solid #00818F",
+        background:          COLORS.MOBILE_HEADER,
+        borderTop:           `1px solid ${COLORS.AQUA_DARK}`,
         flexShrink:          0,
         paddingBottom:       "env(safe-area-inset-bottom)",
       }}>
@@ -105,7 +106,7 @@ export default function MobileApp() {
             style={{
               background:    "none",
               border:        "none",
-              color:         activeTab === tab.id ? "#34E1F4" : "#7aaec8",
+              color:         activeTab === tab.id ? COLORS.LAQUA : COLORS.MOBILE_NAV_INACTIVE,
               padding:       "10px 4px 8px",
               fontSize:      10,
               fontWeight:    activeTab === tab.id ? 700 : 400,

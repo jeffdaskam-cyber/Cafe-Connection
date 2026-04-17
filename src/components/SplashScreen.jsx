@@ -16,6 +16,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { COLORS } from "../theme.js";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 export const SHOW_SPLASH = true;
@@ -29,13 +30,11 @@ const T_FADE          = 700;   // CSS opacity transition duration
 
 const FULL_TEXT = "Cafe Connection";
 
-// ── Brand palette ─────────────────────────────────────────────────────────────
-const SPACE    = "#011837";
-const DARKBLUE = "#00357A";
-const AQUA     = "#00A2B4";
-const LAQUA    = "#34E1F4";
-const TPRI     = "#FFFFFF";
-const TSEC     = "#7aaec8";
+// ── Brand palette (pulled from central theme) ─────────────────────────────────
+const SPACE = COLORS._SPACE;
+const AQUA  = COLORS.AQUA;
+const TPRI  = COLORS.TEXT_ON_ACCENT;
+const TSEC  = COLORS.MOBILE_NAV_INACTIVE;
 
 // ── Splash component ──────────────────────────────────────────────────────────
 /**
@@ -102,7 +101,7 @@ export default function SplashScreen({ onDone }) {
         position: "fixed",
         inset: 0,
         zIndex: 9000,
-        background: `linear-gradient(160deg, ${SPACE} 0%, #001230 100%)`,
+        background: `linear-gradient(160deg, ${SPACE} 0%, ${COLORS.SPLASH_BG_END} 100%)`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

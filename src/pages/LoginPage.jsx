@@ -51,7 +51,7 @@ export default function LoginPage() {
         setStatus("crossDevice");
       }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   async function completeMagicLink(emailForLink) {
     setStatus("completing");

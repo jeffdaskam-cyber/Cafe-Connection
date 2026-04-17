@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchSpecials } from "../../firebase.js";
+import { COLORS } from "../../theme.js";
 
 const CAMPUSES = ["Center Green", "Foothills", "Mesa Lab"];
 
@@ -43,7 +44,7 @@ export default function MobileSpecialsPage() {
       </select>
 
       {loading && <p style={mutedStyle}>Loading...</p>}
-      {error   && <p style={{ color: "#c00", marginTop: 12, fontSize: 13 }}>{error}</p>}
+      {error   && <p style={{ color: COLORS.ERROR, marginTop: 12, fontSize: 13 }}>{error}</p>}
 
       {!loading && !error && data && (
         <>
@@ -68,9 +69,9 @@ export default function MobileSpecialsPage() {
   );
 }
 
-const headingStyle = { fontSize: 16, fontWeight: 700, color: "#00357A", marginBottom: 12 };
-const mutedStyle   = { color: "#888", fontSize: 13 };
+const headingStyle = { fontSize: 16, fontWeight: 700, color: COLORS._DARKBLUE, marginBottom: 12 };
+const mutedStyle   = { color: COLORS.TEXT_MUTED, fontSize: 13 };
 const selectStyle  = {
   width: "100%", padding: "10px 12px", borderRadius: 8,
-  border: "1px solid #00A2B4", fontSize: 14, background: "#fff", marginBottom: 16,
+  border: `1px solid ${COLORS.AQUA}`, fontSize: 14, background: COLORS.BG_SURFACE, marginBottom: 16,
 };

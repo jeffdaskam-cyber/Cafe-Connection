@@ -346,7 +346,7 @@ export default function WeeklyPacketReport() {
           }
         }
         if (!cancelled) setBeos(rendered);
-      } catch (err) {
+      } catch {
         if (!cancelled) setBeos([]);
       }
       if (!cancelled) setBeosLoading(false);

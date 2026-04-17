@@ -4,6 +4,7 @@ import { db, auth } from "../firebase.js";
 import { useRole } from "../hooks/useRole.js";
 import Widget from "../components/Widget.jsx";
 import VendorManager from "../components/admin/VendorManager.jsx";
+import { COLORS } from "../theme.js";
 
 const ROLES = ["user", "manager", "administrator"];
 
@@ -52,7 +53,7 @@ export default function AdminPage() {
 
   if (!isAdministrator) {
     return (
-      <div style={{ padding: 32, color: "#c00" }}>
+      <div style={{ padding: 32, color: COLORS.ERROR }}>
         Access denied. Administrator role required.
       </div>
     );
@@ -64,7 +65,7 @@ export default function AdminPage() {
       <Widget title="Registered Users" style={{ maxWidth: 800 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "2px solid #ddd" }}>
+            <tr style={{ textAlign: "left", borderBottom: `2px solid ${COLORS.BORDER}` }}>
               <th style={{ padding: "8px 12px" }}>Email</th>
               <th style={{ padding: "8px 12px" }}>Display Name</th>
               <th style={{ padding: "8px 12px" }}>Role</th>
@@ -73,7 +74,7 @@ export default function AdminPage() {
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} style={{ borderBottom: "1px solid #eee" }}>
+              <tr key={u.id} style={{ borderBottom: `1px solid ${COLORS.BORDER}` }}>
                 <td style={{ padding: "8px 12px" }}>{u.email}</td>
                 <td style={{ padding: "8px 12px" }}>{u.displayName || "\u2014"}</td>
                 <td style={{ padding: "8px 12px" }}>
@@ -90,10 +91,10 @@ export default function AdminPage() {
                     ))}
                   </select>
                   {saving === u.id && (
-                    <span style={{ marginLeft: 8, fontSize: 12, color: "#888" }}>Saving…</span>
+                    <span style={{ marginLeft: 8, fontSize: 12, color: COLORS.TEXT_MUTED }}>Saving…</span>
                   )}
                 </td>
-                <td style={{ padding: "8px 12px", fontSize: 12, color: "#888" }}>
+                <td style={{ padding: "8px 12px", fontSize: 12, color: COLORS.TEXT_MUTED }}>
                   {u.assignedAt?.toDate
                     ? u.assignedAt.toDate().toLocaleDateString("en-US", {
                         month: "short", day: "numeric", year: "numeric",

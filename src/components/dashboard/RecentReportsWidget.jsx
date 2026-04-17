@@ -34,7 +34,7 @@ function mergeReports(events = [], setups = []) {
   return tagged.slice(0, 3);
 }
 
-export default function RecentReportsWidget({ config = {} }) {
+export default function RecentReportsWidget({ config: _config = {} }) {
   const { data: events, loading: el, error: ee } = useWidgetSubscription(
     (cb) => subscribeEventReports(cb), []
   );

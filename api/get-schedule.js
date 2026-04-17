@@ -13,12 +13,22 @@ import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
+const REQUIRED_ENV = [
+  "FIREBASE_ADMIN_PROJECT_ID",
+  "FIREBASE_ADMIN_CLIENT_EMAIL",
+  "FIREBASE_ADMIN_PRIVATE_KEY",
+  "GOOGLE_SCHEDULE_FOLDER_ID",
+];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) throw new Error(`[get-schedule] Missing required env var: ${key}`);
+}
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
     }),
   });
 }
@@ -57,7 +67,7 @@ async function getAccessToken() {
     .setExpirationTime(now + 3600)
     .sign(key);
 
-  const res = await fetch("https://oauth2.googleapis.com/token", {
+  const res = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -66,16 +76,31 @@ async function getAccessToken() {
     }),
   });
 
+  if (!res.ok) throw new Error(`OAuth token request failed: ${res.status}`);
   const data = await res.json();
-  if (!data.access_token) throw new Error(`OAuth token error: ${JSON.stringify(data)}`);
+  if (!data.access_token) throw new Error("OAuth token error: no access_token returned.");
   return data.access_token;
+}
+
+// ─── Fetch with timeout ───────────────────────────────────────────────────────
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // ─── Drive helpers ────────────────────────────────────────────────────────────
 async function findInFolder(token, parentId, name) {
-  const q   = `'${parentId}' in parents and name = '${name}' and trashed = false`;
+  // Escape single quotes in the name to prevent Drive query injection.
+  const safeName = name.replace(/'/g, "\\'");
+  const q   = `'${parentId}' in parents and name = '${safeName}' and trashed = false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Drive API request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
   return data.files?.[0] || null;
@@ -160,14 +185,16 @@ export default async function handler(req, res) {
 
     // ── Fetch sheet values ────────────────────────────────────────────────────
     const valUrl = `https://sheets.googleapis.com/v4/spreadsheets/${scheduleFile.id}/values/A1:L200?valueRenderOption=FORMATTED_VALUE`;
-    const valRes = await fetch(valUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const valRes = await fetchWithTimeout(valUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!valRes.ok) throw new Error(`Sheets API request failed: ${valRes.status}`);
     const valData = await valRes.json();
     if (valData.error) throw new Error(`Sheets API error: ${valData.error.message}`);
     const rows = valData.values || [];
 
     // ── Fetch cell formatting (background colors) ─────────────────────────────
     const fmtUrl = `https://sheets.googleapis.com/v4/spreadsheets/${scheduleFile.id}?ranges=A1:L200&fields=sheets(data(rowData(values(userEnteredFormat/backgroundColor,formattedValue))))`;
-    const fmtRes  = await fetch(fmtUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const fmtRes  = await fetchWithTimeout(fmtUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!fmtRes.ok) throw new Error(`Sheets formatting request failed: ${fmtRes.status}`);
     const fmtData = await fmtRes.json();
 
     const colorMap = {};

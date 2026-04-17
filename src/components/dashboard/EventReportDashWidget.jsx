@@ -18,7 +18,7 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
-export default function EventReportDashWidget({ config = {} }) {
+export default function EventReportDashWidget({ config: _config = {} }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchEventReport(), []
   );

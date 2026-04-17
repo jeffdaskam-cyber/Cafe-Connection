@@ -60,12 +60,25 @@ export const COLORS = {
   INFO:             '#00A2B4',
   // ─── Splash screen (stays dark — branded entry moment) ─────────────────────
   SPLASH_BG:        '#011837',
+  SPLASH_BG_END:    '#001230',   // bottom of the splash gradient
   SPLASH_TEXT:      '#FFFFFF',
   // ─── Legacy dark constants (kept for reference during migration) ────────────
   // Remove these once all components import from this file.
   _SPACE:           '#011837',
   _DARKBLUE:        '#00357A',
   _PANEL:           '#001f4d',
+  // ─── Mobile shell palette (dark header / bottom nav) ───────────────────────
+  MOBILE_BG:        '#F1F0EE',   // mobile page background (UCAR Light Gray)
+  MOBILE_HEADER:    '#00357A',   // mobile header + bottom nav background
+  MOBILE_NAV_INACTIVE: '#7aaec8', // inactive bottom-nav tab text
+  MOBILE_SUBHEAD_BG:  '#1a4a7a',  // ScheduleTable subheader variants
+  MOBILE_SUBHEAD_ALT: '#0a2a5a',
+  // ─── Schedule semantic colors ─────────────────────────────────────────────
+  SCHED_PTO_YELLOW: '#FFDD31',   // schedule PTO highlight yellow
+  SCHED_WFH:        '#00BCD4',   // schedule WFH cyan
+  // ─── Note / callout backgrounds ───────────────────────────────────────────
+  NOTE_BG:          '#FFF9C4',   // sticky-note yellow background
+  NOTE_BORDER:      '#F0E060',   // sticky-note yellow border
 };
 // ─── Elevation / Shadows ───────────────────────────────────────────────────────
 export const SHADOWS = {

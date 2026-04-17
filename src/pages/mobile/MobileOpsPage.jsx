@@ -10,15 +10,9 @@ import {
   subscribeRecentCashDrops,
 } from "../../firebase.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { COLORS } from "../../theme.js";
 
 const CAMPUSES = ["Center Green", "Foothills", "Mesa Lab"];
-
-function getCurrentMonday() {
-  const d   = new Date();
-  const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  return d.toISOString().slice(0, 10);
-}
 
 export default function MobileOpsPage() {
   const [campus, setCampus] = useState("Center Green");
@@ -126,13 +120,13 @@ function CashDropSection({ campus }) {
 
           {recent.length > 0 && (
             <>
-              <p style={{ fontSize: 11, fontWeight: 600, color: "#00357A", marginBottom: 6 }}>
+              <p style={{ fontSize: 11, fontWeight: 600, color: COLORS._DARKBLUE, marginBottom: 6 }}>
                 Recent Drops
               </p>
               {recent.slice(0, 5).map((d) => (
                 <div key={d.id} style={dropCardStyle}>
                   <span style={{ fontWeight: 600 }}>{fmtMoney(d.amount)}</span>
-                  <span style={{ color: "#888", fontSize: 12 }}>
+                  <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
                     {d.date || fmtDate(d.created_at)}
                     {d.notes ? ` \u2014 ${d.notes}` : ""}
                   </span>
@@ -148,25 +142,25 @@ function CashDropSection({ campus }) {
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
-const headingStyle  = { fontSize: 16, fontWeight: 700, color: "#00357A", marginBottom: 12 };
-const subheadStyle  = { fontSize: 14, fontWeight: 700, color: "#00357A", marginBottom: 8 };
-const mutedStyle    = { color: "#888", fontSize: 13 };
+const headingStyle  = { fontSize: 16, fontWeight: 700, color: COLORS._DARKBLUE, marginBottom: 12 };
+const subheadStyle  = { fontSize: 14, fontWeight: 700, color: COLORS._DARKBLUE, marginBottom: 8 };
+const mutedStyle    = { color: COLORS.TEXT_MUTED, fontSize: 13 };
 const selectStyle   = {
   width: "100%", padding: "10px 12px", borderRadius: 8,
-  border: "1px solid #00A2B4", fontSize: 14, background: "#fff", marginBottom: 16,
+  border: `1px solid ${COLORS.AQUA}`, fontSize: 14, background: COLORS.BG_SURFACE, marginBottom: 16,
 };
 const sectionStyle  = {
-  background: "#fff", borderRadius: 10, padding: 16,
+  background: COLORS.BG_SURFACE, borderRadius: 10, padding: 16,
   marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
 };
 const inputStyle = {
-  width: "100%", borderRadius: 8, border: "1px solid #ccc",
+  width: "100%", borderRadius: 8, border: `1px solid ${COLORS.BORDER_STRONG}`,
   fontSize: 14, padding: "10px 12px", boxSizing: "border-box",
   fontFamily: "inherit",
 };
 const buttonStyle = (disabled) => ({
-  background:    disabled ? "#ccc" : "#00A2B4",
-  color:         "#fff",
+  background:    disabled ? COLORS.TEXT_DISABLED : COLORS.AQUA,
+  color:         COLORS.TEXT_ON_ACCENT,
   border:        "none",
   borderRadius:  8,
   padding:       "10px 16px",
@@ -178,6 +172,6 @@ const buttonStyle = (disabled) => ({
 });
 const dropCardStyle = {
   display: "flex", justifyContent: "space-between", alignItems: "baseline",
-  background: "#F1F0EE", borderRadius: 6, padding: "8px 10px",
+  background: COLORS.MOBILE_BG, borderRadius: 6, padding: "8px 10px",
   fontSize: 13, marginBottom: 6,
 };

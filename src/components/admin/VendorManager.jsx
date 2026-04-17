@@ -177,7 +177,7 @@ export default function VendorManager() {
             style={{
               padding: "8px 20px",
               backgroundColor: COLORS.AQUA,
-              color: "#fff",
+              color: COLORS.TEXT_ON_ACCENT,
               border: "none",
               borderRadius: "6px",
               fontSize: "13px",

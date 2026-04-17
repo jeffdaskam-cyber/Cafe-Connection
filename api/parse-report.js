@@ -13,12 +13,22 @@ import ExcelJS from "exceljs";
 import pdfParse from "pdf-parse";
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
+const REQUIRED_ENV = [
+  "FIREBASE_ADMIN_PROJECT_ID",
+  "FIREBASE_ADMIN_CLIENT_EMAIL",
+  "FIREBASE_ADMIN_PRIVATE_KEY",
+  "ALLOWED_STORAGE_BUCKET",
+];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) throw new Error(`[parse-report] Missing required env var: ${key}`);
+}
+
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
     }),
   });
 }
@@ -37,10 +47,11 @@ async function verifyAuth(req) {
 }
 
 // ─── SSRF protection: only allow files from our Firebase Storage bucket ───────
-const ALLOWED_STORAGE_HOST    = "firebasestorage.googleapis.com";
-const ALLOWED_STORAGE_BUCKET  = "cafe-connection-ed6c7.firebasestorage.app";
+const ALLOWED_STORAGE_HOST   = "firebasestorage.googleapis.com";
+const ALLOWED_STORAGE_BUCKET = process.env.ALLOWED_STORAGE_BUCKET;
 
 function isValidStorageUrl(url) {
+  if (!ALLOWED_STORAGE_BUCKET) return false;
   try {
     const { hostname, pathname } = new URL(url);
     return (
@@ -88,19 +99,33 @@ export default async function handler(req, res) {
   }
 
   // ── Validate fileUrl is a Firebase Storage URL for this project ────────────
-  if (!isValidStorageUrl(fileUrl)) {
+  if (typeof fileUrl !== "string" || !isValidStorageUrl(fileUrl)) {
     return res.status(400).json({ error: "Invalid fileUrl: must be a Firebase Storage URL for this project." });
   }
 
-  // ── Validate fileName length ───────────────────────────────────────────────
-  if (typeof fileName !== "string" || fileName.length > 255) {
+  // ── Validate fileName length and characters ───────────────────────────────
+  if (typeof fileName !== "string" || fileName.length === 0 || fileName.length > 255) {
     return res.status(400).json({ error: "Invalid fileName." });
   }
 
+  // ── Validate optional campusFallback when provided ────────────────────────
+  const VALID_CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
+  if (campusFallback !== undefined && campusFallback !== null &&
+      (typeof campusFallback !== "string" || !VALID_CAMPUSES.includes(campusFallback))) {
+    return res.status(400).json({ error: "Invalid campus." });
+  }
+
   try {
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
-    const fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 30000);
+    let fileBuffer;
+    try {
+      const fileResponse = await fetch(fileUrl, { signal: controller.signal });
+      if (!fileResponse.ok) throw new Error(`Failed to fetch file: ${fileResponse.status} ${fileResponse.statusText}`);
+      fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const isExcel = /\.(xlsx|xls)$/i.test(fileName);
     const isPdf   = /\.pdf$/i.test(fileName);
@@ -118,10 +143,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Unsupported file type. Please upload a .xlsx or .pdf file." });
     }
 
-    const validCampuses = ["Mesa Lab", "Foothills", "Center Green"];
-    if (!campus || !validCampuses.includes(campus)) {
+    if (!campus || !VALID_CAMPUSES.includes(campus)) {
       return res.status(400).json({
-        error: `Could not determine campus. Detected: "${campus || "none"}". Expected: ${validCampuses.join(", ")}.`
+        error: `Could not determine campus. Detected: "${campus || "none"}". Expected: ${VALID_CAMPUSES.join(", ")}.`
       });
     }
 
