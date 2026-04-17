@@ -151,6 +151,15 @@ service cloud.firestore {
                                && get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
     }
 
+    // ── vendor_links ───────────────────────────────────────────────────────
+    // Read: any authenticated UCAR user
+    // Write: administrators only
+    match /vendor_links/{vendorId} {
+      allow read: if isAuthedUCAR();
+      allow write: if isAuthedUCAR() &&
+                      get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+    }
+
     // ── Catch-all: deny everything not explicitly matched ──────────────────
     match /{document=**} {
       allow read, write: if false;
