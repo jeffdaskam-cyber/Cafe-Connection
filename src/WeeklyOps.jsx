@@ -29,6 +29,7 @@ import CashDrop        from "./components/CashDrop.jsx";
 import DropBox         from "./components/DropBox.jsx";
 import EventReportWidget from "./components/EventReportWidget.jsx";
 import SetUpReportDrive from "./components/SetUpReportDrive.jsx";
+import VendorPortal from "./components/VendorPortal.jsx";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 import { launchEmailComposer } from "./utils/emailLauncher.js";
 
@@ -483,6 +484,11 @@ export default function WeeklyOps() {
         {/* Event Report */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
           <EventReportWidget weekOf={weekOf} campus={campus} weekLabel={weekLabel} />
+        </div>
+
+        {/* Vendor Portal */}
+        <div style={{ breakInside: "avoid", marginBottom: 16 }}>
+          <VendorPortal />
         </div>
 
       </div>

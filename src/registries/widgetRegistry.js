@@ -97,6 +97,15 @@ export const WIDGET_REGISTRY = [
     defaultEnabled: false,
     colSpan:        1,
   },
+  {
+    widgetId:       "vendor_portal",
+    label:          "Vendor Portal",
+    icon:           "🔗",
+    description:    "Quick links to vendor login portals (Sysco, US Foods, and more).",
+    needsCampus:    false,
+    defaultEnabled: false,
+    colSpan:        1,
+  },
 ];
 
 /** Look up a widget definition by ID. */

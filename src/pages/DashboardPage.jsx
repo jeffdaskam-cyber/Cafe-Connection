@@ -26,6 +26,7 @@ import EventOrderLibraryWidget from "../components/dashboard/EventOrderLibraryWi
 import EventReportDashWidget  from "../components/dashboard/EventReportDashWidget.jsx";
 import SetUpReportWidget     from "../components/dashboard/SetUpReportWidget.jsx";
 import WeeklyExceptions from "../components/WeeklyExceptions.jsx";
+import VendorPortal from "../components/VendorPortal.jsx";
 
 // ── Widget component map ──────────────────────────────────────────────────────
 const WIDGET_COMPONENTS = {
@@ -38,6 +39,7 @@ const WIDGET_COMPONENTS = {
   event_report:        EventReportDashWidget,
   setup_report:        SetUpReportWidget,
   weekly_exceptions:   WeeklyExceptions,
+  vendor_portal:       VendorPortal,
 };
 
 

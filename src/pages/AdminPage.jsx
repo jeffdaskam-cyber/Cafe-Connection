@@ -3,6 +3,7 @@ import { collection, getDocs } from "firebase/firestore";
 import { db, auth } from "../firebase.js";
 import { useRole } from "../hooks/useRole.js";
 import Widget from "../components/Widget.jsx";
+import VendorManager from "../components/admin/VendorManager.jsx";
 
 const ROLES = ["user", "manager", "administrator"];
 
@@ -104,6 +105,12 @@ export default function AdminPage() {
           </tbody>
         </table>
       </Widget>
+
+      <div style={{ maxWidth: 800, marginTop: 24 }}>
+        <Widget title="Vendor Management">
+          <VendorManager />
+        </Widget>
+      </div>
     </div>
   );
 }
