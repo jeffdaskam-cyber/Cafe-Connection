@@ -18,8 +18,8 @@ function VendorTile({ vendor }) {
         alignItems: "center",
         justifyContent: "center",
         width: "100%",
-        minHeight: "56px",
-        padding: "10px 16px",
+        minHeight: "40px",
+        padding: "7px 14px",
         backgroundColor: COLORS.BG_SURFACE,
         border: `1px solid rgba(255,255,255,0.08)`,
         borderRadius: "8px",
@@ -96,8 +96,9 @@ export default function VendorPortal() {
       error={error}
       empty={!loading && vendors.length === 0}
       emptyMessage="No vendor links configured."
+      noPad
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "4px 0" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "6px", padding: "12px 16px 14px" }}>
         {vendors.map(vendor => (
           <VendorTile key={vendor.id} vendor={vendor} />
         ))}
