@@ -1,5 +1,5 @@
 // api/ingest-email-orders.mjs
-// Vercel Serverless Function — Cafe Connection
+// Vercel Serverless Function � Cafe Connection
 // Polls cafe-connection@ucar.edu Gmail inbox once daily.
 // Downloads PDF attachments from unread, unprocessed emails,
 // uploads to Firebase Storage, writes to Firestore event_orders collection.
@@ -8,8 +8,14 @@
 // Secured by CRON_SECRET (Vercel cron) or Firebase ID token (manual trigger).
 
 import admin from "firebase-admin";
+import {
+  createHttpError,
+  fetchWithTimeout,
+  getAdminApp,
+  requireEnv,
+  respondWithInternalError,
+} from "./_lib/serverless.mjs";
 
-// ─── Env validation (fail fast at cold start) ────────────────────────────────
 const REQUIRED_ENV = [
   "FIREBASE_ADMIN_PROJECT_ID",
   "FIREBASE_ADMIN_CLIENT_EMAIL",
@@ -19,131 +25,96 @@ const REQUIRED_ENV = [
   "GMAIL_CLIENT_SECRET",
   "GMAIL_REFRESH_TOKEN",
 ];
-for (const key of REQUIRED_ENV) {
-  if (!process.env[key]) throw new Error(`[ingest-email-orders] Missing required env var: ${key}`);
-}
+requireEnv("ingest-email-orders", process.env, REQUIRED_ENV);
 
-// ─── Firebase Admin Init (singleton) ────────────────────────────────────────
-let adminApp;
-try {
-  adminApp = admin.app();
-} catch {
-  adminApp = admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  });
-}
+const adminApp = getAdminApp(admin, process.env, "ingest-email-orders", {
+  storageBucketEnvVar: "FIREBASE_STORAGE_BUCKET",
+});
+const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
-const db      = admin.firestore();
-const bucket  = admin.storage().bucket();
-
-// ─── Auth check — accepts cron secret OR Firebase ID token ───────────────────
 async function verifyRequest(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    const err = new Error("Unauthorized"); err.status = 401; throw err;
+    throw createHttpError("Unauthorized", 401);
   }
+
   const token = authHeader.slice(7);
-
-  // Vercel cron invocation
   if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) return;
-
-  // Authenticated user invocation — verify Firebase ID token
   await adminApp.auth().verifyIdToken(token);
 }
 
-// ─── Fetch with timeout ───────────────────────────────────────────────────────
-async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
-  const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-// ─── Gmail OAuth token exchange ───────────────────────────────────────────────
 async function getGmailAccessToken() {
   const res = await fetchWithTimeout("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id:     process.env.GMAIL_CLIENT_ID,
+      client_id: process.env.GMAIL_CLIENT_ID,
       client_secret: process.env.GMAIL_CLIENT_SECRET,
       refresh_token: process.env.GMAIL_REFRESH_TOKEN,
-      grant_type:    "refresh_token",
+      grant_type: "refresh_token",
     }),
   });
+
   if (!res.ok) throw new Error(`Gmail OAuth request failed: ${res.status}`);
   const data = await res.json();
   if (!data.access_token) throw new Error("Gmail OAuth error: no access_token returned.");
   return data.access_token;
 }
 
-// ─── Gmail API helpers ────────────────────────────────────────────────────────
-
-// Search for unread messages that have attachments and are not yet processed.
 async function listUnprocessedMessages(token) {
   const query = "is:unread has:attachment -label:cafe-connection-processed";
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=10`;
-  const res  = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`Gmail list request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail list error: ${data.error.message}`);
   return data.messages || [];
 }
 
-// Fetch full message to inspect parts and attachments.
 async function getMessage(token, messageId) {
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`;
-  const res  = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`Gmail get message request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail get message error: ${data.error.message}`);
   return data;
 }
 
-// Download attachment bytes by attachmentId.
 async function getAttachment(token, messageId, attachmentId) {
   const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`;
-  const res  = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`Gmail attachment request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail attachment error: ${data.error.message}`);
-  // Gmail returns base64url encoded data — convert to standard base64 then to Buffer
   const base64 = data.data.replace(/-/g, "+").replace(/_/g, "/");
   return Buffer.from(base64, "base64");
 }
 
-// Get the cafe-connection-processed label ID.
 async function getProcessedLabelId(token) {
-  const res  = await fetchWithTimeout("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
+  const res = await fetchWithTimeout("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Gmail labels request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Gmail labels error: ${data.error.message}`);
-  const label = (data.labels || []).find(l => l.name === "cafe-connection-processed");
-  if (!label) throw new Error("Gmail label 'cafe-connection-processed' not found. Please create it manually in Gmail first.");
+  const label = (data.labels || []).find((entry) => entry.name === "cafe-connection-processed");
+  if (!label) {
+    throw new Error("Gmail label 'cafe-connection-processed' not found. Please create it manually in Gmail first.");
+  }
   return label.id;
 }
 
-// Apply the processed label and mark as read.
 async function markProcessed(token, messageId, labelId) {
-  const url  = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/modify`;
-  const res  = await fetchWithTimeout(url, {
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/modify`;
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      addLabelIds:    [labelId],
+      addLabelIds: [labelId],
       removeLabelIds: ["UNREAD"],
     }),
   });
@@ -152,7 +123,6 @@ async function markProcessed(token, messageId, labelId) {
   if (data.error) throw new Error(`Gmail modify error: ${data.error.message}`);
 }
 
-// ─── Extract PDF parts from a message recursively ────────────────────────────
 function extractPdfParts(parts) {
   const pdfs = [];
   for (const part of parts || []) {
@@ -165,7 +135,7 @@ function extractPdfParts(parts) {
     ) {
       if (part.body?.attachmentId) {
         pdfs.push({
-          filename:     part.filename || `attachment-${Date.now()}.pdf`,
+          filename: part.filename || `attachment-${Date.now()}.pdf`,
           attachmentId: part.body.attachmentId,
         });
       }
@@ -174,7 +144,6 @@ function extractPdfParts(parts) {
   return pdfs;
 }
 
-// ─── Firestore duplicate check ────────────────────────────────────────────────
 async function fileNameExists(fileName) {
   const snapshot = await db
     .collection("event_orders")
@@ -184,10 +153,9 @@ async function fileNameExists(fileName) {
   return !snapshot.empty;
 }
 
-// ─── Firebase Storage upload ──────────────────────────────────────────────────
 async function uploadToStorage(fileName, buffer) {
   const destination = `event_orders/${fileName}`;
-  const file        = bucket.file(destination);
+  const file = bucket.file(destination);
 
   await file.save(buffer, {
     metadata: { contentType: "application/pdf" },
@@ -198,7 +166,6 @@ async function uploadToStorage(fileName, buffer) {
   return `https://storage.googleapis.com/${bucket.name}/${destination}`;
 }
 
-// ─── Firestore write ──────────────────────────────────────────────────────────
 async function writeEventOrderDoc(fileName, downloadURL, size) {
   await db.collection("event_orders").add({
     fileName,
@@ -209,7 +176,6 @@ async function writeEventOrderDoc(fileName, downloadURL, size) {
   });
 }
 
-// ─── Main Handler ─────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
   try {
     await verifyRequest(req);
@@ -224,11 +190,9 @@ export default async function handler(req, res) {
   const results = { processed: 0, skipped: 0, errors: [] };
 
   try {
-    const token        = await getGmailAccessToken();
-    const labelId      = await getProcessedLabelId(token);
-    const messages     = await listUnprocessedMessages(token);
-
-    console.log(`[ingest-email-orders] Found ${messages.length} candidate message(s)`);
+    const token = await getGmailAccessToken();
+    const labelId = await getProcessedLabelId(token);
+    const messages = await listUnprocessedMessages(token);
 
     for (const { id: messageId } of messages) {
       let message;
@@ -240,28 +204,21 @@ export default async function handler(req, res) {
       }
 
       const pdfParts = extractPdfParts(message.payload?.parts);
-
       if (pdfParts.length === 0) {
-        // No PDF attachments — mark processed so we don't revisit
         await markProcessed(token, messageId, labelId);
-        console.log(`[ingest-email-orders] Message ${messageId}: no PDF attachments, marking processed`);
         continue;
       }
 
       for (const { filename, attachmentId } of pdfParts) {
         try {
-          // Duplicate check
           if (await fileNameExists(filename)) {
-            console.log(`[ingest-email-orders] Skipping duplicate: ${filename}`);
             results.skipped++;
             continue;
           }
 
-          const buffer      = await getAttachment(token, messageId, attachmentId);
+          const buffer = await getAttachment(token, messageId, attachmentId);
           const downloadURL = await uploadToStorage(filename, buffer);
           await writeEventOrderDoc(filename, downloadURL, buffer.length);
-
-          console.log(`[ingest-email-orders] Ingested: ${filename} (${buffer.length} bytes)`);
           results.processed++;
         } catch (err) {
           console.error(`[ingest-email-orders] Error processing ${filename}:`, err);
@@ -269,8 +226,6 @@ export default async function handler(req, res) {
         }
       }
 
-      // Mark the email processed regardless — even if all PDFs were duplicates,
-      // we don't want to re-check this message on subsequent runs.
       try {
         await markProcessed(token, messageId, labelId);
       } catch (err) {
@@ -278,11 +233,8 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log(`[ingest-email-orders] Done. Processed: ${results.processed}, Skipped: ${results.skipped}, Errors: ${results.errors.length}`);
     return res.status(200).json({ success: true, ...results });
-
   } catch (err) {
-    console.error("[ingest-email-orders] Fatal error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error", ...results });
+    return respondWithInternalError(res, "ingest-email-orders", err, results);
   }
 }

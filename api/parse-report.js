@@ -11,6 +11,15 @@
 import admin from "firebase-admin";
 import ExcelJS from "exceljs";
 import pdfParse from "pdf-parse";
+import {
+  createHttpError,
+  fetchWithTimeout,
+  getAdminApp,
+  isValidStorageUrl,
+  requireEnv,
+  respondWithError,
+  respondWithInternalError,
+} from "./_lib/serverless.mjs";
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 const REQUIRED_ENV = [
@@ -19,49 +28,20 @@ const REQUIRED_ENV = [
   "FIREBASE_ADMIN_PRIVATE_KEY",
   "ALLOWED_STORAGE_BUCKET",
 ];
-for (const key of REQUIRED_ENV) {
-  if (!process.env[key]) throw new Error(`[parse-report] Missing required env var: ${key}`);
-}
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    }),
-  });
-}
-
-const db = admin.firestore();
+requireEnv("parse-report", process.env, REQUIRED_ENV);
+const adminApp = getAdminApp(admin, process.env, "parse-report");
+const db = adminApp.firestore();
 
 // ─── Auth verification ────────────────────────────────────────────────────────
 async function verifyAuth(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    const err = new Error("Missing or invalid Authorization header.");
-    err.status = 401;
-    throw err;
+    throw createHttpError("Missing or invalid Authorization header.", 401);
   }
-  return admin.auth().verifyIdToken(authHeader.slice(7));
+  return adminApp.auth().verifyIdToken(authHeader.slice(7));
 }
 
-// ─── SSRF protection: only allow files from our Firebase Storage bucket ───────
-const ALLOWED_STORAGE_HOST   = "firebasestorage.googleapis.com";
-const ALLOWED_STORAGE_BUCKET = process.env.ALLOWED_STORAGE_BUCKET;
 
-function isValidStorageUrl(url) {
-  if (!ALLOWED_STORAGE_BUCKET) return false;
-  try {
-    const { hostname, pathname } = new URL(url);
-    return (
-      hostname === ALLOWED_STORAGE_HOST &&
-      pathname.includes(ALLOWED_STORAGE_BUCKET)
-    );
-  } catch {
-    return false;
-  }
-}
 
 // ─── Campus detection from Profit Center label ───────────────────────────────
 const PROFIT_CENTER_MAP = {
@@ -89,7 +69,7 @@ export default async function handler(req, res) {
   try {
     await verifyAuth(req);
   } catch (err) {
-    return res.status(err.status || 401).json({ error: err.message });
+    return respondWithError(res, err, 401);
   }
 
   const { fileUrl, campus: campusFallback, fileName } = req.body;
@@ -99,7 +79,7 @@ export default async function handler(req, res) {
   }
 
   // ── Validate fileUrl is a Firebase Storage URL for this project ────────────
-  if (typeof fileUrl !== "string" || !isValidStorageUrl(fileUrl)) {
+  if (typeof fileUrl !== "string" || !isValidStorageUrl(fileUrl, process.env.ALLOWED_STORAGE_BUCKET)) {
     return res.status(400).json({ error: "Invalid fileUrl: must be a Firebase Storage URL for this project." });
   }
 
@@ -116,16 +96,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId  = setTimeout(() => controller.abort(), 30000);
     let fileBuffer;
-    try {
-      const fileResponse = await fetch(fileUrl, { signal: controller.signal });
-      if (!fileResponse.ok) throw new Error(`Failed to fetch file: ${fileResponse.status} ${fileResponse.statusText}`);
-      fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const fileResponse = await fetchWithTimeout(fileUrl);
+    if (!fileResponse.ok) throw new Error(`Failed to fetch file: ${fileResponse.status} ${fileResponse.statusText}`);
+    fileBuffer = Buffer.from(await fileResponse.arrayBuffer());
 
     const isExcel = /\.(xlsx|xls)$/i.test(fileName);
     const isPdf   = /\.pdf$/i.test(fileName);
@@ -187,8 +161,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, docId, campus, metrics });
 
   } catch (err) {
-    console.error("[parse-report] Error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
+    return respondWithInternalError(res, "parse-report", err);
   }
 }
 
@@ -477,3 +450,5 @@ function round2(n) {
   if (n === null || n === undefined) return null;
   return Math.round(n * 100) / 100;
 }
+
+

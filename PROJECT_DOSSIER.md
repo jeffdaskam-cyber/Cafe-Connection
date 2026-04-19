@@ -288,6 +288,27 @@ Stat card labels on the Cafe Sales page now dynamically reflect the period conte
 
 ---
 
+## Runtime Environment Variables
+
+Required in Vercel for the current production feature set:
+
+- Frontend Firebase config: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_MEASUREMENT_ID`
+- Firebase Admin SDK: `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`
+- Shared serverless config: `ALLOWED_STORAGE_BUCKET`, `FIREBASE_STORAGE_BUCKET`, `CRON_SECRET`
+- Google Drive folder IDs: `GOOGLE_SCHEDULE_FOLDER_ID`, `GOOGLE_SPECIALS_FOLDER_ID`, `GOOGLE_EVENT_REPORTS_FOLDER_ID`, `GOOGLE_SETUP_REPORT_FOLDER_ID`
+- Gmail OAuth (only for deferred email ingestion): `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`
+
+The checked-in `.env.example` mirrors this list with placeholders only.
+
+## Verification Commands
+
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+
+These three commands are the current minimum pre-review smoke test for local and CI verification.
+
+---
 ## Deferred Work (Post-Migration)
 
 The following features are implemented but held until UCAR completes the platform migration:
@@ -301,3 +322,4 @@ The following features are implemented but held until UCAR completes the platfor
 ---
 
 *University Corporation for Atmospheric Research · Internal Tool*
+

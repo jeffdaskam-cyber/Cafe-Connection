@@ -10,7 +10,6 @@
 
 import { useState } from "react";
 import { fetchAccountingData } from "../../firebase.js";
-import { generateAndDownloadAccountingExcel } from "../../utils/accountingExport.js";
 import { useRole } from "../../hooks/useRole.js";
 import Widget from "../Widget.jsx";
 import { COLORS, RADIUS } from "../../theme.js";
@@ -119,6 +118,7 @@ export default function AccountingReport() {
   async function handleDownload() {
     setDownloading(true);
     try {
+      const { generateAndDownloadAccountingExcel } = await import("../../utils/accountingExport.js");
       await generateAndDownloadAccountingExcel(year, month);
     } catch (e) {
       console.error("[AccountingReport] Excel export failed:", e);

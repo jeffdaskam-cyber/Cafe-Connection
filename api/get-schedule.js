@@ -11,6 +11,16 @@
 
 import admin from "firebase-admin";
 import { SignJWT, importPKCS8 } from "jose";
+import {
+  createHttpError,
+  escapeDriveQueryValue,
+  fetchWithTimeout,
+  firebasePrivateKey,
+  getAdminApp,
+  requireEnv,
+  respondWithError,
+  respondWithInternalError,
+} from "./_lib/serverless.mjs";
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 const REQUIRED_ENV = [
@@ -19,29 +29,16 @@ const REQUIRED_ENV = [
   "FIREBASE_ADMIN_PRIVATE_KEY",
   "GOOGLE_SCHEDULE_FOLDER_ID",
 ];
-for (const key of REQUIRED_ENV) {
-  if (!process.env[key]) throw new Error(`[get-schedule] Missing required env var: ${key}`);
-}
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-      privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
-    }),
-  });
-}
+requireEnv("get-schedule", process.env, REQUIRED_ENV);
+const adminApp = getAdminApp(admin, process.env, "get-schedule");
 
 // ─── Auth verification ────────────────────────────────────────────────────────
 async function verifyAuth(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
-    const err = new Error("Unauthorized.");
-    err.status = 401;
-    throw err;
+    throw createHttpError("Unauthorized.", 401);
   }
-  return admin.auth().verifyIdToken(authHeader.slice(7));
+  return adminApp.auth().verifyIdToken(authHeader.slice(7));
 }
 
 // ─── weekOf format validation ─────────────────────────────────────────────────
@@ -50,7 +47,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // ─── Google OAuth2 token via service account ─────────────────────────────────
 async function getAccessToken() {
   const email      = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKey = firebasePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY);
 
   if (!email || !privateKey) throw new Error("Missing service account credentials.");
 
@@ -83,20 +80,12 @@ async function getAccessToken() {
 }
 
 // ─── Fetch with timeout ───────────────────────────────────────────────────────
-async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
-  const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
+
 
 // ─── Drive helpers ────────────────────────────────────────────────────────────
 async function findInFolder(token, parentId, name) {
   // Escape single quotes in the name to prevent Drive query injection.
-  const safeName = name.replace(/'/g, "\\'");
+  const safeName = escapeDriveQueryValue(name);
   const q   = `'${parentId}' in parents and name = '${safeName}' and trashed = false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
   const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -132,7 +121,7 @@ export default async function handler(req, res) {
   try {
     await verifyAuth(req);
   } catch (err) {
-    return res.status(err.status || 401).json({ error: err.message });
+    return respondWithError(res, err, 401);
   }
 
   // ── Validate weekOf query param ───────────────────────────────────────────
@@ -223,7 +212,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, weekLabel, rows, colorMap });
 
   } catch (err) {
-    console.error("[get-schedule] Error:", err);
-    return res.status(500).json({ error: err.message || "Internal server error" });
+    return respondWithInternalError(res, "get-schedule", err);
   }
 }
+
+
