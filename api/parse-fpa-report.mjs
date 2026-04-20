@@ -123,7 +123,7 @@ function cellNumber(cell) {
 // ── Period detection ─────────────────────────────────────────────────────────
 function parsePeriodFromText(text) {
   if (!text) return null;
-  const s = String(text);
+  const s = String(text).trim();
 
   // YYYY-MM
   let m = s.match(/\b(20\d{2})-(0[1-9]|1[0-2])\b/);
@@ -132,29 +132,60 @@ function parsePeriodFromText(text) {
   // YYYY/MM or MM/YYYY
   m = s.match(/\b(20\d{2})\/(0?[1-9]|1[0-2])\b/);
   if (m) return { year: Number(m[1]), month: Number(m[2]) };
+
   m = s.match(/\b(0?[1-9]|1[0-2])\/(20\d{2})\b/);
   if (m) return { year: Number(m[2]), month: Number(m[1]) };
 
-  // Long month name + year
   const lower = s.toLowerCase();
+
+  // Long month name + year, e.g. "March 2026"
   for (let i = 0; i < MONTH_NAMES_LONG.length; i++) {
     const name = MONTH_NAMES_LONG[i];
     const re = new RegExp(`\\b${name}\\b[\\s,\\-]*?(20\\d{2})`, "i");
     const match = lower.match(re);
     if (match) return { year: Number(match[1]), month: i + 1 };
   }
-  // Short month name + year
+
+  // Short month name + year, e.g. "Mar 2026"
   for (const short of MONTH_NAMES_SHORT) {
     const re = new RegExp(`\\b${short}\\b[\\s,\\-\\.]*?(20\\d{2})`, "i");
     const match = lower.match(re);
     if (match) return { year: Number(match[1]), month: MONTH_SHORT_TO_NUM[short] };
   }
-  // Workday period format: "P06" combined with "FY2026" elsewhere — caller handles that.
+
+  // FY + month, e.g. "FY2026 - Mar", "FY26 Mar", "Fiscal Year 2026 - March"
+  for (let i = 0; i < MONTH_NAMES_LONG.length; i++) {
+    const name = MONTH_NAMES_LONG[i];
+    const re = new RegExp(`\\b(?:fy|fiscal\\s+year)\\s*(20\\d{2}|\\d{2})\\b[\\s\\-,:]*\\b${name}\\b`, "i");
+    const match = lower.match(re);
+    if (match) {
+      const fyRaw = Number(match[1]);
+      const fiscalYear = fyRaw < 100 ? 2000 + fyRaw : fyRaw;
+      const month = i + 1;
+      const year = month >= FISCAL_START_MONTH ? fiscalYear - 1 : fiscalYear;
+      return { year, month };
+    }
+  }
+
+  for (const short of MONTH_NAMES_SHORT) {
+    const re = new RegExp(`\\b(?:fy|fiscal\\s+year)\\s*(20\\d{2}|\\d{2})\\b[\\s\\-,:]*\\b${short}\\b`, "i");
+    const match = lower.match(re);
+    if (match) {
+      const fyRaw = Number(match[1]);
+      const fiscalYear = fyRaw < 100 ? 2000 + fyRaw : fyRaw;
+      const month = MONTH_SHORT_TO_NUM[short];
+      const year = month >= FISCAL_START_MONTH ? fiscalYear - 1 : fiscalYear;
+      return { year, month };
+    }
+  }
+
   return null;
 }
 
 function detectPeriodFromSheet(sheet, workbook) {
-  // Scan header rows (first 40) across all columns for the period string.
+  const fromB8 = parsePeriodFromText(cellText(sheet.getCell("B8")));
+  if (fromB8) return fromB8;
+
   const limit = Math.min(40, sheet.rowCount);
   for (let r = 1; r <= limit; r++) {
     const row = sheet.getRow(r);
@@ -166,14 +197,16 @@ function detectPeriodFromSheet(sheet, workbook) {
     const detected = parsePeriodFromText(joined);
     if (detected) return detected;
   }
-  // Try worksheet name and workbook properties
+
   const fromSheetName = parsePeriodFromText(sheet.name);
   if (fromSheetName) return fromSheetName;
+
   const title = workbook?.properties?.title;
   if (title) {
     const fromTitle = parsePeriodFromText(title);
     if (fromTitle) return fromTitle;
   }
+
   return null;
 }
 
