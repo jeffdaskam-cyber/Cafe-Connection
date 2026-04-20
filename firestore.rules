@@ -66,8 +66,14 @@ service cloud.firestore {
 
     // ── users ──────────────────────────────────────────────────────────────
     // Own profile only. Document ID == Firebase Auth UID.
+    // Administrators can read all user documents (for Admin panel display names).
     match /users/{userId} {
-      allow read, write: if isAuthedUCAR() && request.auth.uid == userId;
+      allow read: if isAuthedUCAR() && request.auth.uid == userId;
+      allow read: if isAuthedUCAR() &&
+                     get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+      allow write: if isAuthedUCAR() && request.auth.uid == userId;
+      allow write: if isAuthedUCAR() &&
+                      get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
     }
 
     // ── weekly_schedules ───────────────────────────────────────────────────
