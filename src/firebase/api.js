@@ -22,13 +22,20 @@ async function fetchWithAuth(url, { method = "GET", body, timeoutMs = 30000 } = 
 async function parseApiResponse(res, defaultError) {
   if (!res.ok) {
     let message = defaultError;
+    let bodyPreview = "";
     try {
+      const cloned = res.clone();
       const err = await res.json();
       message = err.error || message;
+      if (err.detail) message += ` (${err.detail})`;
+      if (!err.error) {
+        try { bodyPreview = (await cloned.text()).slice(0, 200); } catch {}
+      }
     } catch {
-      // response body wasn't JSON
+      try { bodyPreview = (await res.text()).slice(0, 200); } catch {}
     }
-    throw new Error(message);
+    const suffix = bodyPreview ? ` [HTTP ${res.status}: ${bodyPreview}]` : ` [HTTP ${res.status}]`;
+    throw new Error(message + suffix);
   }
   return res.json();
 }

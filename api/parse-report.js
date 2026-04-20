@@ -10,7 +10,9 @@
 
 import admin from "firebase-admin";
 import ExcelJS from "exceljs";
-import pdfParse from "pdf-parse";
+// Use the internal path to avoid pdf-parse@1.1.1's buggy wrapper that tries to
+// read a test file at module-load time — that throws in serverless builds.
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import {
   createHttpError,
   fetchWithTimeout,
@@ -161,7 +163,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, docId, campus, metrics });
 
   } catch (err) {
-    return respondWithInternalError(res, "parse-report", err);
+    return respondWithInternalError(res, "parse-report", err, { detail: err?.message });
   }
 }
 
