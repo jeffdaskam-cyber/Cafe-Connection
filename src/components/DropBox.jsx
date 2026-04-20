@@ -130,9 +130,9 @@ export default function DropBox() {
   const handleDrop = useCallback(async (file) => {
     setUploadState({ status: "UPLOADING", campus: null, errorMsg: null });
     try {
-      const url    = await uploadReport("unknown", file, () => {});
+      const url    = await uploadReport("auto", file, () => {});
       setUploadState({ status: "PROCESSING", campus: null, errorMsg: null });
-      const result = await parseReport(url, "unknown", file.name);
+      const result = await parseReport(url, null, file.name);
       setUploadState({ status: "SUCCESS", campus: result?.campus ?? null, errorMsg: null });
     } catch (err) {
       console.error("[DropBox] Upload failed:", err);
