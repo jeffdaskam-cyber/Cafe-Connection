@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { useState, useEffect, useRef } from "react";
+import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { db, auth } from "../firebase.js";
 import { useRole } from "../hooks/useRole.js";
 import Widget from "../components/Widget.jsx";
@@ -10,9 +10,12 @@ const ROLES = ["user", "manager", "administrator"];
 
 export default function AdminPage() {
   const { isAdministrator, roleLoading } = useRole();
-  const [users, setUsers]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(null);
+  const [users, setUsers]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(null);       // uid of row with role saving
+  const [editingName, setEditingName] = useState(null);     // { uid, value } or null
+  const [savingName, setSavingName] = useState(null);       // uid of row with name saving
+  const nameInputRef = useRef(null);
 
   useEffect(() => {
     if (roleLoading || !isAdministrator) return;
@@ -22,6 +25,14 @@ export default function AdminPage() {
       setLoading(false);
     });
   }, [isAdministrator, roleLoading]);
+
+  // Focus the input whenever editingName changes to a non-null value
+  useEffect(() => {
+    if (editingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [editingName?.uid]);
 
   async function handleRoleChange(uid, newRole) {
     setSaving(uid);
@@ -45,6 +56,39 @@ export default function AdminPage() {
       alert(`Role change failed: ${err.message}`);
     }
     setSaving(null);
+  }
+
+  async function handleNameSave(uid, newName) {
+    const trimmed = newName.trim();
+    setEditingName(null);
+
+    // Find current name to avoid a no-op write
+    const current = users.find((u) => u.id === uid)?.displayName || "";
+    if (trimmed === current) return;
+
+    setSavingName(uid);
+    try {
+      // Write to user_roles (merge so other fields are preserved)
+      await setDoc(
+        doc(db, "user_roles", uid),
+        { displayName: trimmed },
+        { merge: true }
+      );
+      // Write to users (merge so other profile fields are preserved)
+      await setDoc(
+        doc(db, "users", uid),
+        { displayName: trimmed },
+        { merge: true }
+      );
+      // Update local state
+      setUsers((prev) =>
+        prev.map((u) => (u.id === uid ? { ...u, displayName: trimmed } : u))
+      );
+    } catch (err) {
+      console.error("[AdminPage] Display name save failed:", err);
+      alert(`Display name save failed: ${err.message}`);
+    }
+    setSavingName(null);
   }
 
   if (roleLoading || loading) {
@@ -76,7 +120,54 @@ export default function AdminPage() {
             {users.map((u) => (
               <tr key={u.id} style={{ borderBottom: `1px solid ${COLORS.BORDER}` }}>
                 <td style={{ padding: "8px 12px" }}>{u.email}</td>
-                <td style={{ padding: "8px 12px" }}>{u.displayName || "\u2014"}</td>
+
+                {/* ── Display Name cell ── */}
+                <td style={{ padding: "8px 12px", minWidth: 160 }}>
+                  {editingName?.uid === u.id ? (
+                    <input
+                      ref={nameInputRef}
+                      value={editingName.value}
+                      onChange={(e) =>
+                        setEditingName({ uid: u.id, value: e.target.value })
+                      }
+                      onBlur={() => handleNameSave(u.id, editingName.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleNameSave(u.id, editingName.value);
+                        if (e.key === "Escape") setEditingName(null);
+                      }}
+                      style={{
+                        padding: "3px 6px",
+                        borderRadius: 4,
+                        border: `1px solid ${COLORS.AQUA}`,
+                        fontSize: 14,
+                        width: "100%",
+                        boxSizing: "border-box",
+                        background: "transparent",
+                        color: "inherit",
+                      }}
+                    />
+                  ) : (
+                    <span
+                      onClick={() =>
+                        setEditingName({ uid: u.id, value: u.displayName || "" })
+                      }
+                      title="Click to edit"
+                      style={{
+                        cursor: "pointer",
+                        borderBottom: `1px dashed ${COLORS.TEXT_MUTED}`,
+                        paddingBottom: 1,
+                      }}
+                    >
+                      {savingName === u.id ? (
+                        <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>Saving…</span>
+                      ) : (
+                        u.displayName || "\u2014"
+                      )}
+                    </span>
+                  )}
+                </td>
+
+                {/* ── Role cell (unchanged) ── */}
                 <td style={{ padding: "8px 12px" }}>
                   <select
                     value={u.role}
@@ -94,6 +185,8 @@ export default function AdminPage() {
                     <span style={{ marginLeft: 8, fontSize: 12, color: COLORS.TEXT_MUTED }}>Saving…</span>
                   )}
                 </td>
+
+                {/* ── Last Assigned cell (unchanged) ── */}
                 <td style={{ padding: "8px 12px", fontSize: 12, color: COLORS.TEXT_MUTED }}>
                   {u.assignedAt?.toDate
                     ? u.assignedAt.toDate().toLocaleDateString("en-US", {
