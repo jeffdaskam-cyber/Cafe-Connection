@@ -22,6 +22,8 @@ export {
   subscribeEventOrdersForWeek,
   subscribeEventReports,
   subscribeEventRevenue,
+  subscribeFpaFacts,
+  subscribeFpaUploads,
   subscribeRecentCashDrops,
   subscribeSetupReports,
   subscribeToCampus,

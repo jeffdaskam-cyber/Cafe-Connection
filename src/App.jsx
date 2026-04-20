@@ -18,6 +18,7 @@ import AdminPage    from "./pages/AdminPage.jsx";
 import FinancialsPage from "./Dashboard.jsx";
 import WeeklyOps    from "./WeeklyOps.jsx";
 import EventRevenuePage from "./pages/EventRevenuePage.jsx";
+import FpaPage from "./pages/FpaPage.jsx";
 import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
 import { COLORS, SHADOWS } from "./theme.js";
 
@@ -73,6 +74,7 @@ const TABS = [
   { id: "weeklyops",     label: "Weekly Ops"     },
   { id: "financials",    label: "Cafe Sales"      },
   { id: "eventrevenue",  label: "Event Revenue"  },
+  { id: "fpa",           label: "FP&A"           },
   { id: "reports",       label: "Reports"        },
 ];
 
@@ -209,6 +211,7 @@ function AppShell() {
         {activeTab === "weeklyops"  && <WeeklyOps />}
         {activeTab === "financials" && <FinancialsPage />}
         {activeTab === "eventrevenue" && <EventRevenuePage />}
+        {activeTab === "fpa"        && <FpaPage />}
         {activeTab === "reports"    && <ReportsPage />}
         {activeTab === "admin"      && <AdminPage />}
 

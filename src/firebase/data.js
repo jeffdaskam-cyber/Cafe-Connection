@@ -324,6 +324,20 @@ export function subscribeEventRevenue(callback) {
   );
 }
 
+export function subscribeFpaFacts(callback) {
+  return onSnapshot(
+    query(collection(db, "fpa_facts"), orderBy("monthKey", "asc")),
+    (snapshot) => callback(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
+  );
+}
+
+export function subscribeFpaUploads(callback) {
+  return onSnapshot(
+    query(collection(db, "fpa_uploads"), orderBy("uploadedAt", "desc"), limit(20)),
+    (snapshot) => callback(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })))
+  );
+}
+
 export async function fetchAccountingData(campus, year, month) {
   const startDate = Timestamp.fromDate(new Date(year, month - 1, 1));
   const endDate = Timestamp.fromDate(new Date(year, month, 1));

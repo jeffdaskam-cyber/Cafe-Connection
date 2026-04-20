@@ -246,6 +246,53 @@ export const USER_DASHBOARD_PREFS_SCHEMA = {
   updated_at: "Timestamp",
 };
 
+/**
+ * fpa_facts
+ * FP&A Workday operating-budget facts. One document per
+ * campus × ledger code × monthKey. Populated by /api/parse-fpa-report.
+ *
+ * Document ID: "fpa_{YYYY-MM}_{CampusSlug}_{ledgerCode}"
+ *   e.g. "fpa_2026-03_Mesa_Lab_5001"
+ *
+ * Overwrite semantics: re-uploading a month deletes all facts for that monthKey
+ * and rewrites them in a single batch; prior months are preserved.
+ */
+export const FPA_FACTS_SCHEMA = {
+  monthKey:          "String — 'YYYY-MM'",
+  monthLabel:        "String — short month label (e.g. 'Mar 2026')",
+  fiscalYear:        "Number — UCAR FY ending September (Oct 2025–Sep 2026 = 2026)",
+  fiscalMonthNumber: "Number — 1..12 where 1=Oct, 12=Sep",
+  calendarYear:      "Number",
+  calendarMonth:     "Number — 1..12",
+  campus:            "String — 'ES Admin' | 'Mesa Lab' | 'Foothills' | 'Center Green'",
+  projectCode:       "String — e.g. 'PRJ005073'",
+  ledgerCode:        "String — four-digit source row code (e.g. '5001')",
+  sourceLabel:       "String — original label from column A",
+  normalizedName:    "String — mapped display name (e.g. 'Salaries', 'Benefits')",
+  category:          "String — 'Revenue' | 'Expense' | 'Tax'",
+  mtdAmount:         "Number — absolute value of column C",
+  ytdAmount:         "Number — absolute value of column D",
+  sourceFileName:    "String — original upload filename",
+  uploadedAt:        "Timestamp — server timestamp",
+};
+
+/**
+ * fpa_uploads
+ * Audit log of FP&A workbook uploads. One document per successful parse.
+ *
+ * Document ID: auto-generated
+ */
+export const FPA_UPLOADS_SCHEMA = {
+  monthKey:                "String — 'YYYY-MM' of the parsed report",
+  sourceFileName:          "String — original filename",
+  recordsWritten:          "Number — fact rows written this upload",
+  recordsOverwritten:      "Number — prior fact rows removed before write",
+  overwroteExistingMonth:  "Boolean — true when re-uploading a month",
+  warnings:                "Array<String> — soft validation warnings",
+  uploadedByUid:           "String? — UID of the uploader (from auth token)",
+  uploadedAt:              "Timestamp",
+};
+
 // ── Exported registry ─────────────────────────────────────────────────────────
 export const SCHEMA_REGISTRY = {
   daily_metrics:       DAILY_METRICS_SCHEMA,
@@ -259,4 +306,6 @@ export const SCHEMA_REGISTRY = {
   cash_drops:          CASH_DROPS_SCHEMA,
   generated_reports:   GENERATED_REPORTS_SCHEMA,
   user_dashboard_prefs: USER_DASHBOARD_PREFS_SCHEMA,
+  fpa_facts:           FPA_FACTS_SCHEMA,
+  fpa_uploads:         FPA_UPLOADS_SCHEMA,
 };
