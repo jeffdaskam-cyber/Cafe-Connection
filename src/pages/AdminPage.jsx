@@ -20,8 +20,18 @@ export default function AdminPage() {
   useEffect(() => {
     if (roleLoading || !isAdministrator) return;
 
-    getDocs(collection(db, "user_roles")).then((snap) => {
-      setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    Promise.all([
+      getDocs(collection(db, "user_roles")),
+      getDocs(collection(db, "users")),
+    ]).then(([rolesSnap, usersSnap]) => {
+      const usersMap = Object.fromEntries(usersSnap.docs.map((d) => [d.id, d.data()]));
+      setUsers(
+        rolesSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          displayName: usersMap[d.id]?.displayName ?? d.data().displayName ?? "",
+        }))
+      );
       setLoading(false);
     });
   }, [isAdministrator, roleLoading]);
