@@ -43,7 +43,7 @@ The app provides a centralized hub for daily operations, financial reporting, ev
 ### Desktop Shell
 Sticky header bar contains:
 - **UCAR Cafe Connection** wordmark (with wave SVG decoration)
-- Tab navigation: Dashboard · Weekly Ops · Cafe Sales · Event Revenue · Reports · Admin *(admin-only)*
+- Tab navigation: Dashboard · Weekly Ops · Cafe Sales · Event Revenue · FP&A · Reports · Admin *(admin-only)*
 - Current date and signed-in user with **Sign out** button
 
 ### Mobile Shell
@@ -159,7 +159,41 @@ Both upload zones show upload → processing → success/error states with anima
 
 ---
 
-### 5. Reports
+### 5. FP&A *(new tab)*
+
+Financial Planning & Analysis dashboard. Ingests a standardized Workday Operating Budget Report (Project Hierarchy) `.xlsx` and renders eight executive-facing visuals covering FYTD and 13-month rolling views. Implementation per the FP&A Feature Handoff.
+
+**Scope:**
+- Only four approved project blocks are parsed: `PRJ004382` (ES Admin), `PRJ005073` (Mesa Lab), `PRJ005074` (Foothills), `PRJ005075` (Center Green). Unmapped projects are ignored.
+- Twelve mapped ledger rows are normalized. Ledger codes `5051` (Benefits — Applied) and `9989` (Final Rate-Full Benefits) both normalize to "Benefits" and are summed by selectors.
+- Column C = MTD; Column D = YTD. Values stored as absolute numbers so revenue and expense compare cleanly.
+- Sales Tax is category "Tax" but included in revenue totals per the handoff.
+- Re-uploading a month overwrites all stored facts for that month; other months are preserved.
+
+**Controls:**
+- **Fiscal Year** dropdown (derived from stored data; UCAR FY = Oct 1 – Sep 30).
+- **Month override** (optional) on the upload zone — use if the workbook period label can't be auto-detected.
+
+**Visuals (single page):**
+
+| # | Report | Period | Visual | Definition |
+|---|---|---|---|---|
+| 1 | Total Revenue | FYTD | KPI card | Sum of all revenue YTD (includes Sales Tax) |
+| 2 | Total Revenue and Expense | 13-month rolling | Clustered column | Two bars per month (MTD) |
+| 3 | Total Revenue | FYTD | Stacked horizontal bar | By campus, stacked by revenue type |
+| 4 | Total Expense | FYTD | Stacked horizontal bar | By campus, stacked by expense type |
+| 5 | Monthly Labor Expense | 13-month rolling | Multi-series line | Salaries + Benefits by campus |
+| 6 | Monthly Cost of Sales | 13-month rolling | Multi-series line | Materials by campus |
+| 7 | Total Expenses | FYTD | Horizontal bar | Expense type as % of total revenue |
+| 8 | Monthly Support Level | FYTD | Single-series column | Monthly expense − monthly revenue |
+
+**Data model:**
+- `fpa_facts` — one doc per `monthKey × campus × ledgerCode`. Document ID: `fpa_{YYYY-MM}_{campusSlug}_{ledgerCode}`.
+- `fpa_uploads` — audit log of each successful upload (records written, records overwritten, warnings).
+
+Both collections are read-any-authed, server-write-only via Firestore rules.
+
+### 6. Reports
 
 Report generation hub with two sections: **Accounting** and **Operations**.
 
@@ -178,7 +212,7 @@ Report generation hub with two sections: **Accounting** and **Operations**.
 
 ---
 
-### 6. Admin *(administrator role only)*
+### 7. Admin *(administrator role only)*
 
 **User Management** table showing all registered users from the `user_roles` Firestore collection:
 - Email address
@@ -203,6 +237,7 @@ All routes require a Firebase ID token in the `Authorization: Bearer <token>` he
 | `/api/get-setup-report` | GET | Retrieve the setup report PDF from Google Drive |
 | `/api/ingest-email-orders` | GET | Poll monitored inbox for event-order PDFs, upload to Storage, write to `event_orders`. **Implemented but not yet activated** — requires Gmail OAuth env vars and cron re-enable post-migration. |
 | `/api/parse-event-revenue` | POST | Parse internal or external event revenue `.xlsx` and write to `event_revenue` collection |
+| `/api/parse-fpa-report` | POST | Parse Workday Operating Budget `.xlsx`, upsert facts to `fpa_facts`, append to `fpa_uploads` |
 | `/api/update-user-role` | POST | Change a user's role (administrator-only) |
 
 ---
@@ -219,6 +254,8 @@ All routes require a Firebase ID token in the `Authorization: Bearer <token>` he
 | `dashboard_notes` | Per-user sticky notes (text, createdAt). |
 | `event_orders` | Event order PDFs (metadata + Storage URLs), keyed by week. |
 | `weekly_exceptions` | Weekly schedule exception flags per campus. |
+| `fpa_facts` | Normalized monthly FP&A facts (campus × ledger × month). Server-write-only. |
+| `fpa_uploads` | Audit log of FP&A workbook uploads. Server-write-only. |
 
 ---
 
