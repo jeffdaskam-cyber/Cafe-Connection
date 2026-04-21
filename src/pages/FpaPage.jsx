@@ -434,7 +434,7 @@ function ExpensePctChart({ data, loading }) {
 function SupportLevelChart({ data, loading }) {
   return (
     <Widget title="Monthly Support Level"
-      subtitle="Monthly expense minus monthly revenue FYTD"
+      subtitle="Total Rollup to General Fund"
       accentColor={COLORS.AQUA}
       loading={loading}
       empty={!loading && data.length === 0}
@@ -511,14 +511,10 @@ export default function FpaPage() {
       {/* ── Controls bar ── */}
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between",
         marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-            letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 6 }}>
-            FP&amp;A Dashboard
-          </div>
+        </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
             fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.3px" }}>
-            Workday Operating Budget
+            FP&amp;A Dashboard
           </div>
         </div>
 
@@ -552,7 +548,7 @@ export default function FpaPage() {
           sublabel={latestLabel ? `Through ${latestLabel}` : "Awaiting first upload"}
           accentColor={COLORS.AQUA} />
         <StatusCard fiscalYear={activeFY} latestLabel={latestLabel}
-          monthCount={monthCount} uploadsCount={uploads.length} />
+          monthCount={monthCount} />
       </div>
 
       {/* ── Row 2: 13-month clustered ── */}
