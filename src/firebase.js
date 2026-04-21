@@ -4,7 +4,6 @@ export { uploadEventOrder, uploadReport } from "./firebase/uploads";
 export {
   addDashboardNote,
   addCashDrop,
-  createUserRoleIfMissing,
   deleteDashboardNote,
   fetchAccountingData,
   getCafeChargesData,

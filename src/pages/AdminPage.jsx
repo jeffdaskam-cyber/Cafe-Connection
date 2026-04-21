@@ -4,6 +4,7 @@ import { db, auth } from "../firebase.js";
 import { useRole } from "../hooks/useRole.js";
 import Widget from "../components/Widget.jsx";
 import VendorManager from "../components/admin/VendorManager.jsx";
+import UserInvitations from "../components/admin/UserInvitations.jsx";
 import { COLORS } from "../theme.js";
 
 const ROLES = ["user", "manager", "senior_leader", "administrator"];
@@ -125,7 +126,8 @@ export default function AdminPage() {
   return (
     <div style={{ padding: 24 }}>
       <h2 style={{ marginBottom: 16 }}>User Management</h2>
-      <Widget title="Registered Users" style={{ maxWidth: 800 }}>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <Widget title="Registered Users" style={{ flex: "0 0 800px", maxWidth: 800 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
             <tr style={{ textAlign: "left", borderBottom: `2px solid ${COLORS.BORDER}` }}>
@@ -218,6 +220,11 @@ export default function AdminPage() {
           </tbody>
         </table>
       </Widget>
+
+      <Widget title="User Invitations" style={{ flex: "0 0 400px", maxWidth: 440, minWidth: 340 }}>
+        <UserInvitations />
+      </Widget>
+      </div>
 
       <div style={{ maxWidth: 800, marginTop: 24 }}>
         <Widget title="Vendor Management">

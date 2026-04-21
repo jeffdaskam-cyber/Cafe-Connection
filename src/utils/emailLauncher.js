@@ -25,6 +25,36 @@ export function launchAccountingEmail(monthName, year) {
 }
 
 /**
+ * Opens Gmail compose with a pre-filled UCAR Cafe Connection invite email.
+ *
+ * @param {string} toEmail - The invited user's email address
+ * @param {string} link    - The Firebase magic-link sign-in URL
+ */
+export function launchInviteEmail(toEmail, link) {
+  const subject = "You've been invited to UCAR Cafe Connection";
+
+  const body = [
+    'Hi,',
+    '',
+    "You've been invited to access UCAR Cafe Connection.",
+    '',
+    'Click the link below to sign in. This link expires in 24 hours.',
+    '',
+    link,
+    '',
+    'If you have any questions, contact Jeff Daskam.',
+  ].join('\n');
+
+  const gmailUrl =
+    `https://mail.google.com/mail/?view=cm&fs=1` +
+    `&to=${encodeURIComponent(toEmail)}` +
+    `&subject=${encodeURIComponent(subject)}` +
+    `&body=${encodeURIComponent(body)}`;
+
+  window.open(gmailUrl, '_blank');
+}
+
+/**
  * @param {string} reportType - e.g., "Staff Schedule", "Set Up Report", "Event Report"
  * @param {string} campus     - e.g., "Center Green", "Foothills", "Mesa Lab"
  * @param {string} weekLabel  - e.g., "Week of March 31, 2026"

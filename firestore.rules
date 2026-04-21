@@ -164,13 +164,40 @@ service cloud.firestore {
       allow read: if isAuthedUCAR() &&
                      get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
 
-      // Self-registration on first login: create own doc with role "user" only
+      // First-login activation: the invited user creates their own role doc,
+      // but only if a matching pending invite exists and the role matches.
       allow create: if request.auth != null && request.auth.uid == uid
-                       && request.resource.data.role == "user";
+                       && exists(/databases/$(database)/documents/pending_invites/$(request.auth.token.email))
+                       && request.resource.data.role ==
+                          get(/databases/$(database)/documents/pending_invites/$(request.auth.token.email)).data.role;
 
       // Only administrators can update or delete role docs
       allow update, delete: if request.auth != null
                                && get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+    }
+
+    // ── pending_invites ────────────────────────────────────────────────────
+    // Admin-created invite records keyed by invited email address.
+    // Writes (create/update) happen exclusively via serverless functions
+    // which use the Admin SDK and bypass these rules. The only client-side
+    // write permitted is the invited user consuming (deleting) their own
+    // invite doc on first login.
+    match /pending_invites/{email} {
+      // Admins can read the full list for the Admin tab
+      allow read: if isAuthedUCAR() &&
+                     exists(/databases/$(database)/documents/user_roles/$(request.auth.uid)) &&
+                     get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+
+      // Invited user may read their own invite doc (needed to pick up role
+      // during first-login activation in AuthContext).
+      allow read: if request.auth != null && request.auth.token.email == email;
+
+      // No direct client create/update — all writes go through serverless functions.
+      allow create, update: if false;
+
+      // Invited user may delete their own invite doc after first-login activation.
+      allow delete: if request.auth != null &&
+                       request.auth.token.email == email;
     }
 
     // ── vendor_links ───────────────────────────────────────────────────────

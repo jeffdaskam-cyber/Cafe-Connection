@@ -258,22 +258,6 @@ export async function saveDashboardPrefs(uid, data) {
   await setDoc(doc(db, "user_dashboard_prefs", uid), { uid, ...data, updated_at: serverTimestamp() }, { merge: true });
 }
 
-export async function createUserRoleIfMissing(user) {
-  const ref = doc(db, "user_roles", user.uid);
-  const snapshot = await getDoc(ref);
-  if (!snapshot.exists()) {
-    await setDoc(ref, {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || "",
-      role: "user",
-      assignedBy: user.uid,
-      assignedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    });
-  }
-}
-
 export async function getDashboardNotes(uid) {
   const snapshot = await getDoc(doc(db, "user_dashboard_prefs", uid));
   if (!snapshot.exists()) return [];
