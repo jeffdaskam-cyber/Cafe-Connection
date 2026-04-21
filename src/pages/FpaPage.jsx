@@ -479,9 +479,15 @@ function SupportLevelChart({ data, fytdTotal = 0, loading }) {
   );
 }
 
+// ── Helpers for filtering ────────────────────────────────────────────────────
+function filterOutEsAdmin(facts) {
+  return facts.filter(f => f.campus !== "ES Admin");
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FpaPage() {
   const [fiscalYear, setFiscalYear] = useState(null);
+  const [includeEsAdmin, setIncludeEsAdmin] = useState(true);
 
   const { data: factsData, loading: factsLoading } = useWidgetSubscription(
     (cb) => subscribeFpaFacts(cb), []
@@ -504,17 +510,39 @@ export default function FpaPage() {
 
   const activeFY = fiscalYear ?? defaultFiscalYearFromFacts(facts);
 
-  const fytdRevenue = useMemo(() => totalRevenueFYTD(facts, activeFY), [facts, activeFY]);
-  const rolling13   = useMemo(() => revenueAndExpense13Month(facts), [facts]);
-  const revByCampus = useMemo(() => revenueByCampusAndType(facts, activeFY), [facts, activeFY]);
-  const expByCampus = useMemo(() => expenseByCampusAndType(facts, activeFY), [facts, activeFY]);
-  const laborSeries = useMemo(() => laborExpenseByCampusByMonth(facts), [facts]);
-  const cosSeries   = useMemo(() => costOfSalesByCampusByMonth(facts), [facts]);
-  const expPct      = useMemo(() => expenseTypeAsPctOfRevenue(facts, activeFY), [facts, activeFY]);
-  const support     = useMemo(() => monthlySupportLevel(facts, activeFY), [facts, activeFY]);
-  const supportFYTD = useMemo(() => supportLevelFYTD(facts, activeFY), [facts, activeFY]);
+  // Filter facts for selectors that should respect the includeEsAdmin toggle.
+  // Monthly Support Level always excludes ES Admin regardless of toggle.
+  const factsForToggleable = useMemo(() =>
+    includeEsAdmin ? facts : filterOutEsAdmin(facts),
+    [facts, includeEsAdmin]
+  );
+  const factsForSupportLevel = useMemo(() =>
+    filterOutEsAdmin(facts),
+    [facts]
+  );
 
+  // Always anchor time window to the latest month from unfiltered facts so
+  // toggling ES Admin off never shifts which period the charts report on.
   const latestKey = latestMonthKey(facts, activeFY);
+
+  const fytdRevenue = useMemo(() => totalRevenueFYTD(facts, activeFY), [facts, activeFY]);
+  // 13-month rolling: pass latestKey so time window is fixed regardless of filtering
+  const rolling13   = useMemo(() => revenueAndExpense13Month(factsForToggleable, latestKey), [factsForToggleable, latestKey]);
+  // FYTD per-campus: call with unfiltered facts, strip ES Admin from output when toggled off
+  const revByCampus = useMemo(() => {
+    const all = revenueByCampusAndType(facts, activeFY);
+    return includeEsAdmin ? all : all.filter(r => r.campus !== "ES Admin");
+  }, [facts, activeFY, includeEsAdmin]);
+  const expByCampus = useMemo(() => {
+    const all = expenseByCampusAndType(facts, activeFY);
+    return includeEsAdmin ? all : all.filter(r => r.campus !== "ES Admin");
+  }, [facts, activeFY, includeEsAdmin]);
+  const laborSeries = useMemo(() => laborExpenseByCampusByMonth(factsForToggleable, latestKey), [factsForToggleable, latestKey]);
+  const cosSeries   = useMemo(() => costOfSalesByCampusByMonth(factsForToggleable, latestKey), [factsForToggleable, latestKey]);
+  // expPct: filter inputs for correct totals; pass latestKey so month anchor is stable
+  const expPct      = useMemo(() => expenseTypeAsPctOfRevenue(factsForToggleable, activeFY, latestKey), [factsForToggleable, activeFY, latestKey]);
+  const support     = useMemo(() => monthlySupportLevel(factsForSupportLevel, activeFY), [factsForSupportLevel, activeFY]);
+  const supportFYTD = useMemo(() => supportLevelFYTD(factsForSupportLevel, activeFY), [factsForSupportLevel, activeFY]);
   const latestLabel = latestKey
     ? new Date(Number(latestKey.split("-")[0]), Number(latestKey.split("-")[1]) - 1, 1)
         .toLocaleDateString("en-US", { month: "short", year: "numeric" })
@@ -537,27 +565,50 @@ export default function FpaPage() {
           fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.3px" }}>
           FP&amp;A Dashboard
         </div>
-        {fiscalYears.length > 0 && (
+
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 24, flexWrap: "wrap" }}>
+          {fiscalYears.length > 0 && (
+            <div>
+              <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+                letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>
+                Fiscal Year
+              </div>
+              <select value={activeFY || ""} onChange={(e) => setFiscalYear(Number(e.target.value))}
+                style={{ background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+                  borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
+                  fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
+                  padding: "9px 32px 9px 14px", cursor: "pointer",
+                  appearance: "none", WebkitAppearance: "none",
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A91'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center",
+                }}>
+                {fiscalYears.map(fy => (
+                  <option key={fy} value={fy}>{fiscalYearLabel(fy)}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* ── ES Admin toggle ── */}
           <div>
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>
-              Fiscal Year
+              ES Admin
             </div>
-            <select value={activeFY || ""} onChange={(e) => setFiscalYear(Number(e.target.value))}
-              style={{ background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
-                borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
+            <button
+              onClick={() => setIncludeEsAdmin(!includeEsAdmin)}
+              style={{
+                padding: "8px 16px", borderRadius: RADIUS.SM,
+                border: `1px solid ${COLORS.BORDER}`,
+                background: includeEsAdmin ? `${COLORS.AQUA}20` : COLORS.BG_SURFACE_ALT,
+                color: includeEsAdmin ? COLORS.AQUA : COLORS.TEXT_SECONDARY,
                 fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
-                padding: "9px 32px 9px 14px", cursor: "pointer",
-                appearance: "none", WebkitAppearance: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A91'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center",
+                cursor: "pointer", transition: "all 0.2s ease",
               }}>
-              {fiscalYears.map(fy => (
-                <option key={fy} value={fy}>{fiscalYearLabel(fy)}</option>
-              ))}
-            </select>
+              {includeEsAdmin ? "Included" : "Excluded"}
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* ── Row 1: KPI + status ── */}

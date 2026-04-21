@@ -168,8 +168,8 @@ function seriesByCampusByMonth(facts, normalizedNames, endMonthKey) {
 }
 
 // ── Report 7: Expense type as % of total revenue (FYTD horizontal bar) ───────
-export function expenseTypeAsPctOfRevenue(facts, fiscalYear) {
-  const latest = latestMonthKey(facts, fiscalYear);
+export function expenseTypeAsPctOfRevenue(facts, fiscalYear, anchorMonthKey = null) {
+  const latest = anchorMonthKey ?? latestMonthKey(facts, fiscalYear);
   if (!latest) return [];
   const slice = facts.filter(f => f.fiscalYear === fiscalYear && f.monthKey === latest);
   const totalRev = ytdRevenue(slice);
