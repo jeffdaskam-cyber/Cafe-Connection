@@ -185,10 +185,12 @@ export function expenseTypeAsPctOfRevenue(facts, fiscalYear) {
 }
 
 // ── Report 8: Monthly Support Level — FYTD months, single series ─────────────
+// ES Admin is excluded: its expenses roll up elsewhere and shouldn't hit the
+// General Fund support level.
 export function monthlySupportLevel(facts, fiscalYear) {
   const monthKeys = listMonthKeysForFY(facts, fiscalYear);
   return monthKeys.map(key => {
-    const slice = facts.filter(f => f.monthKey === key);
+    const slice = facts.filter(f => f.monthKey === key && f.campus !== "ES Admin");
     const revenue = sumByPredicate(slice, "mtdAmount",
       f => REVENUE_NORMALIZED_NAMES.includes(f.normalizedName));
     const expense = sumByPredicate(slice, "mtdAmount",
