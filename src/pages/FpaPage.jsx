@@ -518,7 +518,7 @@ export default function FpaPage() {
           </div>
         </div>
 
-        {fiscalYears.length > 0 && (
+        {fiscalYears.length > 0 && )
           <div>
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>
