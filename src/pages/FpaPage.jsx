@@ -511,12 +511,10 @@ export default function FpaPage() {
       {/* ── Controls bar ── */}
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between",
         marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-          <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
-            fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.3px" }}>
-            FP&amp;A Dashboard
-          </div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
+          fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.3px" }}>
+          FP&amp;A Dashboard
         </div>
-
         {fiscalYears.length > 0 && (
           <div>
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
@@ -547,7 +545,7 @@ export default function FpaPage() {
           sublabel={latestLabel ? `Through ${latestLabel}` : "Awaiting first upload"}
           accentColor={COLORS.AQUA} />
         <StatusCard fiscalYear={activeFY} latestLabel={latestLabel}
-          monthCount={monthCount} />
+          monthCount={monthCount} uploadsCount={uploads.length} />
       </div>
 
       {/* ── Row 2: 13-month clustered ── */}
