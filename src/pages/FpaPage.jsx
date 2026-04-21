@@ -153,7 +153,7 @@ function FpaUploadZone({ accentColor = COLORS.AQUA }) {
   return (
     <Widget title="Upload Workday FP&A Report"
       subtitle="Operating Budget Report (.xlsx) — auto-detects month"
-      icon="\uD83D\uDCC8" accentColor={accentColor}>
+      accentColor={accentColor}>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
         <label style={{ fontSize: 11, color: COLORS.TEXT_MUTED, fontWeight: 600,
@@ -321,7 +321,7 @@ function StatusItem({ label, value }) {
 function RevenueExpenseChart({ data, loading }) {
   return (
     <Widget title="Total Revenue and Expense"
-      subtitle="13-month rolling \u00b7 MTD values"
+      subtitle="13-month rolling MTD values"
       accentColor={COLORS.AQUA}
       loading={loading}
       empty={!loading && data.every(d => d.revenue === 0 && d.expense === 0)}
@@ -405,7 +405,7 @@ function MultiSeriesLineChart({ title, subtitle, data, loading }) {
 function ExpensePctChart({ data, loading }) {
   return (
     <Widget title="Total Expenses"
-      subtitle="Expense type as % of total revenue \u00b7 FYTD"
+      subtitle="Expense type as % of total revenue FYTD"
       accentColor={COLORS.AQUA}
       loading={loading}
       empty={!loading && data.every(d => d.amount === 0)}
@@ -434,7 +434,7 @@ function ExpensePctChart({ data, loading }) {
 function SupportLevelChart({ data, loading }) {
   return (
     <Widget title="Monthly Support Level"
-      subtitle="Monthly expense minus monthly revenue \u00b7 FYTD"
+      subtitle="Monthly expense minus monthly revenue FYTD"
       accentColor={COLORS.AQUA}
       loading={loading}
       empty={!loading && data.length === 0}
@@ -547,7 +547,7 @@ export default function FpaPage() {
 
       {/* ── Row 1: KPI + status ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 18, marginBottom: 22 }}>
-        <KpiCard label={`Total Revenue \u00b7 FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
+        <KpiCard label={`Total Revenue FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
           value={hasData ? fmtCurrency(fytdRevenue) : "\u2014"}
           sublabel={latestLabel ? `Through ${latestLabel}` : "Awaiting first upload"}
           accentColor={COLORS.AQUA} />
@@ -564,7 +564,7 @@ export default function FpaPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 22 }}>
         <StackedByCampusChart
           title="Total Revenue"
-          subtitle={`By campus \u00b7 FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
+          subtitle={`By campus FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
           data={revByCampus}
           stackKeys={REVENUE_NORMALIZED_NAMES}
           loading={factsLoading}
@@ -572,7 +572,7 @@ export default function FpaPage() {
         />
         <StackedByCampusChart
           title="Total Expense"
-          subtitle={`By campus \u00b7 FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
+          subtitle={`By campus FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
           data={expByCampus}
           stackKeys={EXPENSE_NORMALIZED_NAMES}
           loading={factsLoading}
@@ -584,13 +584,13 @@ export default function FpaPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 22 }}>
         <MultiSeriesLineChart
           title="Monthly Labor Expense"
-          subtitle="Salaries + Benefits by campus \u00b7 13-month rolling"
+          subtitle="Salaries + Benefits by campus 13-month rolling"
           data={laborSeries}
           loading={factsLoading}
         />
         <MultiSeriesLineChart
           title="Monthly Cost of Sales"
-          subtitle="Materials by campus \u00b7 13-month rolling"
+          subtitle="Materials by campus 13-month rolling"
           data={cosSeries}
           loading={factsLoading}
         />
