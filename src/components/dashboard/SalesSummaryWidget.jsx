@@ -104,7 +104,7 @@ export default function SalesSummaryWidget({ config = {} }) {
           net_revenue:  perCampus.reduce((s, c) => s + c.net_revenue,  0),
           total_checks: perCampus.reduce((s, c) => s + c.total_checks, 0),
         },
-        dayCount: daily.length,
+        dayCount: new Set(daily.map(d => d.date)).size,
       };
     }
 
