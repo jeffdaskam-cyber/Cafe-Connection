@@ -205,6 +205,22 @@ export function monthlySupportLevel(facts, fiscalYear) {
   }).sort((a, b) => a.fiscalMonthNumber - b.fiscalMonthNumber);
 }
 
+// FYTD total support level through the latest uploaded month (ES Admin excluded).
+export function supportLevelFYTD(facts, fiscalYear) {
+  const latest = latestMonthKey(facts, fiscalYear);
+  if (!latest) return 0;
+  const slice = facts.filter(f =>
+    f.fiscalYear === fiscalYear &&
+    f.monthKey === latest &&
+    f.campus !== "ES Admin"
+  );
+  const revenue = sumByPredicate(slice, "ytdAmount",
+    f => REVENUE_NORMALIZED_NAMES.includes(f.normalizedName));
+  const expense = sumByPredicate(slice, "ytdAmount",
+    f => EXPENSE_NORMALIZED_NAMES.includes(f.normalizedName));
+  return expense - revenue;
+}
+
 // ── Fiscal year helper for the UI ────────────────────────────────────────────
 export function deriveFiscalYearsFromFacts(facts) {
   return listFiscalYears(facts);

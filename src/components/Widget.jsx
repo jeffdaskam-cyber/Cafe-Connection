@@ -232,6 +232,7 @@ function ExpandModal({ title, subtitle, accentColor, children, onClose, printabl
  *   expandable   {boolean}  — show expand-to-modal button
  *   printable    {boolean}  — show print button (in header and expand modal)
  *   actions      {Array}    — extra action buttons: [{ icon, label, onClick, disabled }]
+ *   headerRight  {ReactNode} — custom element in the header's right slot (replaces actions/print/expand)
  *   noPad        {boolean}  — omit content area padding (for widgets with full-bleed tables)
  *   minHeight    {number}   — minimum content area height in px
  *   style        {object}   — override outer container styles
@@ -251,6 +252,7 @@ export default function Widget({
   expandable = false,
   printable = false,
   actions = [],
+  headerRight = null,
   noPad = false,
   minHeight,
   style: outerStyle = {},
@@ -326,7 +328,11 @@ export default function Widget({
           </div>
 
           {/* Actions */}
-          {(actions.length > 0 || printable || expandable) && (
+          {headerRight ? (
+            <div style={{ display: "flex", alignItems: "center", flexShrink: 0, marginLeft: 12 }}>
+              {headerRight}
+            </div>
+          ) : (actions.length > 0 || printable || expandable) && (
             <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 12 }}>
               {actions.map((a, i) => <ActionBtn key={i} {...a} />)}
               {printable && (

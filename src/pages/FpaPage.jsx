@@ -33,6 +33,7 @@ import {
   costOfSalesByCampusByMonth,
   expenseTypeAsPctOfRevenue,
   monthlySupportLevel,
+  supportLevelFYTD,
   deriveFiscalYearsFromFacts,
   defaultFiscalYearFromFacts,
   latestMonthKey,
@@ -431,7 +432,27 @@ function ExpensePctChart({ data, loading }) {
 }
 
 // ── Chart: Monthly Support Level (Report 8) ──────────────────────────────────
-function SupportLevelChart({ data, loading }) {
+function SupportLevelChart({ data, fytdTotal = 0, loading }) {
+  const fytdChip = (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "flex-end",
+      background: `${COLORS.AQUA}14`,
+      border: `1px solid ${COLORS.AQUA}30`,
+      borderRadius: 8,
+      padding: "4px 10px",
+      lineHeight: 1.1,
+    }}>
+      <span style={{
+        fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
+        textTransform: "uppercase", color: COLORS.TEXT_MUTED,
+        fontFamily: "'Poppins',sans-serif",
+      }}>FYTD Total</span>
+      <span style={{
+        fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
+        fontFamily: "'Poppins',sans-serif", marginTop: 1,
+      }}>{fmtCurrency(fytdTotal)}</span>
+    </div>
+  );
   return (
     <Widget title="Monthly Support Level"
       subtitle="Total Rollup to General Fund"
@@ -439,7 +460,7 @@ function SupportLevelChart({ data, loading }) {
       loading={loading}
       empty={!loading && data.length === 0}
       emptyMessage="No monthly data for the selected fiscal year"
-      expandable printable>
+      headerRight={fytdChip}>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} margin={{ top: 14, right: 16, left: 8, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLORS.CHART_GRID} vertical={false} />
@@ -491,6 +512,7 @@ export default function FpaPage() {
   const cosSeries   = useMemo(() => costOfSalesByCampusByMonth(facts), [facts]);
   const expPct      = useMemo(() => expenseTypeAsPctOfRevenue(facts, activeFY), [facts, activeFY]);
   const support     = useMemo(() => monthlySupportLevel(facts, activeFY), [facts, activeFY]);
+  const supportFYTD = useMemo(() => supportLevelFYTD(facts, activeFY), [facts, activeFY]);
 
   const latestKey = latestMonthKey(facts, activeFY);
   const latestLabel = latestKey
@@ -592,7 +614,7 @@ export default function FpaPage() {
       {/* ── Row 5: Expense % + Support level ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 28 }}>
         <ExpensePctChart data={expPct} loading={factsLoading} />
-        <SupportLevelChart data={support} loading={factsLoading} />
+        <SupportLevelChart data={support} fytdTotal={supportFYTD} loading={factsLoading} />
       </div>
 
       {/* ── Upload panel ── */}
