@@ -11,8 +11,14 @@ import { useState, useEffect } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db, getDashboardNotes, addDashboardNote, deleteDashboardNote } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useRole } from "../hooks/useRole.js";
 import { useDashboardPrefs } from "../hooks/useDashboardPrefs.js";
 import { widgetById, defaultPrefs } from "../registries/widgetRegistry.js";
+import {
+  canSeeWidget,
+  hasFullAccess,
+  DASHBOARD_WIDGET_KEY,
+} from "../utils/permissions.js";
 import FirstRunWizard from "../components/dashboard/FirstRunWizard.jsx";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
@@ -89,6 +95,7 @@ function PageSkeleton() {
 // ── Dashboard Page ─────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { role } = useRole();
   const { prefs, loading: prefsLoading, saveErr, savePrefs } = useDashboardPrefs();
 
   const [wizardOpen,    setWizardOpen]    = useState(false);
@@ -134,10 +141,18 @@ export default function DashboardPage() {
     }
   }, [prefsLoading, prefs, seedAttempted, wizardOpen]);
 
-  // Sort and filter widgets from prefs
+  // Sort and filter widgets from prefs.
+  // Saved prefs for widgets the current role cannot see are silently hidden
+  // without mutating the stored preferences.
   const enabledWidgets = (prefs?.widgets ?? [])
     .filter(w => w.enabled)
+    .filter(w => {
+      const key = DASHBOARD_WIDGET_KEY[w.widgetId];
+      return key ? canSeeWidget(role, key) : false;
+    })
     .sort((a, b) => a.position - b.position);
+
+  const canSeeNotes = canSeeWidget(role, "dashboard_notes");
 
   async function handleAddNote() {
     await addDashboardNote(user.uid, noteText);
@@ -261,29 +276,31 @@ export default function DashboardPage() {
             </button>
 
             {/* New Notes toggle button */}
-            <button
-              onClick={() => setNotesOpen(prev => !prev)}
-              title="Open notes"
-              style={{
-                background: notesOpen ? COLORS.AQUA : "transparent",
-                border: `1px solid ${notesOpen ? COLORS.AQUA : COLORS.BORDER}`,
-                borderRadius: RADIUS.SM, padding: "8px 18px",
-                cursor: "pointer",
-                fontFamily: "'Poppins',sans-serif",
-                fontWeight: 600, fontSize: 11,
-                color: notesOpen ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_SECONDARY,
-                letterSpacing: "0.03em",
-                transition: "all .18s",
-                display: "flex", alignItems: "center", gap: 6,
-              }}>
-              📝 Notes{notes.length > 0 ? ` (${notes.length})` : ""}
-            </button>
+            {canSeeNotes && (
+              <button
+                onClick={() => setNotesOpen(prev => !prev)}
+                title="Open notes"
+                style={{
+                  background: notesOpen ? COLORS.AQUA : "transparent",
+                  border: `1px solid ${notesOpen ? COLORS.AQUA : COLORS.BORDER}`,
+                  borderRadius: RADIUS.SM, padding: "8px 18px",
+                  cursor: "pointer",
+                  fontFamily: "'Poppins',sans-serif",
+                  fontWeight: 600, fontSize: 11,
+                  color: notesOpen ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_SECONDARY,
+                  letterSpacing: "0.03em",
+                  transition: "all .18s",
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                📝 Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+              </button>
+            )}
 
           </div>
         </div>
 
         {/* ── Notes Sidebar — renders inside banner when open ── */}
-        {notesOpen && (
+        {notesOpen && canSeeNotes && (
           <div style={{
             marginTop: 20,
             borderTop: `1px solid ${COLORS.BORDER}`,
@@ -413,6 +430,8 @@ export default function DashboardPage() {
                 const meta      = widgetById(w.widgetId);
                 const Component = WIDGET_COMPONENTS[w.widgetId];
                 if (!Component || !meta) return null;
+                const permKey = DASHBOARD_WIDGET_KEY[w.widgetId];
+                const readOnly = permKey ? !hasFullAccess(role, permKey) : false;
                 return (
                   <div
                      key={w.widgetId}
@@ -421,7 +440,7 @@ export default function DashboardPage() {
                      marginBottom: 16,
                      }}
                      >
-                    <Component config={w.config ?? {}} />
+                    <Component config={w.config ?? {}} readOnly={readOnly} />
                   </div>
                 );
               })}

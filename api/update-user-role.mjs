@@ -3,7 +3,7 @@
 // Updates a user's role in Firestore. Admin only.
 //
 // POST /api/update-user-role
-// Body: { targetUid: string, role: "user" | "manager" | "administrator" }
+// Body: { targetUid: string, role: "user" | "manager" | "senior_leader" | "administrator" }
 // Auth: Bearer token (Firebase ID token) — must belong to an administrator
 
 import admin from "firebase-admin";
@@ -33,7 +33,7 @@ try {
 }
 
 const db = adminApp.firestore();
-const VALID_ROLES = ["user", "manager", "administrator"];
+const VALID_ROLES = ["user", "manager", "senior_leader", "administrator"];
 // Firebase UIDs are typically 28 chars but can be longer with custom auth.
 // Allow alphanumeric + common safe chars, capped at 128.
 const UID_RE = /^[A-Za-z0-9_-]{1,128}$/;

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { ROLES } from "../utils/permissions.js";
 
 export function useRole() {
   const { user } = useAuth();
@@ -18,7 +19,8 @@ export function useRole() {
     const ref = doc(db, "user_roles", user.uid);
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
-        setRole(snap.data().role);
+        const raw = snap.data().role;
+        setRole(ROLES.includes(raw) ? raw : "user");
       } else {
         setRole("user");
       }
@@ -29,8 +31,9 @@ export function useRole() {
   }, [user]);
 
   const isAdministrator = role === "administrator";
+  const isSeniorLeader  = role === "senior_leader" || role === "administrator";
   const isManager       = role === "manager" || role === "administrator";
   const isUser          = role !== null;
 
-  return { role, roleLoading, isAdministrator, isManager, isUser };
+  return { role, roleLoading, isAdministrator, isSeniorLeader, isManager, isUser };
 }

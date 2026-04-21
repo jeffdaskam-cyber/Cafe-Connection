@@ -17,6 +17,8 @@ import { auth, storage } from "../firebase.js";
 import { subscribeEventRevenue } from "../firebase.js";
 import Widget from "../components/Widget.jsx";
 import { useWidgetSubscription } from "../hooks/useWidget.js";
+import { useRole } from "../hooks/useRole.js";
+import { canSeeWidget } from "../utils/permissions.js";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
 // ── Fiscal year helpers ───────────────────────────────────────────────────────
@@ -274,6 +276,9 @@ function UploadZone({ title, subtitle, reportType, requiresMonthYear }) {
 
 // ── Event Revenue Page ────────────────────────────────────────────────────────
 export default function EventRevenuePage() {
+  const { role } = useRole();
+  const canSeeInternalDropbox = canSeeWidget(role, "event_revenue_internal_dropbox");
+  const canSeeExternalDropbox = canSeeWidget(role, "event_revenue_external_dropbox");
   const [period, setPeriod]       = useState("Monthly");
   const [fiscalYear, setFiscalYear] = useState(null);
 
@@ -473,21 +478,27 @@ export default function EventRevenuePage() {
       </div>
 
       {/* ── Upload zones ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
-        marginBottom: 28, animation: "ucar-fadein .65s ease both" }}>
-        <UploadZone
-          title="Upload Internal Report"
-          subtitle="Internal event revenue"
-          reportType="internal"
-          requiresMonthYear={true}
-        />
-        <UploadZone
-          title="Upload External Invoices"
-          subtitle="External event invoices"
-          reportType="external"
-          requiresMonthYear={false}
-        />
-      </div>
+      {(canSeeInternalDropbox || canSeeExternalDropbox) && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
+          marginBottom: 28, animation: "ucar-fadein .65s ease both" }}>
+          {canSeeInternalDropbox && (
+            <UploadZone
+              title="Upload Internal Report"
+              subtitle="Internal event revenue"
+              reportType="internal"
+              requiresMonthYear={true}
+            />
+          )}
+          {canSeeExternalDropbox && (
+            <UploadZone
+              title="Upload External Invoices"
+              subtitle="External event invoices"
+              reportType="external"
+              requiresMonthYear={false}
+            />
+          )}
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,

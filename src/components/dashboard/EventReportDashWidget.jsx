@@ -18,7 +18,7 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
-export default function EventReportDashWidget({ config: _config = {} }) {
+export default function EventReportDashWidget({ config: _config = {}, readOnly = false }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchEventReport(), []
   );
@@ -183,7 +183,7 @@ export default function EventReportDashWidget({ config: _config = {} }) {
         error={error}
         onRetry={reload}
         actions={[
-          {
+          ...(readOnly ? [] : [{
             icon: "📧",
             label: "Email",
             onClick: () => launchEmailComposer(
@@ -192,7 +192,7 @@ export default function EventReportDashWidget({ config: _config = {} }) {
               label,
               report?.viewUrl || ""
             ),
-          },
+          }]),
           { label: "↻ Refresh", onClick: reload },
         ]}
       >

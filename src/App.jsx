@@ -9,6 +9,7 @@
 import { useState } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { useRole } from "./hooks/useRole.js";
+import { canAccessPage } from "./utils/permissions.js";
 import { useIsMobile } from "./hooks/useIsMobile.js";
 import MobileApp    from "./MobileApp.jsx";
 import LoginPage    from "./pages/LoginPage.jsx";
@@ -69,19 +70,20 @@ function LoadingScreen() {
 }
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
+// `pageKey` maps to the PAGE_ACCESS keys in src/utils/permissions.js.
 const TABS = [
-  { id: "dashboard",     label: "Dashboard"      },
-  { id: "weeklyops",     label: "Weekly Ops"     },
-  { id: "financials",    label: "Cafe Sales"      },
-  { id: "eventrevenue",  label: "Event Revenue"  },
-  { id: "fpa",           label: "FP&A"           },
-  { id: "reports",       label: "Reports"        },
+  { id: "dashboard",     label: "Dashboard",      pageKey: "dashboard"     },
+  { id: "weeklyops",     label: "Weekly Ops",     pageKey: "weekly_ops"    },
+  { id: "financials",    label: "Cafe Sales",     pageKey: "cafe_sales"    },
+  { id: "eventrevenue",  label: "Event Revenue",  pageKey: "event_revenue" },
+  { id: "fpa",           label: "FP&A",           pageKey: "fpa"           },
+  { id: "reports",       label: "Reports",        pageKey: "reports"       },
 ];
 
 // ── Main App Shell ─────────────────────────────────────────────────────────────
 function AppShell() {
   const { user, loading, logout } = useAuth();
-  const { isAdministrator } = useRole();
+  const { role } = useRole();
   const [activeTab, setActiveTab] = useState("dashboard");
   const isMobile = useIsMobile();
 
@@ -140,7 +142,7 @@ function AppShell() {
 
           {/* Tab navigation */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, zIndex: 1 }}>
-            {TABS.map(tab => {
+            {TABS.filter(tab => canAccessPage(role, tab.pageKey)).map(tab => {
               const active = activeTab === tab.id;
               return (
                 <button key={tab.id} className="ucar-tab-btn"
@@ -159,7 +161,7 @@ function AppShell() {
                 </button>
               );
             })}
-            {isAdministrator && (
+            {canAccessPage(role, "admin") && (
               <button className="ucar-tab-btn"
                 onClick={() => setActiveTab("admin")}
                 style={{

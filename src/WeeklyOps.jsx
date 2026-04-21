@@ -17,6 +17,7 @@ import {
 } from "./firebase.js";
 import { useWidget, useWidgetSubscription } from "./hooks/useWidget.js";
 import { useRole } from "./hooks/useRole.js";
+import { hasFullAccess } from "./utils/permissions.js";
 
 import Widget          from "./components/Widget.jsx";
 import WeekSelector,   { getCurrentMonday } from "./components/WeekSelector.jsx";
@@ -81,7 +82,11 @@ function EventOrderUpload({ onUpload, uploadState }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function WeeklyOps() {
-  const { isAdministrator, isManager } = useRole();
+  const { role, isAdministrator, isManager } = useRole();
+  const canUploadEventOrders = hasFullAccess(role, "weekly_ops_event_order_library");
+  const scheduleReadOnly     = !hasFullAccess(role, "weekly_ops_staff_schedule");
+  const eventReportReadOnly  = !hasFullAccess(role, "weekly_ops_event_report");
+  const setupReportReadOnly  = !hasFullAccess(role, "weekly_ops_setup_report");
   const [weekOf,        setWeekOf]        = useState(getCurrentMonday);
   const [campus,        setCampus]        = useState(CAMPUSES[0]);
   const [uploadState,   setUploadState]   = useState("IDLE");
@@ -319,7 +324,7 @@ export default function WeeklyOps() {
             error={scheduleError}
             onRetry={reloadSchedule}
             actions={[
-              {
+              ...(scheduleReadOnly ? [] : [{
                 icon: "📧",
                 label: "Email",
                 onClick: () => launchEmailComposer(
@@ -328,7 +333,7 @@ export default function WeeklyOps() {
                   weekLabel,
                   `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
                 ),
-              },
+              }]),
               {
                 label: "↻ Refresh",
                 onClick: reloadSchedule,
@@ -413,8 +418,8 @@ export default function WeeklyOps() {
               disabled: emailCheckState === "loading",
             }] : []}
           >
-            {/* Upload zone — manager+ only */}
-            {isManager && (
+            {/* Upload zone — hidden for read-only roles */}
+            {canUploadEventOrders && (
             <div style={{ marginBottom: 16 }}>
               <EventOrderUpload onUpload={handleEventOrderUpload} uploadState={uploadState} />
             </div>
@@ -477,12 +482,12 @@ export default function WeeklyOps() {
 
         {/* Set Up Report (Google Drive PDF) */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <SetUpReportDrive weekOf={weekOf} campus={campus} weekLabel={weekLabel} />
+          <SetUpReportDrive weekOf={weekOf} campus={campus} weekLabel={weekLabel} readOnly={setupReportReadOnly} />
         </div>
 
         {/* Event Report */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <EventReportWidget weekOf={weekOf} campus={campus} weekLabel={weekLabel} />
+          <EventReportWidget weekOf={weekOf} campus={campus} weekLabel={weekLabel} readOnly={eventReportReadOnly} />
         </div>
 
         {/* Vendor Portal */}

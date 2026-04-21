@@ -23,6 +23,8 @@ import { createPortal } from "react-dom";
 import { WIDGET_REGISTRY, defaultPrefs } from "../../registries/widgetRegistry.js";
 import { COLORS, SHADOWS, RADIUS } from "../../theme.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useRole } from "../../hooks/useRole.js";
+import { canSeeWidget, DASHBOARD_WIDGET_KEY } from "../../utils/permissions.js";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function buildDefaultWidgets() {
@@ -93,7 +95,7 @@ function StepName({ name, setName, onNext }) {
 }
 
 // ── Step 1: Widget picker ──────────────────────────────────────────────────────
-function StepWidgets({ widgets, setWidgets, onBack, onNext, isEdit }) {
+function StepWidgets({ widgets, setWidgets, onBack, onNext, isEdit, availableWidgets }) {
    function toggle(widgetId) {
     setWidgets(prev => {
       const exists = prev.some(w => w.widgetId === widgetId);
@@ -121,7 +123,7 @@ function StepWidgets({ widgets, setWidgets, onBack, onNext, isEdit }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 28 }}>
-        {WIDGET_REGISTRY.map(meta => {
+        {availableWidgets.map(meta => {
           const w       = widgets.find(x => x.widgetId === meta.widgetId);
           const enabled = w?.enabled ?? false;
           return (
@@ -246,7 +248,13 @@ export default function FirstRunWizard({
   startAtStep = 0,
 }) {
   const { user } = useAuth();
+  const { role } = useRole();
   const isEdit = startAtStep > 0;
+
+  const availableWidgets = WIDGET_REGISTRY.filter(meta => {
+    const key = DASHBOARD_WIDGET_KEY[meta.widgetId];
+    return key ? canSeeWidget(role, key) : false;
+  });
 
   const [step,        setStep]        = useState(startAtStep);
   const [displayName, setDisplayName] = useState(user?.displayName || "");
@@ -347,6 +355,7 @@ export default function FirstRunWizard({
             onBack={handleBack}
             onNext={handleWidgetsDone}
             isEdit={isEdit}
+            availableWidgets={availableWidgets}
           />
         )}
         {step === 2 && !isEdit && (
