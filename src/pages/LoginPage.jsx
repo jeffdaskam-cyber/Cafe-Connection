@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { sendSignInLinkToEmail, signInWithEmailLink, isSignInWithEmailLink } from "firebase/auth";
 import { auth } from "../firebase.js";
+import { useAuth } from "../contexts/AuthContext.jsx";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
 
 // localStorage key used to persist the email across the magic-link redirect
@@ -35,6 +36,7 @@ function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height 
 //   E. (Cross-device) If email not in localStorage → prompt user to re-enter email
 
 export default function LoginPage() {
+  const { authError, clearAuthError } = useAuth();
   const [email,    setEmail]    = useState("");
   const [status,   setStatus]   = useState("idle");
   // idle | sending | sent | completing | crossDevice | error
@@ -84,6 +86,7 @@ export default function LoginPage() {
 
     setStatus("sending");
     setErrorMsg("");
+    clearAuthError();
 
     try {
       await sendSignInLinkToEmail(auth, trimmed, {
@@ -251,6 +254,23 @@ export default function LoginPage() {
               Enter your UCAR email and we'll send you a one-click sign-in link.
               No password required.
             </div>
+
+            {authError && (
+              <div style={{
+                background: `${COLORS.WARNING}15`,
+                border: `1px solid ${COLORS.WARNING}44`,
+                borderRadius: 10,
+                padding: "14px 16px",
+                marginBottom: 20,
+              }}>
+                <div style={{ fontSize: 12, color: COLORS.WARNING, fontWeight: 600, marginBottom: 4 }}>
+                  Access required
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.TEXT_SECONDARY, lineHeight: 1.55 }}>
+                  {authError}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
