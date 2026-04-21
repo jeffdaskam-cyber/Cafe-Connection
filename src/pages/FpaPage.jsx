@@ -18,6 +18,8 @@ import { auth, storage } from "../firebase.js";
 import { subscribeFpaFacts, subscribeFpaUploads } from "../firebase.js";
 import Widget from "../components/Widget.jsx";
 import { useWidgetSubscription } from "../hooks/useWidget.js";
+import { useRole } from "../hooks/useRole.js";
+import { canSeeWidget } from "../utils/permissions.js";
 import {
   FPA_CAMPUSES,
   REVENUE_NORMALIZED_NAMES,
@@ -486,6 +488,8 @@ function filterOutEsAdmin(facts) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function FpaPage() {
+  const { role } = useRole();
+  const canSeeUploadZone = canSeeWidget(role, "fpa_report_dropbox");
   const [fiscalYear, setFiscalYear] = useState(null);
   const [includeEsAdmin, setIncludeEsAdmin] = useState(true);
 
@@ -669,9 +673,11 @@ export default function FpaPage() {
       </div>
 
       {/* ── Upload panel ── */}
-      <div style={{ marginBottom: 28 }}>
-        <FpaUploadZone />
-      </div>
+      {canSeeUploadZone && (
+        <div style={{ marginBottom: 28 }}>
+          <FpaUploadZone />
+        </div>
+      )}
 
       {/* ── Footer ── */}
       <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,

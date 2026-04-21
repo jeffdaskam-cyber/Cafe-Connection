@@ -18,7 +18,7 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
-export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel: parentWeekLabel = "" }) {
+export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel: parentWeekLabel = "", readOnly = false }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchSetupReport(weekOf), [weekOf]
   );
@@ -198,7 +198,7 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
         emptyIcon="📋"
         emptyMessage="No Set Up Report found for this week."
         actions={[
-          {
+          ...(readOnly ? [] : [{
             icon: "📧",
             label: "Email",
             onClick: () => launchEmailComposer(
@@ -207,7 +207,7 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
               parentWeekLabel || label,
               report?.downloadUrl || `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
             ),
-          },
+          }]),
           { label: "↻ Refresh", onClick: reload },
         ]}
       >

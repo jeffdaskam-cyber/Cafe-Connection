@@ -6,7 +6,14 @@ import Widget from "../components/Widget.jsx";
 import VendorManager from "../components/admin/VendorManager.jsx";
 import { COLORS } from "../theme.js";
 
-const ROLES = ["user", "manager", "administrator"];
+const ROLES = ["user", "manager", "senior_leader", "administrator"];
+
+function formatRoleLabel(r) {
+  return r
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 export default function AdminPage() {
   const { isAdministrator, roleLoading } = useRole();
@@ -189,7 +196,7 @@ export default function AdminPage() {
                   >
                     {ROLES.map((r) => (
                       <option key={r} value={r}>
-                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                        {formatRoleLabel(r)}
                       </option>
                     ))}
                   </select>
