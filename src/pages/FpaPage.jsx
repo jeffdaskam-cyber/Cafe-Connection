@@ -511,14 +511,13 @@ export default function FpaPage() {
       {/* ── Controls bar ── */}
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between",
         marginBottom: 24, flexWrap: "wrap", gap: 16 }}>
-        </div>
           <div style={{ fontSize: 22, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
             fontFamily: "'Poppins',sans-serif", letterSpacing: "-0.3px" }}>
             FP&amp;A Dashboard
           </div>
         </div>
 
-        {fiscalYears.length > 0 && )
+        {fiscalYears.length > 0 && (
           <div>
             <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
               letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>
