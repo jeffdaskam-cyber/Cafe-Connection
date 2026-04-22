@@ -205,7 +205,7 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
               "Set Up Report",
               campus,
               parentWeekLabel || label,
-              report?.downloadUrl || `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
+              report?.downloadUrl || `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
             ),
           }]),
           { label: "↻ Refresh", onClick: reload },

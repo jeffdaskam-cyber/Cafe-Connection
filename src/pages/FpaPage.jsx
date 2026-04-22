@@ -4,7 +4,7 @@
  * Ingests a standardized Workday Operating Budget report, normalizes mapped
  * financial data, preserves historical months (overwriting on re-upload), and
  * renders eight executive-facing visuals covering FYTD and 13-month rolling
- * views. See FPA_Feature_Handoff_Cafe_Connection.docx for the feature spec.
+ * views.
  */
 
 import { useState, useEffect, useMemo, useCallback } from "react";

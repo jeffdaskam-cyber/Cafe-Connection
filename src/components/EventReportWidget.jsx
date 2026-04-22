@@ -205,7 +205,7 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
               "Event Report",
               campus,
               parentWeekLabel || label,
-              report?.viewUrl || `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
+              report?.viewUrl || `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
             ),
           }]),
           { label: "↻ Refresh", onClick: reload },

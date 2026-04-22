@@ -331,7 +331,7 @@ export default function WeeklyOps() {
                   "Staff Schedule",
                   campus,
                   weekLabel,
-                  `https://cafe-connection-eosin.vercel.app?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
+                  `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
                 ),
               }]),
               {

@@ -42,7 +42,7 @@ export function launchInviteEmail(toEmail, link) {
     '',
     link,
     '',
-    'If you have any questions, contact Jeff Daskam.',
+    'If you have any questions, contact your administrator.',
   ].join('\n');
 
   const gmailUrl =

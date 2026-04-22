@@ -47,6 +47,7 @@ export default function UserInvitations() {
   const [invites, setInvites]         = useState([]);
   const [listError, setListError]     = useState("");
   const [rowBusy, setRowBusy]         = useState(null); // email being resent/deleted
+  const [nowMs, setNowMs]             = useState(() => Date.now());
 
   // Subscribe to pending invites, newest first
   useEffect(() => {
@@ -63,6 +64,11 @@ export default function UserInvitations() {
       );
     });
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   const generateLink = useCallback(async (toEmail, targetRole) => {
@@ -146,8 +152,6 @@ export default function UserInvitations() {
     color: COLORS.TEXT_MUTED,
     marginBottom: 6,
   };
-
-  const now = Date.now();
 
   return (
     <div>
@@ -248,7 +252,7 @@ export default function UserInvitations() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {invites.map((inv) => {
               const sentMs = invitedAtMs(inv.invitedAt);
-              const expired = sentMs === 0 ? false : (now - sentMs) >= EXPIRY_MS;
+              const expired = sentMs === 0 ? false : (nowMs - sentMs) >= EXPIRY_MS;
               const busy = rowBusy === inv.email;
               return (
                 <div key={inv.id} style={{

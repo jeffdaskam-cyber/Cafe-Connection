@@ -1,5 +1,5 @@
 // api/ingest-email-orders.mjs
-// Vercel Serverless Function — Cafe Connection
+// Vercel Serverless Function ï¿½ Cafe Connection
 // Polls cafe-connection@ucar.edu Gmail inbox once daily.
 // Downloads PDF attachments from unread, unprocessed emails,
 // uploads to Firebase Storage, writes to Firestore event_orders collection.
@@ -41,7 +41,12 @@ async function verifyRequest(req) {
 
   const token = authHeader.slice(7);
   if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) return;
-  await adminApp.auth().verifyIdToken(token);
+
+  const decoded = await adminApp.auth().verifyIdToken(token);
+  const roleDoc = await db.collection("user_roles").doc(decoded.uid).get();
+  if (roleDoc.data()?.role !== "administrator") {
+    throw createHttpError("Forbidden", 403);
+  }
 }
 
 async function getGmailAccessToken() {

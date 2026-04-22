@@ -1,6 +1,6 @@
 [
   {
-    "origin": ["https://cafe-connection-eosin.vercel.app"],
+    "origin": ["https://your-app.example.com"],
     "method": ["GET", "POST", "PUT", "DELETE"],
     "maxAgeSeconds": 3600
   }
