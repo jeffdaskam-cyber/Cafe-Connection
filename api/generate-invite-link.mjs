@@ -11,7 +11,6 @@
 import admin from "firebase-admin";
 import {
   requireEnv,
-  firebasePrivateKey,
   getAdminApp,
   createHttpError,
   respondWithError,
@@ -31,7 +30,7 @@ const db = adminApp.firestore();
 
 const VALID_ROLES = ["user", "manager", "senior_leader", "administrator"];
 const UCAR_DOMAIN = "ucar.edu";
-const APP_URL = process.env.INVITE_APP_URL || "https://cafe-connection-eosin.vercel.app";
+const APP_URL = process.env.INVITE_APP_URL;
 
 async function verifyAdmin(req) {
   const authHeader = req.headers.authorization;
@@ -69,6 +68,9 @@ export default async function handler(req, res) {
     }
     if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({ error: "Invalid role." });
+    }
+    if (!APP_URL) {
+      return res.status(500).json({ error: "Server is missing INVITE_APP_URL configuration." });
     }
 
     const existingActive = await db

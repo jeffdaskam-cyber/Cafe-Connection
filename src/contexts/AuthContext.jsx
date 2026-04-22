@@ -81,14 +81,14 @@ export function AuthProvider({ children }) {
         // No active record and no pending invite — unauthorized
         await signOut(auth);
         setAuthError(
-          "You don't have access to this application. Contact Jeff Daskam to request an invite."
+          "You don't have access to this application. Contact your administrator to request an invite."
         );
         setUser(null);
       } catch (err) {
         console.error("[AuthContext] Auth state handler error:", err);
         try { await signOut(auth); } catch { /* ignore */ }
         setAuthError(
-          "We couldn't verify your account. Please contact Jeff Daskam if this continues."
+          "We couldn't verify your account. Please contact your administrator if this continues."
         );
         setUser(null);
       }

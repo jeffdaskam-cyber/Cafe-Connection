@@ -26,7 +26,7 @@ function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height 
 // Firebase setup required:
 //   1. Firebase Console → Authentication → Sign-in methods → enable "Email link (passwordless)"
 //   2. Firebase Console → Authentication → Settings → Authorized Domains →
-//      add "cafe-connection-eosin.vercel.app" (and "localhost" for local dev)
+//      add your deployment hostname (and "localhost" for local dev)
 //
 // Flow:
 //   A. User visits app → not a magic link URL → show email form

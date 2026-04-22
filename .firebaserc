@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "cafe-connection-ed6c7"
+    "default": "your-firebase-project-id"
   },
   "targets": {},
   "etags": {}
