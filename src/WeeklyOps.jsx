@@ -193,6 +193,14 @@ export default function WeeklyOps() {
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 36px" }}>
 
+      <style>{`
+        .ucar-specials-scroll { scrollbar-width: thin; scrollbar-color: ${COLORS.AQUA} transparent; }
+        .ucar-specials-scroll::-webkit-scrollbar { width: 8px; }
+        .ucar-specials-scroll::-webkit-scrollbar-track { background: transparent; }
+        .ucar-specials-scroll::-webkit-scrollbar-thumb { background: ${COLORS.AQUA}; border-radius: 4px; }
+        .ucar-specials-scroll::-webkit-scrollbar-thumb:hover { background: ${COLORS.AQUA}cc; }
+      `}</style>
+
       {/* ── Schedule Modal ── */}
       {scheduleOpen && (
         <div
@@ -385,7 +393,9 @@ export default function WeeklyOps() {
 
         {/* Cafe Specials */}
         <div style={{ breakInside: "avoid", marginBottom: 16 }}>
-          <CafeSpecials weekOf={weekOf} campus={campus} />
+          <div className="ucar-specials-scroll" style={{ maxHeight: 400, overflowY: "auto" }}>
+            <CafeSpecials weekOf={weekOf} campus={campus} />
+          </div>
         </div>
 
         {/* Cash Drop */}
