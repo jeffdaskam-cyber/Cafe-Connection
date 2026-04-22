@@ -45,15 +45,22 @@ export default function UserInvitations() {
   const [submitting, setSubmitting]   = useState(false);
   const [errorMsg, setErrorMsg]       = useState("");
   const [invites, setInvites]         = useState([]);
+  const [listError, setListError]     = useState("");
   const [rowBusy, setRowBusy]         = useState(null); // email being resent/deleted
 
   // Subscribe to pending invites, newest first
   useEffect(() => {
     const q = query(collection(db, "pending_invites"), orderBy("invitedAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
+      setListError("");
       setInvites(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     }, (err) => {
       console.error("[UserInvitations] Subscribe error:", err);
+      setListError(
+        err?.code === "permission-denied"
+          ? "Couldn't load pending invites — Firestore rules may not be deployed."
+          : `Couldn't load pending invites: ${err?.message || "unknown error"}`
+      );
     });
     return () => unsub();
   }, []);
@@ -222,7 +229,18 @@ export default function UserInvitations() {
           Pending Invites
         </div>
 
-        {invites.length === 0 ? (
+        {listError ? (
+          <div style={{
+            fontSize: 12,
+            color: COLORS.ERROR,
+            background: `${COLORS.ERROR}12`,
+            border: `1px solid ${COLORS.ERROR}33`,
+            borderRadius: 6,
+            padding: "8px 10px",
+          }}>
+            {listError}
+          </div>
+        ) : invites.length === 0 ? (
           <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, fontStyle: "italic" }}>
             No pending invites.
           </div>
