@@ -639,6 +639,432 @@
       flex-wrap: wrap;
     }
 
+    /* ── Before / After layout ───────────────────────────────────────── */
+    .before-after-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .ba-card {
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(52,225,244,0.14);
+      box-shadow: var(--shadow-md);
+      padding: 28px 32px;
+    }
+
+    .ba-before {
+      background: linear-gradient(160deg, rgba(40,15,15,0.85), rgba(7,30,52,0.92));
+      border-color: rgba(220, 80, 80, 0.22);
+    }
+
+    .ba-after {
+      background: linear-gradient(160deg, rgba(0,55,40,0.70), rgba(7,30,52,0.92));
+      border-color: rgba(52,225,244,0.22);
+    }
+
+    .ba-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .ba-header h3 {
+      margin: 0;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .ba-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .ba-before .ba-icon {
+      background: rgba(220, 80, 80, 0.18);
+      color: #f87171;
+      border: 1px solid rgba(220, 80, 80, 0.30);
+    }
+
+    .ba-after .ba-icon {
+      background: rgba(52, 225, 244, 0.12);
+      color: var(--light-aqua);
+      border: 1px solid rgba(52,225,244,0.24);
+    }
+
+    .ba-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ba-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.94rem;
+      color: var(--text-mid);
+      line-height: 1.5;
+    }
+
+    .ba-list li::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 7px;
+    }
+
+    .ba-before .ba-list li::before {
+      background: #f87171;
+      opacity: 0.7;
+    }
+
+    .ba-after .ba-list li::before {
+      background: var(--light-aqua);
+    }
+
+    /* ── Capabilities carousel ───────────────────────────────────────── */
+    .capabilities-carousel-wrap {
+      margin-top: 32px;
+    }
+
+    .cap-carousel-track {
+      height: 260px;
+    }
+
+    .cap-slide {
+      padding: 18px 22px 14px;
+    }
+
+    .cap-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .cap-stat-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(52,225,244,0.12);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .cap-stat-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+
+    .cap-stat-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .cap-stat-delta {
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .cap-stat-delta.positive { color: #4ade80; }
+    .cap-stat-delta.neutral  { color: var(--text-muted); }
+
+    .cap-ops-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .cap-ops-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+    }
+
+    .cap-ops-icon {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .cap-ops-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .cap-ops-text {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .cap-ops-name {
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .cap-ops-status {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+
+    .cap-ops-status.ready {
+      background: rgba(52,225,244,0.10);
+      color: var(--light-aqua);
+    }
+
+    .cap-ops-status.pending {
+      background: rgba(250,161,25,0.12);
+      color: var(--orange);
+    }
+
+    .cap-table {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      border: 1px solid rgba(52,225,244,0.12);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .cap-table-head,
+    .cap-table-row {
+      display: grid;
+      grid-template-columns: 2fr 1.1fr 1fr;
+      padding: 8px 14px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cap-table-head {
+      background: rgba(52,225,244,0.07);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .cap-table-row {
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.8rem;
+      color: var(--text-mid);
+    }
+
+    .cap-role {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .cap-role.admin   { background: rgba(250,161,25,0.14); color: var(--orange); }
+    .cap-role.manager { background: rgba(52,225,244,0.10); color: var(--light-aqua); }
+    .cap-role.senior  { background: rgba(0,162,180,0.12);  color: var(--aqua); }
+    .cap-role.user    { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+    .cap-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .cap-badge.active  { background: rgba(74,222,128,0.12); color: #4ade80; }
+    .cap-badge.pending { background: rgba(250,161,25,0.12); color: var(--orange); }
+
+    /* ── KPI stat grid ───────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+    }
+
+    .kpi-card {
+      border-radius: var(--radius-xl);
+      background: linear-gradient(160deg, rgba(0,35,55,0.85), rgba(7,30,52,0.95));
+      border: 1px solid rgba(52,225,244,0.16);
+      box-shadow: var(--shadow-md);
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::after {
+      content: "";
+      position: absolute;
+      inset: -40px -40px auto auto;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(52,225,244,0.09), rgba(52,225,244,0));
+      pointer-events: none;
+    }
+
+    .kpi-number {
+      font-size: 3.8rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--light-aqua);
+      letter-spacing: -0.04em;
+      margin-bottom: 8px;
+    }
+
+    .kpi-label {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .kpi-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ── Architecture diagram ────────────────────────────────────────── */
+    .arch-card {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .arch-diagram {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0;
+      margin-top: 20px;
+    }
+
+    .arch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .arch-row-data {
+      justify-content: space-between;
+    }
+
+    .arch-down-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .arch-spacer {
+      flex: 1;
+    }
+
+    .arch-down-arrow {
+      flex: 1;
+      text-align: center;
+      color: var(--light-aqua);
+      font-size: 1.2rem;
+      opacity: 0.6;
+    }
+
+    .arch-arrow {
+      color: var(--light-aqua);
+      font-size: 1.1rem;
+      opacity: 0.5;
+      flex-shrink: 0;
+    }
+
+    .arch-node {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+      padding: 14px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(52,225,244,0.14);
+    }
+
+    .arch-node svg {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .arch-node span {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .arch-node small {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+    }
+
+    .user-node {
+      background: rgba(255,255,255,0.04);
+      color: var(--text-mid);
+    }
+
+    .auth-node {
+      background: rgba(0,53,122,0.35);
+      border-color: rgba(0,162,180,0.22);
+      color: var(--aqua);
+    }
+
+    .app-node {
+      background: rgba(0,162,180,0.10);
+      border-color: rgba(52,225,244,0.22);
+      color: var(--light-aqua);
+    }
+
+    .data-node {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(52,225,244,0.10);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
     @media (max-width: 1180px) {
       .hero {
         padding-top: 42px;
@@ -653,6 +1079,13 @@
       .story-grid {
         grid-template-columns: 1fr 1fr;
       }
+    }
+
+    @media (max-width: 860px) {
+      .before-after-grid { grid-template-columns: 1fr; }
+      .cap-stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .cap-carousel-track { height: 300px; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     }
 
     @media (max-width: 860px) {
@@ -734,7 +1167,6 @@
         </div>
         <nav class="topnav" aria-label="Page navigation">
           <a href="#why">Why It Matters</a>
-          <a href="#platform">Platform</a>
           <a href="#capabilities">Capabilities</a>
           <a href="#value">Executive Value</a>
           <a href="#technology">Technology</a>
@@ -959,43 +1391,33 @@
             Café and event operations generate a steady stream of schedules, event documents, specials, financial files, uploads, and reporting needs. When those workflows are fragmented across tools and handoffs, visibility slows down and operational effort increases. Cafe Connection brings those workflows together in a more efficient digital environment.
           </p>
         </div>
-        <div class="story-grid">
-          <article class="story-card">
-            <h3>Before connection</h3>
-            <p>
-              Operational information lives in separate documents, file locations, and manual processes. Reporting takes more coordination, context is harder to preserve, and leadership visibility depends on extra effort.
-            </p>
-          </article>
-          <article class="story-card">
-            <h3>After connection</h3>
-            <p>
-              A connected internal platform creates clearer access to workflows, cleaner reporting pathways, and a stronger digital foundation for how café and event services operate across campuses.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section" id="platform">
-        <div class="section-head">
-          <div class="section-label">What it is</div>
-          <h2>A centralized internal platform for operational execution and executive visibility</h2>
-          <p class="section-intro">
-            Cafe Connection is UCAR’s internal platform for supporting café and event operations across campuses. It centralizes operational workflows, reporting tools, executive dashboards, and role-based access in one connected system.
-          </p>
-        </div>
-        <div class="story-grid">
-          <article class="story-card">
-            <h3>Built for real operations</h3>
-            <p>
-              The platform supports the day-to-day needs of café and event teams with practical workflow tools, document access, reporting support, and centralized information flow.
-            </p>
-          </article>
-          <article class="story-card">
-            <h3>Designed to scale in value</h3>
-            <p>
-              Cafe Connection is not positioned as a static utility. It is a starting point for broader integration, smarter reporting, and a more connected operating model over time.
-            </p>
-          </article>
+        <div class="before-after-grid">
+          <div class="ba-card ba-before">
+            <div class="ba-header">
+              <span class="ba-icon">✕</span>
+              <h3>Before</h3>
+            </div>
+            <ul class="ba-list">
+              <li>Schedules emailed as separate PDFs each week</li>
+              <li>Sales reports uploaded to shared drives manually</li>
+              <li>No cross-campus financial visibility in one place</li>
+              <li>Event documents scattered across inboxes and folders</li>
+              <li>Leadership reporting requires extra coordination effort</li>
+            </ul>
+          </div>
+          <div class="ba-card ba-after">
+            <div class="ba-header">
+              <span class="ba-icon">✓</span>
+              <h3>After</h3>
+            </div>
+            <ul class="ba-list">
+              <li>Staff schedule fetched live from Google Sheets every week</li>
+              <li>Sales reports parsed and stored in seconds after upload</li>
+              <li>Cafe Sales and FP&amp;A dashboards always current, all campuses</li>
+              <li>BEOs, setup reports, and event orders in one searchable library</li>
+              <li>Monthly accounting reports generated and emailed in one click</li>
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -1064,6 +1486,133 @@
             <div class="feature-tag">Expand over time</div>
           </article>
         </div>
+
+        <div class="capabilities-carousel-wrap">
+          <div class="carousel" aria-label="Platform module previews">
+            <div class="carousel-track cap-carousel-track">
+
+              <div class="carousel-slide cap-slide active">
+                <div class="slide-label">Cafe Sales</div>
+                <div class="slide-title">At-a-Glance Metrics</div>
+                <div class="slide-sub">Net revenue · avg check · total volume · all campuses</div>
+                <div class="cap-stat-grid">
+                  <div class="cap-stat-card">
+                    <div class="cap-stat-label">Net Revenue MTD</div>
+                    <div class="cap-stat-value">$42,318</div>
+                    <div class="cap-stat-delta positive">↑ 8.4% vs last month</div>
+                  </div>
+                  <div class="cap-stat-card">
+                    <div class="cap-stat-label">Total Checks MTD</div>
+                    <div class="cap-stat-value">3,204</div>
+                    <div class="cap-stat-delta positive">↑ 5.1%</div>
+                  </div>
+                  <div class="cap-stat-card">
+                    <div class="cap-stat-label">Avg Check</div>
+                    <div class="cap-stat-value">$13.21</div>
+                    <div class="cap-stat-delta neutral">— flat</div>
+                  </div>
+                  <div class="cap-stat-card">
+                    <div class="cap-stat-label">Avg Daily Revenue</div>
+                    <div class="cap-stat-value">$2,116</div>
+                    <div class="cap-stat-delta positive">↑ 3.2%</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="carousel-slide cap-slide">
+                <div class="slide-label">Weekly Ops</div>
+                <div class="slide-title">Operational Workspace</div>
+                <div class="slide-sub">Week of Apr 21 · Mesa Lab</div>
+                <div class="cap-ops-list">
+                  <div class="cap-ops-row">
+                    <div class="cap-ops-icon">
+                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M6 2v4M12 2v4M2 8h14"/></svg>
+                    </div>
+                    <div class="cap-ops-text">
+                      <span class="cap-ops-name">Staff Schedule</span>
+                      <span class="cap-ops-status ready">Loaded</span>
+                    </div>
+                  </div>
+                  <div class="cap-ops-row">
+                    <div class="cap-ops-icon">
+                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M9 2v7l4 2"/><circle cx="9" cy="9" r="7"/></svg>
+                    </div>
+                    <div class="cap-ops-text">
+                      <span class="cap-ops-name">Cafe Specials</span>
+                      <span class="cap-ops-status ready">Week of Apr 21</span>
+                    </div>
+                  </div>
+                  <div class="cap-ops-row">
+                    <div class="cap-ops-icon">
+                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M3 9h12M9 3l6 6-6 6"/></svg>
+                    </div>
+                    <div class="cap-ops-text">
+                      <span class="cap-ops-name">Cash Drop</span>
+                      <span class="cap-ops-status ready">2 drops logged</span>
+                    </div>
+                  </div>
+                  <div class="cap-ops-row">
+                    <div class="cap-ops-icon">
+                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M9 3v12M3 9l6-6 6 6"/></svg>
+                    </div>
+                    <div class="cap-ops-text">
+                      <span class="cap-ops-name">DropBox Upload</span>
+                      <span class="cap-ops-status pending">Awaiting report</span>
+                    </div>
+                  </div>
+                  <div class="cap-ops-row">
+                    <div class="cap-ops-icon">
+                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h10v10H4z"/><path d="M4 8h10M8 4v10"/></svg>
+                    </div>
+                    <div class="cap-ops-text">
+                      <span class="cap-ops-name">Event Order Library</span>
+                      <span class="cap-ops-status ready">4 BEOs this week</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="carousel-slide cap-slide">
+                <div class="slide-label">Admin</div>
+                <div class="slide-title">Registered Users</div>
+                <div class="slide-sub">Role-based access · UCAR email only</div>
+                <div class="cap-table">
+                  <div class="cap-table-head">
+                    <span>User</span>
+                    <span>Role</span>
+                    <span>Status</span>
+                  </div>
+                  <div class="cap-table-row">
+                    <span>j.daskam@ucar.edu</span>
+                    <span class="cap-role admin">Administrator</span>
+                    <span class="cap-badge active">Active</span>
+                  </div>
+                  <div class="cap-table-row">
+                    <span>s.morgan@ucar.edu</span>
+                    <span class="cap-role manager">Manager</span>
+                    <span class="cap-badge active">Active</span>
+                  </div>
+                  <div class="cap-table-row">
+                    <span>r.chen@ucar.edu</span>
+                    <span class="cap-role senior">Senior Leader</span>
+                    <span class="cap-badge active">Active</span>
+                  </div>
+                  <div class="cap-table-row">
+                    <span>t.walsh@ucar.edu</span>
+                    <span class="cap-role user">User</span>
+                    <span class="cap-badge pending">Invite pending</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+            <div class="carousel-footer">
+              <button class="carousel-dot cap-dot active" data-carousel="cap" data-index="0" aria-label="Stat cards"></button>
+              <button class="carousel-dot cap-dot" data-carousel="cap" data-index="1" aria-label="Weekly Ops"></button>
+              <button class="carousel-dot cap-dot" data-carousel="cap" data-index="2" aria-label="Admin users"></button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="section" id="value">
@@ -1075,27 +1624,27 @@
           </p>
         </div>
 
-        <div class="value-grid">
-          <article class="value-card">
-            <div class="value-number">01</div>
-            <h3>Greater efficiency</h3>
-            <p>Centralized workflows reduce unnecessary switching, manual coordination, and repeated effort across routine operational tasks.</p>
-          </article>
-          <article class="value-card">
-            <div class="value-number">02</div>
-            <h3>Better visibility</h3>
-            <p>Leadership and operations teams gain faster access to reporting, documents, and metrics that support clearer decision-making.</p>
-          </article>
-          <article class="value-card">
-            <div class="value-number">03</div>
-            <h3>More consistency</h3>
-            <p>Shared workflows and standardized outputs support a more reliable operating rhythm across campuses and reporting periods.</p>
-          </article>
-          <article class="value-card">
-            <div class="value-number">04</div>
-            <h3>Scalable foundation</h3>
-            <p>The system creates a credible base for broader integration, smarter automation, and future digital process improvement.</p>
-          </article>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-number">3</div>
+            <div class="kpi-label">Campuses</div>
+            <div class="kpi-sub">Mesa Lab · Foothills · Center Green</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-number">7</div>
+            <div class="kpi-label">App Tabs</div>
+            <div class="kpi-sub">Dashboard · Weekly Ops · Cafe Sales · Event Revenue · FP&amp;A · Reports · Admin</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-number">4</div>
+            <div class="kpi-label">Access Roles</div>
+            <div class="kpi-sub">User · Manager · Senior Leader · Administrator</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-number">8</div>
+            <div class="kpi-label">FP&amp;A Visuals</div>
+            <div class="kpi-sub">FYTD and 13-month rolling financial dashboards</div>
+          </div>
         </div>
       </section>
 
@@ -1109,19 +1658,52 @@
         </div>
 
         <div class="tech-grid">
-          <article class="tech-card">
-            <h3>Platform foundation</h3>
-            <p>
-              Cafe Connection is built with modern web technologies that support responsive interfaces, structured data workflows, secure access, and scalable deployment. The architecture is practical for today’s needs while remaining flexible enough to support future enhancement.
-            </p>
-            <div class="pill-row">
-              <div class="pill">React + Vite</div>
-              <div class="pill">Firebase Auth</div>
-              <div class="pill">Firestore</div>
-              <div class="pill">Firebase Storage</div>
-              <div class="pill">Vercel</div>
-              <div class="pill">Google Workspace</div>
-              <div class="pill">Role-Based Access</div>
+          <article class="tech-card arch-card">
+            <h3>How it fits together</h3>
+            <div class="arch-diagram">
+              <div class="arch-row">
+                <div class="arch-node user-node">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="6" r="3"/><path d="M3 18c0-4 3-7 7-7s7 3 7 7"/></svg>
+                  <span>UCAR Staff</span>
+                  <small>@ucar.edu login</small>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node auth-node">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="9" width="12" height="9" rx="2"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>
+                  <span>Firebase Auth</span>
+                  <small>Magic-link only</small>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node app-node">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v4"/><path d="M14 3v4"/></svg>
+                  <span>React App</span>
+                  <small>Vercel · auto-deploy</small>
+                </div>
+              </div>
+              <div class="arch-down-row">
+                <div class="arch-spacer"></div>
+                <div class="arch-spacer"></div>
+                <div class="arch-down-arrow">↓</div>
+              </div>
+              <div class="arch-row arch-row-data">
+                <div class="arch-node data-node">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><ellipse cx="10" cy="5" rx="7" ry="3"/><path d="M3 5v5c0 1.66 3.13 3 7 3s7-1.34 7-3V5"/><path d="M3 10v5c0 1.66 3.13 3 7 3s7-1.34 7-3v-5"/></svg>
+                  <span>Firestore</span>
+                  <small>Metrics · roles · events</small>
+                </div>
+                <div class="arch-arrow">+</div>
+                <div class="arch-node data-node">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h12v12H4z"/><path d="M4 8h12M8 4v12"/></svg>
+                  <span>Google Workspace</span>
+                  <small>Sheets · Drive · Docs</small>
+                </div>
+                <div class="arch-arrow">+</div>
+                <div class="arch-node data-node">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4h14l-2 9H5L3 4z"/><path d="M3 4L2 2"/><path d="M8 17a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M14 17a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/></svg>
+                  <span>Workday / Excel</span>
+                  <small>FP&amp;A reports · uploads</small>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -1173,32 +1755,38 @@
   </div>
   <script>
     (function () {
-      const slides = document.querySelectorAll('.carousel-slide');
-      const dots   = document.querySelectorAll('.carousel-dot');
-      let current  = 0;
-      let timer;
+      function initCarousel(trackSelector, dotSelector) {
+        var slides = document.querySelectorAll(trackSelector + ' > .carousel-slide');
+        var dots   = document.querySelectorAll(dotSelector);
+        if (!slides.length || !dots.length) return;
+        var current = 0;
+        var timer;
 
-      function goTo(index) {
-        slides[current].classList.remove('active');
-        dots[current].classList.remove('active');
-        current = index;
-        slides[current].classList.add('active');
-        dots[current].classList.add('active');
-      }
+        function goTo(index) {
+          slides[current].classList.remove('active');
+          dots[current].classList.remove('active');
+          current = index;
+          slides[current].classList.add('active');
+          dots[current].classList.add('active');
+        }
 
-      function startTimer() {
-        timer = setInterval(function () { goTo((current + 1) % slides.length); }, 4000);
-      }
+        function startTimer() {
+          timer = setInterval(function () { goTo((current + 1) % slides.length); }, 4000);
+        }
 
-      dots.forEach(function (dot, i) {
-        dot.addEventListener('click', function () {
-          clearInterval(timer);
-          goTo(i);
-          startTimer();
+        dots.forEach(function (dot, i) {
+          dot.addEventListener('click', function () {
+            clearInterval(timer);
+            goTo(i);
+            startTimer();
+          });
         });
-      });
 
-      startTimer();
+        startTimer();
+      }
+
+      initCarousel('.carousel-track:not(.cap-carousel-track)', '.carousel-dot:not(.cap-dot)');
+      initCarousel('.cap-carousel-track', '.cap-dot');
     }());
   </script>
 </body>
