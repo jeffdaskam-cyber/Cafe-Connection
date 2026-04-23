@@ -171,14 +171,24 @@
       font-size: clamp(3rem, 7vw, 5.7rem);
       line-height: 0.94;
       letter-spacing: -0.05em;
+      margin: 0 0 16px;
+      max-width: 14ch;
+    }
+
+    .hero-tagline {
+      font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text-mid);
+      max-width: 52ch;
       margin: 0 0 20px;
-      max-width: 11ch;
+      letter-spacing: -0.01em;
     }
 
     .hero-subtitle {
       font-size: clamp(1.05rem, 2vw, 1.3rem);
       line-height: 1.7;
-      color: var(--text-mid);
+      color: var(--text-muted);
       max-width: 62ch;
       margin-bottom: 28px;
     }
@@ -605,9 +615,10 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <h1>A smarter platform for café and event operations</h1>
+          <h1>Cafe Connection</h1>
+          <p class="hero-tagline">A smarter platform for café and event operations</p>
           <p class="hero-subtitle">
-            Cafe Connection brings operations, reporting, and executive visibility into one connected internal platform, designed to improve efficiency today and support broader integration over time.
+            Bringing operations, reporting, and executive visibility into one connected internal platform, designed to improve efficiency today and support broader integration over time.
           </p>
           <div class="hero-actions">
             <a class="btn btn-primary" href="#capabilities">Explore capabilities</a>
