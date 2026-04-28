@@ -28,6 +28,7 @@ import {
 } from "../utils/fpaMappings.js";
 import {
   totalRevenueFYTD,
+  totalExpenseFYTD,
   revenueAndExpense13Month,
   revenueByCampusAndType,
   expenseByCampusAndType,
@@ -530,6 +531,7 @@ export default function FpaPage() {
   const latestKey = latestMonthKey(facts, activeFY);
 
   const fytdRevenue = useMemo(() => totalRevenueFYTD(facts, activeFY), [facts, activeFY]);
+  const fytdExpense = useMemo(() => totalExpenseFYTD(factsForToggleable, activeFY), [factsForToggleable, activeFY]);
   // 13-month rolling: pass latestKey so time window is fixed regardless of filtering
   const rolling13   = useMemo(() => revenueAndExpense13Month(factsForToggleable, latestKey), [factsForToggleable, latestKey]);
   // FYTD per-campus: call with unfiltered facts, strip ES Admin from output when toggled off
@@ -616,11 +618,15 @@ export default function FpaPage() {
       </div>
 
       {/* ── Row 1: KPI + status ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 18, marginBottom: 22 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, marginBottom: 22 }}>
         <KpiCard label={`Total Revenue FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
           value={hasData ? fmtCurrency(fytdRevenue) : "\u2014"}
           sublabel={latestLabel ? `Through ${latestLabel}` : "Awaiting first upload"}
           accentColor={COLORS.AQUA} />
+        <KpiCard label={`Total Expenses FYTD ${activeFY ? fiscalYearLabel(activeFY) : ""}`}
+          value={hasData ? fmtCurrency(fytdExpense) : "\u2014"}
+          sublabel={latestLabel ? `Through ${latestLabel}` : "Awaiting first upload"}
+          accentColor={COLORS.AQUA_DARK} />
         <StatusCard fiscalYear={activeFY} latestLabel={latestLabel}
           monthCount={monthCount} uploadsCount={uploads.length} />
       </div>
