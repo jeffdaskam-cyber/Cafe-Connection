@@ -77,7 +77,12 @@ export default function UserInvitations() {
       body: JSON.stringify({ email: toEmail, role: targetRole }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Failed to generate invite.");
+    if (!res.ok) {
+      const message = data.detail
+        ? `${data.error || "Failed to generate invite."} (${data.detail})`
+        : data.error || "Failed to generate invite.";
+      throw new Error(message);
+    }
     return data.link;
   }, []);
 
