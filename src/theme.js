@@ -89,10 +89,10 @@ export const SHADOWS = {
 };
 // ─── Border Radius ─────────────────────────────────────────────────────────────
 export const RADIUS = {
-  SM:  '6px',
+  SM:  '4px',
   MD:  '4px',
-  LG:  '14px',
-  XL:  '20px',
+  LG:  '4px',
+  XL:  '4px',
   PILL:'9999px',
 };
 // ─── Typography ────────────────────────────────────────────────────────────────

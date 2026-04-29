@@ -135,7 +135,7 @@ function AppShell() {
 
           {/* Wordmark */}
           <div style={{ display: "flex", alignItems: "center", zIndex: 1 }}>
-            <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: "0.02em", color: COLORS.TEXT_PRIMARY }}>
+            <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: "0.02em", color: "#FFFFFF" }}>
               <span style={{ color: COLORS.AQUA }}>UCAR</span> Cafe Connection
             </div>
           </div>
@@ -181,12 +181,12 @@ function AppShell() {
 
           {/* Date + user info */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, zIndex: 1 }}>
-            <div style={{ fontSize: 11, color: COLORS.TEXT_MUTED, fontWeight: 500, letterSpacing: "0.04em" }}>
+            <div style={{ fontSize: 11, color: "#FFFFFF", fontWeight: 500, letterSpacing: "0.04em" }}>
               {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{
-                fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
+                fontSize: 10, color: "#FFFFFF", fontWeight: 500,
                 maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}>
@@ -199,7 +199,7 @@ function AppShell() {
                   background: "transparent", border: `1px solid ${COLORS.BORDER}`,
                   borderRadius: 6, padding: "4px 10px", cursor: "pointer",
                   fontFamily: "'Poppins',sans-serif", fontWeight: 600,
-                  fontSize: 10, color: COLORS.TEXT_MUTED, letterSpacing: "0.04em",
+                  fontSize: 10, color: "#FFFFFF", letterSpacing: "0.04em",
                   transition: "all .2s",
                 }}>
                 Sign out
