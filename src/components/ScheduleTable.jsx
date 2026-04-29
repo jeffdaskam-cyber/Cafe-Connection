@@ -9,7 +9,7 @@ const SCHED_SUBHEAD_BG  = COLORS.MOBILE_SUBHEAD_BG;
 const SCHED_SUBHEAD_ALT = COLORS.MOBILE_SUBHEAD_ALT;
 
 // Only these labels create top-level sections.
-const ALLOWED_HEADERS = ["CG2", "Banquets", "Center Green", "Foothills", "Mesa"];
+const ALLOWED_HEADERS = ["CG2", "Banquets", "Center Green", "Foothills", "Mesa Lab"];
 
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
