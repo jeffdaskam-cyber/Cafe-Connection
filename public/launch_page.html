@@ -9,1811 +9,1415 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    /* ─────────── Design tokens ─────────── */
     :root {
-      --space-blue: #011837;
-      --dark-blue: #00357A;
-      --aqua: #00A2B4;
-      --light-aqua: #34E1F4;
-      --orange: #FAA119;
-      --text-primary: #FFFFFF;
-      --text-mid: #D7EAF4;
-      --text-muted: #9EB7C8;
-      --surface-border: rgba(52, 225, 244, 0.18);
-      --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.28);
-      --shadow-md: 0 14px 36px rgba(0, 0, 0, 0.22);
-      --radius-xl: 28px;
-      --max-width: 1220px;
+      --space-blue:     #011837;
+      --dark-blue:      #00357A;
+      --ucar-aqua:      #00A2B4;
+      --aqua-dark:      #00818F;
+      --light-aqua:     #34E1F4;
+      --orange:         #FAA119;
+      --yellow:         #F6C90E;
+      --text-primary:   #FFFFFF;
+      --text-mid:       #D7EAF4;
+      --text-dim:       rgba(215,234,244,0.72);
+      --text-faint:     rgba(215,234,244,0.50);
+      --text-muted:     #9EB7C8;
+      --surface-border: rgba(52,225,244,0.18);
+      --hair-dark:      rgba(255,255,255,0.10);
+      --hairline:       rgba(0,0,0,0.09);
+      --fg-2:           #4b5d6e;
+      --light-gray:     #f4f7f9;
+      --shadow-lg:      0 24px 60px rgba(0,0,0,0.28);
+      --shadow-md:      0 14px 36px rgba(0,0,0,0.22);
+      --radius-xl:      28px;
+      --max-width:      1240px;
+      --pad:            32px;
+      --font-sans:      'Poppins', system-ui, -apple-system, sans-serif;
+      --font-mono:      ui-monospace, 'Cascadia Code', 'Fira Mono', monospace;
     }
 
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
-      font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: var(--font-sans);
       color: var(--text-primary);
-      background:
-        radial-gradient(circle at 15% 15%, rgba(52,225,244,0.16), transparent 0 28%),
-        radial-gradient(circle at 85% 22%, rgba(0,162,180,0.12), transparent 0 24%),
-        linear-gradient(180deg, #02142f 0%, #011837 46%, #021126 100%);
+      background: #02142f;
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      pointer-events: none;
-      z-index: 0;
-      filter: blur(16px);
-      opacity: 0.45;
-    }
-
-    body::before {
-      width: 420px;
-      height: 420px;
-      right: -120px;
-      top: 140px;
-      background: radial-gradient(circle, rgba(52,225,244,0.20), rgba(52,225,244,0));
-    }
-
-    body::after {
-      width: 360px;
-      height: 360px;
-      left: -90px;
-      bottom: 70px;
-      background: radial-gradient(circle, rgba(0,162,180,0.16), rgba(0,162,180,0));
-    }
-
+    ::selection { background: var(--light-aqua); color: var(--space-blue); }
     a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+    *:focus-visible { outline: 2px solid var(--light-aqua); outline-offset: 3px; border-radius: 4px; }
 
-    .page-shell {
-      position: relative;
-      z-index: 1;
-    }
-
+    /* ─────────── Topbar ─────────── */
     .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      backdrop-filter: blur(18px);
-      background: rgba(1, 24, 55, 0.76);
-      border-bottom: 1px solid rgba(52, 225, 244, 0.10);
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: blur(20px) saturate(140%);
+      background: rgba(2,20,47,0.82);
+      border-bottom: 1px solid var(--hair-dark);
     }
-
     .topbar-inner {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: 16px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
+      max-width: var(--max-width); margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px var(--pad); gap: 24px;
     }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-text { display: flex; flex-direction: column; line-height: 1; }
+    .brand-eyebrow {
+      font-size: 9.5px; font-weight: 700; letter-spacing: 0.20em;
+      text-transform: uppercase; color: var(--light-aqua); margin-bottom: 4px;
     }
+    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
 
-    .brand-mark {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, rgba(52,225,244,0.24), rgba(0,162,180,0.78));
-      border: 1px solid rgba(255,255,255,0.10);
-      box-shadow: 0 10px 30px rgba(0,162,180,0.28);
-      display: grid;
-      place-items: center;
-      overflow: hidden;
-    }
-
-    .brand-mark svg {
-      width: 28px;
-      height: 28px;
-      opacity: 0.95;
-    }
-
-    .eyebrow {
-      font-size: 0.74rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--light-aqua);
-      margin-bottom: 3px;
-      font-weight: 600;
-    }
-
-    .brand-title {
-      font-size: 1.4rem;
-      font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .topnav {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
+    .topnav { display: flex; gap: 4px; }
     .topnav a {
-      font-size: 0.9rem;
-      color: var(--text-mid);
-      padding: 10px 14px;
-      border-radius: 999px;
-      transition: 180ms ease;
+      font-size: 13px; font-weight: 500; color: var(--text-dim);
+      padding: 8px 14px; border-radius: 999px; transition: 180ms;
     }
-
-    .topnav a:hover {
-      color: var(--text-primary);
-      background: rgba(52,225,244,0.08);
+    .topnav a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    .topnav a.cta {
+      background: var(--light-aqua); color: var(--space-blue);
+      font-weight: 700; padding: 9px 18px;
     }
+    .topnav a.cta:hover { background: #fff; }
 
+    /* ─────────── HERO ─────────── */
     .hero {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: 28px 28px 26px;
-      min-height: calc(100vh - 76px);
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 48px;
-      align-items: center;
-    }
-
-    .hero-copy {
-      max-width: 820px;
-    }
-
-    .hero-visual {
-      display: flex;
-      align-items: center;
-    }
-
-    .carousel {
-      width: 100%;
-      border-radius: var(--radius-xl);
-      background: linear-gradient(180deg, rgba(10,37,64,0.90), rgba(7,30,52,0.96));
-      border: 1px solid rgba(52,225,244,0.16);
-      box-shadow: var(--shadow-lg);
+      position: relative;
+      padding: 88px var(--pad) 0;
       overflow: hidden;
     }
-
-    .carousel-track {
-      position: relative;
-      height: 320px;
-    }
-
-    .carousel-slide {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      padding: 18px 20px 12px;
-      opacity: 0;
-      transition: opacity 600ms ease;
+    .hero::before {
+      content: ""; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 700px 500px at 80% 0%, rgba(52,225,244,0.18), transparent 60%),
+        radial-gradient(ellipse 800px 600px at 0% 30%, rgba(0,162,180,0.16), transparent 65%);
       pointer-events: none;
     }
-
-    .carousel-slide.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .slide-label {
-      font-size: 0.69rem;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--light-aqua);
-      margin-bottom: 3px;
-    }
-
-    .slide-title {
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text-primary);
-      margin: 0 0 2px;
-    }
-
-    .slide-sub {
-      font-size: 0.73rem;
-      color: var(--text-muted);
-      margin: 0 0 10px;
-    }
-
-    .slide-chart {
-      flex: 1;
-      min-height: 0;
-    }
-
-    .slide-chart svg {
-      width: 100%;
+    .hero::after {
+      content: ""; position: absolute; left: 0; right: 0; top: 0;
       height: 100%;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 64px 64px;
+      background-position: -1px -1px;
+      mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 30%, transparent 75%);
+      pointer-events: none;
     }
-
-    .slide-legend {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-      padding-top: 8px;
-      flex-shrink: 0;
-    }
-
-    .legend-item {
-      display: flex;
+    .hero-inner {
+      max-width: var(--max-width); margin: 0 auto;
+      position: relative; z-index: 2;
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 56px;
       align-items: center;
-      gap: 5px;
-      font-size: 0.69rem;
-      color: var(--text-muted);
+      min-height: calc(100vh - 80px);
+      padding-bottom: 80px;
     }
-
-    .legend-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 7px 14px; border-radius: 999px;
+      background: rgba(52,225,244,0.10);
+      border: 1px solid rgba(52,225,244,0.28);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--light-aqua);
+      margin-bottom: 28px;
     }
-
-    .carousel-footer {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 20px 14px;
-      border-top: 1px solid rgba(52,225,244,0.08);
-    }
-
-    .carousel-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.18);
-      border: none;
-      padding: 0;
-      cursor: pointer;
-      transition: background 300ms ease, transform 300ms ease;
-    }
-
-    .carousel-dot.active {
+    .hero-eyebrow .pulse {
+      width: 7px; height: 7px; border-radius: 50%;
       background: var(--light-aqua);
-      transform: scale(1.4);
+      box-shadow: 0 0 0 0 rgba(52,225,244,0.7);
+      animation: pulse 2s infinite;
     }
-
-    h1 {
-      font-size: clamp(3rem, 7vw, 5.7rem);
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(52,225,244,0.7); }
+      70%  { box-shadow: 0 0 0 8px rgba(52,225,244,0); }
+      100% { box-shadow: 0 0 0 0 rgba(52,225,244,0); }
+    }
+    h1.hero-title {
+      margin: 0 0 28px;
+      font-size: clamp(46px, 7vw, 88px);
+      font-weight: 800;
       line-height: 0.94;
-      letter-spacing: -0.05em;
-      margin: 0 0 16px;
-      max-width: 14ch;
+      letter-spacing: -0.045em;
     }
-
-    .hero-tagline {
-      font-size: clamp(1.15rem, 2.2vw, 1.45rem);
-      font-weight: 500;
-      line-height: 1.4;
-      color: var(--text-mid);
-      max-width: 52ch;
-      margin: 0 0 20px;
-      letter-spacing: -0.01em;
+    h1.hero-title em {
+      font-style: italic; font-weight: 500;
+      color: var(--light-aqua);
     }
-
-    .hero-subtitle {
-      font-size: clamp(1.05rem, 2vw, 1.3rem);
-      line-height: 1.7;
-      color: var(--text-muted);
-      max-width: 62ch;
-      margin-bottom: 28px;
+    .hero-deck {
+      font-size: clamp(17px, 1.5vw, 20px);
+      line-height: 1.55;
+      color: var(--text-dim);
+      max-width: 56ch;
+      margin: 0 0 36px;
+      font-weight: 400;
     }
-
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      margin-bottom: 28px;
-    }
-
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 44px; }
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 14px 20px;
-      border-radius: 999px;
-      font-weight: 600;
-      font-size: 0.96rem;
-      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 14px 22px; border-radius: 999px;
+      font-size: 14.5px; font-weight: 600; letter-spacing: -0.005em;
+      border: 0; transition: 180ms;
     }
-
     .btn:hover { transform: translateY(-1px); }
-
     .btn-primary {
-      background: linear-gradient(135deg, var(--aqua), var(--light-aqua));
-      color: #03263d;
-      box-shadow: 0 14px 32px rgba(0,162,180,0.30);
+      background: var(--light-aqua); color: var(--space-blue);
+      box-shadow: 0 12px 36px rgba(52,225,244,0.25);
+    }
+    .btn-primary:hover { background: #fff; box-shadow: 0 14px 40px rgba(52,225,244,0.35); }
+    .btn-ghost {
+      background: rgba(255,255,255,0.05); color: #fff;
+      border: 1px solid rgba(255,255,255,0.14);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.10); }
+    .btn-arrow { transition: transform 180ms; }
+    .btn:hover .btn-arrow { transform: translateX(3px); }
+
+    .hero-meta {
+      display: flex; gap: 32px; flex-wrap: wrap;
+      padding-top: 28px; border-top: 1px solid var(--hair-dark);
+    }
+    .hero-meta-item { font-size: 11.5px; color: var(--text-faint); letter-spacing: 0.04em; }
+    .hero-meta-item strong {
+      display: block; color: #fff; font-size: 14px; font-weight: 700;
+      margin-bottom: 4px; letter-spacing: -0.01em;
     }
 
-    .btn-secondary {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: var(--text-primary);
-    }
-
-    .value-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .chip {
-      padding: 12px 16px;
-      border-radius: 999px;
-      font-size: 0.92rem;
-      font-weight: 500;
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(10px);
-    }
-
-    .section {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: 68px 28px;
-    }
-
-    .section-head {
-      max-width: 760px;
-      margin-bottom: 30px;
-    }
-
-    .section-label {
-      display: inline-block;
-      color: var(--light-aqua);
-      font-size: 0.78rem;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      margin-bottom: 14px;
-    }
-
-    .section h2 {
-      margin: 0 0 14px;
-      font-size: clamp(2rem, 4vw, 3.1rem);
-      letter-spacing: -0.04em;
-      line-height: 1.05;
-    }
-
-    .section-intro {
-      margin: 0;
-      color: var(--text-mid);
-      font-size: 1.03rem;
-      line-height: 1.75;
-      max-width: 68ch;
-    }
-
-    .story-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 22px;
-    }
-
-    .story-card,
-    .feature-card,
-    .value-card,
-    .tech-card,
-    .close-panel {
-      border-radius: var(--radius-xl);
-      background: linear-gradient(180deg, rgba(10,37,64,0.80), rgba(7,30,52,0.92));
-      border: 1px solid rgba(52,225,244,0.14);
-      box-shadow: var(--shadow-md);
-    }
-
-    .story-card {
-      padding: 28px;
-      position: relative;
+    /* ─────────── App-mock cluster ─────────── */
+    .hero-mocks { position: relative; height: 600px; }
+    .mock-window {
+      position: absolute;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #0e294a, #07182f);
+      border: 1px solid rgba(52,225,244,0.18);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(52,225,244,0.06);
       overflow: hidden;
     }
-
-    .story-card::after {
-      content: "";
-      position: absolute;
-      inset: auto -30px -40px auto;
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(52,225,244,0.12), rgba(52,225,244,0));
-      pointer-events: none;
-    }
-
-    .story-card h3,
-    .feature-card h3,
-    .value-card h3,
-    .tech-card h3 {
-      margin: 0 0 12px;
-      font-size: 1.2rem;
-      letter-spacing: -0.02em;
-    }
-
-    .story-card p,
-    .feature-card p,
-    .value-card p,
-    .tech-card p,
-    .close-panel p {
-      margin: 0;
-      color: var(--text-mid);
-      line-height: 1.7;
-      font-size: 0.97rem;
-    }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 18px;
-    }
-
-    .feature-card {
-      padding: 24px 20px 22px;
-      min-height: 265px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      background:
-        linear-gradient(180deg, rgba(10,37,64,0.86), rgba(7,30,52,0.96)),
-        linear-gradient(135deg, rgba(52,225,244,0.10), rgba(0,162,180,0));
-    }
-
-    .icon-wrap {
-      width: 54px;
-      height: 54px;
-      border-radius: 18px;
-      display: grid;
-      place-items: center;
-      background: rgba(52,225,244,0.10);
-      border: 1px solid rgba(52,225,244,0.16);
-      margin-bottom: 20px;
-    }
-
-    .icon-wrap svg {
-      width: 24px;
-      height: 24px;
-      stroke: var(--light-aqua);
-      stroke-width: 1.8;
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    .feature-tag {
-      margin-top: 18px;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      align-self: flex-start;
-      color: var(--light-aqua);
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-    }
-
-    .feature-tag::before {
-      content: "";
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--orange);
-    }
-
-    .value-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 18px;
-    }
-
-    .value-card {
-      padding: 24px;
-      min-height: 220px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
-    }
-
-    .value-number {
-      font-size: 2.4rem;
-      font-weight: 800;
-      line-height: 1;
-      color: var(--light-aqua);
-      margin-bottom: 16px;
-    }
-
-    .tech-grid {
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 20px;
-      align-items: stretch;
-    }
-
-    .tech-card {
-      padding: 28px;
-    }
-
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
-    .pill {
+    .mock-chrome {
+      display: flex; align-items: center; gap: 6px;
       padding: 10px 14px;
-      border-radius: 999px;
-      background: rgba(52,225,244,0.08);
-      border: 1px solid rgba(52,225,244,0.14);
-      color: var(--text-primary);
-      font-size: 0.88rem;
-      font-weight: 500;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(0,0,0,0.20);
     }
-
-    .stack-list {
-      display: grid;
-      gap: 12px;
-      margin-top: 18px;
+    .mock-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .mock-dot.r { background: #ff5f57; }
+    .mock-dot.y { background: #ffbd2e; }
+    .mock-dot.g { background: #28c840; }
+    .mock-tab { margin-left: 14px; font-size: 10.5px; font-weight: 600; color: var(--text-faint); letter-spacing: 0.04em; }
+    .mock-body { padding: 18px; }
+    .mock-kicker { font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--light-aqua); margin-bottom: 4px; }
+    .mock-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .mock-tile {
+      flex: 1; padding: 12px 14px; border-radius: 12px;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
     }
+    .mock-tile.aqua { background: linear-gradient(135deg, var(--ucar-aqua), #008a9b); border-color: transparent; }
+    .mock-tile.yellow { background: var(--yellow); color: var(--space-blue); border-color: transparent; }
+    .mock-tile-l { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.7; }
+    .mock-tile-v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-top: 4px; font-variant-numeric: tabular-nums; }
+    .mock-tile-d { font-size: 10px; font-weight: 600; margin-top: 2px; opacity: 0.85; }
 
-    .stack-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: 18px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06);
+    .mock-chart { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px; }
+    .mock-chart-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .mock-chart-title { font-size: 11.5px; font-weight: 700; }
+    .mock-chart-sub { font-size: 9.5px; color: var(--text-faint); }
+    .mock-chart svg { width: 100%; display: block; }
+
+    .mock-list-row {
+      display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; align-items: center;
+      padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 11px;
     }
+    .mock-list-row:last-child { border-bottom: 0; }
+    .mock-status-dot { width: 7px; height: 7px; border-radius: 50%; }
+    .mock-status-dot.green  { background: #22c55e; }
+    .mock-status-dot.orange { background: var(--orange); }
 
-    .stack-item strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 0.92rem;
+    .mock-primary  { width: 540px; left: 0; top: 30px; transform: rotate(-1.4deg); z-index: 2; }
+    .mock-secondary { width: 280px; right: 10px; top: 0; transform: rotate(2.2deg); z-index: 3; }
+    .mock-tertiary  { width: 300px; right: 0; bottom: 0; transform: rotate(-1.8deg); z-index: 1; }
+
+    /* ─────────── Sections ─────────── */
+    .section { padding: 96px var(--pad); position: relative; }
+    .section-inner { max-width: var(--max-width); margin: 0 auto; }
+    .section-light { background: var(--light-gray); color: var(--space-blue); }
+    .section-mid   { background: linear-gradient(180deg, #02112a 0%, #0a2545 100%); color: #fff; }
+    .section-deep  { background: var(--space-blue); color: #fff; }
+    .section-divider-top, .section-divider-bot {
+      position: absolute; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--hair-dark), transparent);
     }
+    .section-divider-top { top: 0; }
+    .section-divider-bot { bottom: 0; }
 
-    .stack-item span {
-      color: var(--text-mid);
-      font-size: 0.84rem;
-      line-height: 1.5;
+    .section-eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.20em;
+      text-transform: uppercase; color: var(--aqua-dark);
+      margin-bottom: 18px;
     }
+    .section-light .section-eyebrow { color: var(--aqua-dark); }
+    .section-mid .section-eyebrow,
+    .section-deep .section-eyebrow { color: var(--light-aqua); }
+    .section-eyebrow::before { content: ""; width: 28px; height: 1.5px; background: currentColor; }
 
-    .stack-dot {
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--light-aqua), var(--aqua));
-      margin-top: 6px;
-      flex: 0 0 auto;
-      box-shadow: 0 0 14px rgba(52,225,244,0.45);
+    h2.section-title {
+      margin: 0 0 22px;
+      font-size: clamp(36px, 4.6vw, 60px);
+      font-weight: 700; line-height: 1.02;
+      letter-spacing: -0.038em; max-width: 18ch;
     }
+    h2.section-title em { font-style: italic; font-weight: 400; color: var(--ucar-aqua); }
+    .section-mid h2.section-title em,
+    .section-deep h2.section-title em { color: var(--light-aqua); }
 
-    .close-panel {
-      padding: 34px;
-      text-align: center;
-      background:
-        radial-gradient(circle at top, rgba(52,225,244,0.12), transparent 42%),
-        linear-gradient(180deg, rgba(10,37,64,0.90), rgba(7,30,52,0.98));
-      overflow: hidden;
-      position: relative;
+    .section-deck {
+      font-size: 19px; line-height: 1.6;
+      max-width: 60ch; margin: 0 0 56px;
+      color: var(--fg-2);
     }
+    .section-mid .section-deck,
+    .section-deep .section-deck { color: var(--text-dim); }
 
-    .close-panel::before {
-      content: "";
-      position: absolute;
-      inset: auto auto -120px -120px;
-      width: 280px;
-      height: 280px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(250,161,25,0.12), rgba(250,161,25,0));
-    }
-
-    .close-panel h2 {
-      max-width: 16ch;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .close-panel p {
-      max-width: 58ch;
-      margin: 0 auto 24px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .footer {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: 10px 28px 34px;
-      color: var(--text-muted);
-      font-size: 0.86rem;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    /* ── Before / After layout ───────────────────────────────────────── */
-    .before-after-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 22px;
-    }
-
-    .ba-card {
-      border-radius: var(--radius-xl);
-      border: 1px solid rgba(52,225,244,0.14);
-      box-shadow: var(--shadow-md);
-      padding: 28px 32px;
-    }
-
-    .ba-before {
-      background: linear-gradient(160deg, rgba(40,15,15,0.85), rgba(7,30,52,0.92));
-      border-color: rgba(220, 80, 80, 0.22);
-    }
-
-    .ba-after {
-      background: linear-gradient(160deg, rgba(0,55,40,0.70), rgba(7,30,52,0.92));
-      border-color: rgba(52,225,244,0.22);
-    }
-
-    .ba-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .ba-header h3 {
-      margin: 0;
-      font-size: 1.15rem;
-      letter-spacing: -0.02em;
-    }
-
-    .ba-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      font-size: 0.85rem;
-      font-weight: 700;
-      flex-shrink: 0;
-    }
-
-    .ba-before .ba-icon {
-      background: rgba(220, 80, 80, 0.18);
-      color: #f87171;
-      border: 1px solid rgba(220, 80, 80, 0.30);
-    }
-
-    .ba-after .ba-icon {
-      background: rgba(52, 225, 244, 0.12);
-      color: var(--light-aqua);
-      border: 1px solid rgba(52,225,244,0.24);
-    }
-
-    .ba-list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .ba-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      font-size: 0.94rem;
-      color: var(--text-mid);
-      line-height: 1.5;
-    }
-
-    .ba-list li::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      margin-top: 7px;
-    }
-
-    .ba-before .ba-list li::before {
-      background: #f87171;
-      opacity: 0.7;
-    }
-
-    .ba-after .ba-list li::before {
-      background: var(--light-aqua);
-    }
-
-    /* ── Capabilities carousel ───────────────────────────────────────── */
-    .capabilities-carousel-wrap {
-      margin-top: 32px;
-    }
-
-    .cap-carousel-track {
-      height: 300px;
-    }
-
-    .cap-slide {
-      padding: 18px 22px 14px;
-    }
-
-    .cap-stat-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .cap-stat-card {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(52,225,244,0.12);
-      border-radius: 14px;
-      padding: 14px;
-    }
-
-    .cap-stat-label {
-      font-size: 0.68rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 6px;
-    }
-
-    .cap-stat-value {
-      font-size: 1.35rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: -0.03em;
-      line-height: 1.1;
-      margin-bottom: 6px;
-    }
-
-    .cap-stat-delta {
-      font-size: 0.72rem;
-      font-weight: 600;
-    }
-
-    .cap-stat-delta.positive { color: #4ade80; }
-    .cap-stat-delta.neutral  { color: var(--text-muted); }
-
-    .cap-ops-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .cap-ops-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 12px;
-      background: rgba(255,255,255,0.035);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 10px;
-    }
-
-    .cap-ops-icon {
-      width: 28px;
-      height: 28px;
-      flex-shrink: 0;
-      display: grid;
-      place-items: center;
-    }
-
-    .cap-ops-icon svg {
-      width: 18px;
-      height: 18px;
-    }
-
-    .cap-ops-text {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .cap-ops-name {
-      font-size: 0.85rem;
-      color: var(--text-primary);
-      font-weight: 500;
-    }
-
-    .cap-ops-status {
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 999px;
-    }
-
-    .cap-ops-status.ready {
-      background: rgba(52,225,244,0.10);
-      color: var(--light-aqua);
-    }
-
-    .cap-ops-status.pending {
-      background: rgba(250,161,25,0.12);
-      color: var(--orange);
-    }
-
-    .cap-table {
-      margin-top: 10px;
-      display: flex;
-      flex-direction: column;
+    /* ─────────── Numbers strip ─────────── */
+    .num-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
       gap: 0;
-      border: 1px solid rgba(52,225,244,0.12);
-      border-radius: 12px;
-      overflow: hidden;
+      background: var(--space-blue);
+      border-radius: 24px; overflow: hidden;
+      border: 1px solid rgba(52,225,244,0.18);
+    }
+    .num-cell {
+      padding: 40px 32px;
+      border-right: 1px solid rgba(52,225,244,0.10);
+      position: relative; overflow: hidden;
+    }
+    .num-cell:last-child { border-right: 0; }
+    .num-cell::before {
+      content: ""; position: absolute; inset: auto -40px -40px auto;
+      width: 140px; height: 140px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(52,225,244,0.10), transparent 70%);
+    }
+    .num-big {
+      font-size: 64px; font-weight: 800; letter-spacing: -0.045em;
+      line-height: 1; color: var(--light-aqua); font-variant-numeric: tabular-nums;
+    }
+    .num-suffix { font-size: 32px; opacity: 0.85; margin-left: 2px; }
+    .num-label { font-size: 14.5px; font-weight: 700; margin-top: 14px; letter-spacing: -0.01em; }
+    .num-sub   { font-size: 12.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.45; }
+
+    /* ─────────── Mandate (Before / After) ─────────── */
+    .mandate-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0; border: 1px solid var(--hairline);
+      border-radius: 24px; overflow: hidden; background: #fff;
+    }
+    .mandate-col { padding: 36px 38px; display: flex; flex-direction: column; }
+    .mandate-col + .mandate-col { border-left: 1px solid var(--hairline); }
+    .mandate-col-head {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 24px; padding-bottom: 18px;
+      border-bottom: 1px solid var(--hairline);
+    }
+    .mandate-tag {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; padding: 5px 11px; border-radius: 999px;
+    }
+    .mandate-before .mandate-tag { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .mandate-after .mandate-tag  { background: rgba(0,162,180,0.10); color: var(--aqua-dark); border: 1px solid rgba(0,162,180,0.20); }
+    .mandate-h { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+    .mandate-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+    .mandate-list li {
+      display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+      font-size: 14.5px; color: var(--fg-2); line-height: 1.5;
+    }
+    .mandate-list li::before {
+      content: ""; width: 18px; height: 18px; border-radius: 50%;
+      margin-top: 1px; display: inline-block;
+    }
+    .mandate-before .mandate-list li::before {
+      background: #fef2f2; border: 1px solid #fecaca;
+      background-image: linear-gradient(45deg, transparent 46%, #b91c1c 46%, #b91c1c 54%, transparent 54%),
+                        linear-gradient(-45deg, transparent 46%, #b91c1c 46%, #b91c1c 54%, transparent 54%);
+      background-size: 60% 60%; background-position: center; background-repeat: no-repeat;
+    }
+    .mandate-after .mandate-list li::before {
+      background: var(--ucar-aqua);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'><path d='M4 9.5l3 3 7-7' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-size: 70%; background-position: center; background-repeat: no-repeat;
     }
 
-    .cap-table-head,
-    .cap-table-row {
-      display: grid;
-      grid-template-columns: 2fr 1.1fr 1fr;
-      padding: 8px 14px;
-      align-items: center;
-      gap: 8px;
+    /* ─────────── Showcase ─────────── */
+    .showcase-grid {
+      display: grid; grid-template-columns: 380px 1fr;
+      gap: 56px; align-items: start;
+    }
+    .showcase-tabs { position: sticky; top: 96px; display: flex; flex-direction: column; gap: 10px; }
+    .show-tab {
+      text-align: left; background: transparent;
+      border: 1px solid var(--hairline); border-radius: 16px; padding: 18px 20px;
+      transition: 200ms; color: var(--space-blue);
+    }
+    .show-tab:hover { border-color: var(--ucar-aqua); }
+    .show-tab.active { background: var(--space-blue); color: #fff; border-color: var(--space-blue); box-shadow: 0 18px 40px rgba(1,24,55,0.18); }
+    .show-tab-num { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; color: var(--aqua-dark); display: block; margin-bottom: 8px; }
+    .show-tab.active .show-tab-num { color: var(--light-aqua); }
+    .show-tab-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 6px; line-height: 1.2; }
+    .show-tab-desc  { font-size: 13px; line-height: 1.5; color: var(--fg-2); }
+    .show-tab.active .show-tab-desc { color: rgba(255,255,255,0.7); }
+
+    .showcase-screen {
+      background: var(--space-blue); border-radius: 24px; padding: 24px;
+      box-shadow: 0 30px 80px rgba(1,24,55,0.18);
+      border: 1px solid rgba(52,225,244,0.14); min-height: 560px;
+    }
+    .show-chrome {
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px;
+    }
+    .show-chrome-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .show-chrome-url {
+      margin-left: 14px; background: rgba(255,255,255,0.05);
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 11.5px; color: var(--text-faint); font-family: var(--font-mono);
     }
 
-    .cap-table-head {
-      background: rgba(52,225,244,0.07);
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
+    .screen { display: none; }
+    .screen.active { display: block; animation: fadeIn 400ms ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+
+    .screen-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+    .screen-h { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+    .screen-h em { font-style: italic; font-weight: 400; color: var(--light-aqua); }
+    .screen-pills { display: flex; gap: 8px; }
+    .screen-pill {
+      padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 600;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); color: var(--text-dim);
     }
+    .screen-pill.active { background: var(--ucar-aqua); color: #fff; border-color: var(--ucar-aqua); }
 
-    .cap-table-row {
-      border-top: 1px solid rgba(255,255,255,0.05);
-      font-size: 0.8rem;
-      color: var(--text-mid);
+    /* Screen 1: Dashboard */
+    .scr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .scr-stat { padding: 16px 18px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+    .scr-stat.aqua { background: linear-gradient(135deg, var(--ucar-aqua), #008a9b); border-color: transparent; }
+    .scr-stat-l { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.7; }
+    .scr-stat-v { font-size: 28px; font-weight: 800; letter-spacing: -0.025em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+    .scr-stat-d { font-size: 11px; font-weight: 600; margin-top: 2px; }
+    .scr-stat-d.up   { color: #4ade80; }
+    .scr-stat-d.flat { color: var(--text-faint); }
+
+    .scr-grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+    .scr-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px; }
+    .scr-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+    .scr-card-t { font-size: 13px; font-weight: 700; }
+    .scr-card-s { font-size: 10.5px; color: var(--text-faint); }
+    .chart-large svg { width: 100%; height: 180px; display: block; }
+
+    .ev-row { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); align-items: center; }
+    .ev-row:last-child { border-bottom: 0; }
+    .ev-row.past { opacity: 0.45; }
+    .ev-time  { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .ev-name  { font-size: 12.5px; font-weight: 600; }
+    .ev-where { font-size: 10.5px; color: var(--text-faint); margin-top: 2px; }
+    .ev-tag   { font-size: 9.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+    .ev-tag.next { background: var(--light-aqua); color: var(--space-blue); }
+
+    /* Screen 2: Cafe Sales */
+    .sales-bignum { font-size: 72px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+    .sales-bignum .cents { font-size: 0.45em; color: var(--text-faint); }
+    .sales-delta     { font-size: 14px; font-weight: 700; color: var(--light-aqua); }
+    .sales-delta-sub { font-size: 12px; color: var(--text-faint); margin-left: 8px; font-weight: 400; }
+    .sales-row   { display: grid; grid-template-columns: 1.3fr 1fr; gap: 28px; align-items: center; margin-bottom: 22px; }
+    .sales-mini  { display: flex; gap: 22px; margin-top: 18px; }
+    .sales-mini-l { font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint); }
+    .sales-mini-v { font-size: 18px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+    .sales-bar-row { display: grid; grid-template-columns: 110px 1fr 60px; gap: 14px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .sales-bar-row:last-child { border-bottom: 0; }
+    .sales-bar-name  { font-size: 12px; font-weight: 600; }
+    .sales-bar-track { background: rgba(255,255,255,0.06); border-radius: 999px; height: 8px; overflow: hidden; }
+    .sales-bar-fill  { height: 100%; background: linear-gradient(90deg, var(--ucar-aqua), var(--light-aqua)); border-radius: 999px; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1); width: 0; }
+    .sales-bar-val   { font-size: 12px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Screen 3: Weekly Ops */
+    .ops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .ops-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px; }
+    .ops-card.featured { background: linear-gradient(160deg, rgba(0,162,180,0.28), rgba(1,24,55,0.50)); border-color: var(--ucar-aqua); }
+    .ops-card-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--light-aqua); margin-bottom: 10px; }
+    .ops-card-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+    .ops-staff-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 11.5px; }
+    .ops-staff-row:last-child { border-bottom: 0; }
+    .ops-staff-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .ops-staff-name { flex: 1; font-weight: 600; }
+    .ops-staff-time { font-size: 10.5px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+    .ops-cash-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 12px; }
+    .ops-cash-row:last-child { border-bottom: 0; }
+    .ops-cash-campus { font-weight: 600; }
+    .ops-cash-amount { font-weight: 700; font-variant-numeric: tabular-nums; color: #4ade80; }
+    .ops-special-item { font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-dim); line-height: 1.4; }
+    .ops-special-item:last-child { border-bottom: 0; }
+    .ops-special-item strong { color: #fff; display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-aqua); margin-bottom: 2px; }
+
+    /* Screen 4: FP&A */
+    .fpa-rail { height: 14px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; position: relative; margin: 14px 0 8px; }
+    .fpa-rail-fill { position: absolute; top: 0; left: 0; bottom: 0; background: linear-gradient(90deg, var(--ucar-aqua), var(--light-aqua)); border-radius: 999px; width: 0; transition: width 1.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .fpa-rail-marker { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--yellow); }
+    .fpa-rail-marker::after { content: "Pace 83%"; position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; color: var(--yellow); white-space: nowrap; }
+    .fpa-rail-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); margin-top: 6px; }
+    .fpa-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 22px; }
+
+    /* ─────────── Architecture ─────────── */
+    .arch-wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: stretch; }
+    .arch-card {
+      background: var(--space-blue); border-radius: 24px; padding: 36px;
+      border: 1px solid rgba(52,225,244,0.18); color: #fff;
+      position: relative; overflow: hidden;
     }
-
-    .cap-role {
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 999px;
-      display: inline-block;
-    }
-
-    .cap-role.admin   { background: rgba(250,161,25,0.14); color: var(--orange); }
-    .cap-role.manager { background: rgba(52,225,244,0.10); color: var(--light-aqua); }
-    .cap-role.senior  { background: rgba(0,162,180,0.12);  color: var(--aqua); }
-    .cap-role.user    { background: rgba(255,255,255,0.06); color: var(--text-muted); }
-
-    .cap-badge {
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 3px 9px;
-      border-radius: 999px;
-      display: inline-block;
-    }
-
-    .cap-badge.active  { background: rgba(74,222,128,0.12); color: #4ade80; }
-    .cap-badge.pending { background: rgba(250,161,25,0.12); color: var(--orange); }
-
-    /* ── KPI stat grid ───────────────────────────────────────────────── */
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 18px;
-    }
-
-    .kpi-card {
-      border-radius: var(--radius-xl);
-      background: linear-gradient(160deg, rgba(0,35,55,0.85), rgba(7,30,52,0.95));
-      border: 1px solid rgba(52,225,244,0.16);
-      box-shadow: var(--shadow-md);
-      padding: 28px 24px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .kpi-card::after {
-      content: "";
-      position: absolute;
-      inset: -40px -40px auto auto;
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(52,225,244,0.09), rgba(52,225,244,0));
+    .arch-card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 200px;
+      background: radial-gradient(ellipse 600px 200px at 50% 0%, rgba(52,225,244,0.16), transparent 70%);
       pointer-events: none;
     }
+    .arch-card h3 { font-size: 18px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.015em; }
+    .arch-card p  { font-size: 13px; color: var(--text-dim); margin: 0 0 22px; }
+    .arch-svg { width: 100%; height: 380px; display: block; }
+    .arch-side { display: grid; gap: 14px; align-content: start; }
+    .arch-feat { background: #fff; border: 1px solid var(--hairline); border-radius: 18px; padding: 22px 24px; color: var(--space-blue); }
+    .arch-feat-tag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--aqua-dark); margin-bottom: 10px; }
+    .arch-feat h4 { font-size: 16px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.015em; }
+    .arch-feat p  { font-size: 13px; line-height: 1.55; color: var(--fg-2); margin: 0; }
 
-    .kpi-number {
-      font-size: 3.8rem;
-      font-weight: 800;
-      line-height: 1;
-      color: var(--light-aqua);
-      letter-spacing: -0.04em;
-      margin-bottom: 8px;
+    /* ─────────── Roadmap ─────────── */
+    .roadmap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative; }
+    .roadmap::before {
+      content: ""; position: absolute;
+      top: 26px; left: 5%; right: 5%; height: 2px;
+      background: linear-gradient(90deg, var(--light-aqua) 25%, rgba(52,225,244,0.24) 25%);
     }
+    .road-card { position: relative; background: rgba(255,255,255,0.04); border: 1px solid rgba(52,225,244,0.18); border-radius: 18px; padding: 56px 22px 28px; }
+    .road-card.now { background: linear-gradient(180deg, rgba(52,225,244,0.10), rgba(0,162,180,0.06)); border-color: var(--light-aqua); }
+    .road-dot { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; border-radius: 50%; background: var(--space-blue); border: 2px solid rgba(52,225,244,0.4); }
+    .road-card.now .road-dot { background: var(--light-aqua); border-color: var(--light-aqua); box-shadow: 0 0 0 6px rgba(52,225,244,0.18); }
+    .road-phase { font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--light-aqua); }
+    .road-title { font-size: 17px; font-weight: 700; margin: 8px 0 4px; letter-spacing: -0.015em; }
+    .road-sub   { font-size: 12px; color: var(--text-faint); margin-bottom: 14px; font-weight: 500; }
+    .road-list  { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+    .road-list li { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; padding-left: 14px; position: relative; }
+    .road-list li::before { content: ""; position: absolute; left: 0; top: 7px; width: 6px; height: 1.5px; background: var(--light-aqua); }
 
-    .kpi-label {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin-bottom: 8px;
-      letter-spacing: -0.01em;
+    /* ─────────── Closing CTA ─────────── */
+    .cta-card {
+      position: relative;
+      background: radial-gradient(ellipse 800px 400px at 50% 0%, rgba(52,225,244,0.20), transparent 60%), var(--space-blue);
+      border-radius: 32px; padding: 88px 64px;
+      text-align: center; border: 1px solid rgba(52,225,244,0.22); overflow: hidden;
     }
-
-    .kpi-sub {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      line-height: 1.5;
+    .cta-card::before {
+      content: ""; position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000, transparent 80%);
+      pointer-events: none;
     }
+    .cta-eyebrow { color: var(--light-aqua); margin-bottom: 22px; }
+    .cta-h { font-size: clamp(36px, 5vw, 58px); font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; margin: 0 auto 28px; max-width: 22ch; }
+    .cta-h em { font-style: italic; font-weight: 400; color: var(--light-aqua); }
+    .cta-deck { font-size: 18px; line-height: 1.6; color: var(--text-dim); max-width: 56ch; margin: 0 auto 36px; }
+    .cta-contact { margin-top: 42px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.10); display: inline-flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+    .cta-contact-l { font-size: 11px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-faint); }
+    .cta-owner { display: flex; align-items: center; gap: 14px; }
+    .cta-owner-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, var(--ucar-aqua), var(--light-aqua)); display: grid; place-items: center; color: var(--space-blue); font-weight: 800; font-size: 14px; }
+    .cta-owner-name { font-size: 16px; font-weight: 700; }
+    .cta-owner-role { font-size: 12.5px; color: var(--text-dim); }
+    .cta-owner a { color: var(--light-aqua); font-weight: 600; }
+    .cta-owner a:hover { text-decoration: underline; }
 
-    /* ── Architecture diagram ────────────────────────────────────────── */
-    .arch-card {
-      display: flex;
-      flex-direction: column;
+    /* ─────────── Footer ─────────── */
+    .footer { padding: 32px var(--pad); border-top: 1px solid var(--hair-dark); background: #02142f; }
+    .footer-inner { max-width: var(--max-width); margin: 0 auto; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-faint); }
+
+    /* ─────────── Reveal animations ─────────── */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 800ms ease, transform 800ms cubic-bezier(0.16, 1, 0.3, 1); }
+    .reveal.in { opacity: 1; transform: none; }
+    .reveal.delay-1 { transition-delay: 80ms; }
+    .reveal.delay-2 { transition-delay: 160ms; }
+    .reveal.delay-3 { transition-delay: 240ms; }
+
+    /* ─────────── Responsive ─────────── */
+    @media (max-width: 1100px) {
+      .hero-inner { grid-template-columns: 1fr; gap: 60px; padding-bottom: 60px; }
+      .hero-mocks { height: 520px; max-width: 600px; }
+      .showcase-grid { grid-template-columns: 1fr; }
+      .showcase-tabs { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 8px; }
+      .show-tab { min-width: 240px; flex-shrink: 0; }
+      .arch-wrap { grid-template-columns: 1fr; }
+      .num-strip { grid-template-columns: repeat(2, 1fr); }
+      .num-cell:nth-child(2) { border-right: 0; }
+      .num-cell:nth-child(-n+2) { border-bottom: 1px solid rgba(52,225,244,0.10); }
+      .roadmap { grid-template-columns: repeat(2, 1fr); }
+      .roadmap::before { display: none; }
     }
-
-    .arch-diagram {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 4px;
-      margin-top: 20px;
-    }
-
-    .arch-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .arch-row-data {
-      justify-content: space-between;
-    }
-
-    .arch-down-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 6px 0;
-    }
-
-    .arch-spacer {
-      flex: 1;
-    }
-
-    .arch-down-arrow {
-      flex: 1;
-      text-align: center;
-      color: var(--light-aqua);
-      font-size: 1.35rem;
-      opacity: 0.6;
-    }
-
-    .arch-arrow {
-      color: var(--light-aqua);
-      font-size: 1.2rem;
-      opacity: 0.5;
-      flex-shrink: 0;
-    }
-
-    .arch-node {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 108px;
-      padding: 18px 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(52,225,244,0.14);
-    }
-
-    .arch-node svg {
-      width: 24px;
-      height: 24px;
-      flex-shrink: 0;
-    }
-
-    .arch-node span {
-      font-size: 0.94rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1.2;
-    }
-
-    .arch-node small {
-      font-size: 0.76rem;
-      color: var(--text-muted);
-      line-height: 1.3;
-    }
-
-    .user-node {
-      background: rgba(255,255,255,0.04);
-      color: var(--text-mid);
-    }
-
-    .auth-node {
-      background: rgba(0,53,122,0.35);
-      border-color: rgba(0,162,180,0.22);
-      color: var(--aqua);
-    }
-
-    .app-node {
-      background: rgba(0,162,180,0.10);
-      border-color: rgba(52,225,244,0.22);
-      color: var(--light-aqua);
-    }
-
-    .data-node {
-      background: rgba(255,255,255,0.03);
-      border-color: rgba(52,225,244,0.10);
-      color: var(--text-muted);
-      font-size: 0.78rem;
-    }
-
-    @media (max-width: 1180px) {
-      .hero {
-        padding-top: 42px;
-      }
-
-      .features-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .value-grid,
-      .tech-grid,
-      .story-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    @media (max-width: 860px) {
-      .before-after-grid { grid-template-columns: 1fr; }
-      .cap-stat-grid { grid-template-columns: repeat(2, 1fr); }
-      .cap-carousel-track { height: 340px; }
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    @media (max-width: 860px) {
-      .topbar-inner {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .topnav {
-        width: 100%;
-        justify-content: flex-start;
-      }
-
-      h1 {
-        max-width: 12ch;
-      }
-
-      .hero {
-        grid-template-columns: 1fr;
-        gap: 32px;
-      }
-
-      .carousel-track {
-        height: 260px;
-      }
-
-      .story-grid,
-      .value-grid,
-      .tech-grid,
-      .features-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .hero,
-      .section,
-      .topbar-inner,
-      .footer {
-        padding-left: 20px;
-        padding-right: 20px;
-      }
-
-      .hero {
-        min-height: auto;
-        padding-bottom: 10px;
-      }
-
-      .carousel-track {
-        height: 220px;
-      }
-
-      .cap-carousel-track {
-        height: 360px;
-      }
-
-      .arch-row,
-      .arch-row-data {
-        gap: 6px;
-      }
-
-      .arch-node {
-        min-height: 96px;
-        padding: 14px 8px;
-      }
-
-      .arch-node span {
-        font-size: 0.82rem;
-      }
-
-      .arch-node small {
-        font-size: 0.68rem;
-      }
-
-      .chip,
-      .btn,
-      .pill {
-        width: 100%;
-        justify-content: center;
-      }
-
-      .hero-actions,
-      .value-chips {
-        flex-direction: column;
-      }
-
-      .footer {
-        font-size: 0.8rem;
-      }
+    @media (max-width: 720px) {
+      :root { --pad: 20px; }
+      .topnav a:not(.cta) { display: none; }
+      .hero { padding-top: 56px; }
+      .hero-inner { min-height: auto; }
+      .hero-mocks { height: 460px; }
+      .mock-primary { width: 90%; }
+      .mock-secondary { width: 60%; }
+      .mock-tertiary { width: 65%; }
+      .section { padding: 60px 20px; }
+      .mandate-grid { grid-template-columns: 1fr; }
+      .mandate-col + .mandate-col { border-left: 0; border-top: 1px solid var(--hairline); }
+      .num-strip { grid-template-columns: 1fr; }
+      .num-cell { border-right: 0; border-bottom: 1px solid rgba(52,225,244,0.10); }
+      .num-cell:last-child { border-bottom: 0; }
+      .roadmap { grid-template-columns: 1fr; }
+      .scr-stats { grid-template-columns: 1fr 1fr; }
+      .scr-grid-2, .ops-grid, .fpa-grid { grid-template-columns: 1fr; }
+      .sales-row { grid-template-columns: 1fr; }
+      .cta-card { padding: 56px 24px; }
     }
   </style>
 </head>
 <body>
-  <div class="page-shell" id="top">
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="brand">
-          <div class="brand-copy">
-            <div class="brand-title">Cafe Connection</div>
-          </div>
-        </div>
-        <nav class="topnav" aria-label="Page navigation">
-          <a href="#why">Why It Matters</a>
-          <a href="#capabilities">Capabilities</a>
-          <a href="#value">Executive Value</a>
-          <a href="#technology">Technology</a>
-        </nav>
+
+<!-- ─────────── Topbar ─────────── -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-text">
+        <span class="brand-eyebrow">UCAR · Internal</span>
+        <span class="brand-name">Cafe Connection</span>
       </div>
-    </header>
-
-    <main>
-      <section class="hero">
-        <div class="hero-copy">
-          <h1>Cafe Connection</h1>
-          <p class="hero-tagline">A smarter platform for café and event operations</p>
-          <p class="hero-subtitle">
-            Bringing operations, reporting, and executive visibility into one connected internal platform, designed to improve efficiency today and support broader integration over time.
-          </p>
-          <div class="hero-actions">
-            <a class="btn btn-primary" href="#capabilities">Explore capabilities</a>
-            <a class="btn btn-secondary" href="#technology">View platform foundation</a>
-          </div>
-        </div>
-
-        <div class="hero-visual">
-          <div class="carousel" aria-label="Dashboard previews">
-            <div class="carousel-track">
-
-              <!-- Slide 0: Cafe Sales Bar Chart -->
-              <div class="carousel-slide active">
-                <div class="slide-label">Financials</div>
-                <div class="slide-title">Cafe Sales</div>
-                <div class="slide-sub">Net revenue · Center Green · FY2025</div>
-                <div class="slide-chart">
-                  <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-                    <!-- Grid lines -->
-                    <line x1="50" y1="12"  x2="472" y2="12"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="49"  x2="472" y2="49"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="86"  x2="472" y2="86"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="123" x2="472" y2="123" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="160" x2="472" y2="160" stroke="rgba(255,255,255,0.10)"/>
-                    <!-- Y-axis labels -->
-                    <text x="46" y="160" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$0</text>
-                    <text x="46" y="123" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$5K</text>
-                    <text x="46" y="86"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$10K</text>
-                    <text x="46" y="49"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$15K</text>
-                    <text x="46" y="12"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$20K</text>
-                    <!-- Bars: x[i]=65+i*45, w=30, bottom=160 -->
-                    <rect x="65"  y="92"  width="30" height="68"  rx="3" fill="#00A2B4" opacity="0.82"/>
-                    <rect x="110" y="95"  width="30" height="65"  rx="3" fill="#00A2B4" opacity="0.82"/>
-                    <rect x="155" y="76"  width="30" height="84"  rx="3" fill="#00A2B4" opacity="0.88"/>
-                    <rect x="200" y="59"  width="30" height="101" rx="3" fill="#00A2B4" opacity="0.92"/>
-                    <rect x="245" y="70"  width="30" height="90"  rx="3" fill="#00A2B4" opacity="0.88"/>
-                    <rect x="290" y="102" width="30" height="58"  rx="3" fill="#00A2B4" opacity="0.72"/>
-                    <rect x="335" y="54"  width="30" height="106" rx="3" fill="#00A2B4" opacity="0.94"/>
-                    <rect x="380" y="45"  width="30" height="115" rx="3" fill="#00A2B4" opacity="0.96"/>
-                    <rect x="425" y="25"  width="30" height="135" rx="3" fill="#34E1F4" opacity="0.95"/>
-                    <!-- X-axis labels (center of each bar) -->
-                    <text x="80"  y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Jul</text>
-                    <text x="125" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Aug</text>
-                    <text x="170" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Sep</text>
-                    <text x="215" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Oct</text>
-                    <text x="260" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Nov</text>
-                    <text x="305" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Dec</text>
-                    <text x="350" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Jan</text>
-                    <text x="395" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Feb</text>
-                    <text x="440" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Mar</text>
-                  </svg>
-                </div>
-              </div>
-
-              <!-- Slide 1: Event Revenue Grouped Bar Chart -->
-              <div class="carousel-slide">
-                <div class="slide-label">Event Revenue</div>
-                <div class="slide-title">Revenue by Campus</div>
-                <div class="slide-sub">Internal &amp; external events · FY2025</div>
-                <div class="slide-chart">
-                  <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-                    <!-- Grid lines -->
-                    <line x1="50" y1="12"  x2="472" y2="12"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="61"  x2="472" y2="61"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="111" x2="472" y2="111" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="160" x2="472" y2="160" stroke="rgba(255,255,255,0.10)"/>
-                    <!-- Y-axis labels -->
-                    <text x="46" y="160" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$0</text>
-                    <text x="46" y="111" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$5K</text>
-                    <text x="46" y="61"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$10K</text>
-                    <text x="46" y="12"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$15K</text>
-                    <!-- Grouped bars: 6 months, 3 bars each, group_w=60, gap=9 -->
-                    <!-- x_group[i]=59+i*69; Bar1=x, Bar2=x+21, Bar3=x+42; w=18 -->
-                    <!-- Jul -->
-                    <rect x="59"  y="109" width="18" height="51" rx="2" fill="#00A2B4"/>
-                    <rect x="80"  y="123" width="18" height="37" rx="2" fill="#34E1F4"/>
-                    <rect x="101" y="131" width="18" height="29" rx="2" fill="#00818F"/>
-                    <!-- Aug -->
-                    <rect x="128" y="113" width="18" height="47" rx="2" fill="#00A2B4"/>
-                    <rect x="149" y="119" width="18" height="41" rx="2" fill="#34E1F4"/>
-                    <rect x="170" y="126" width="18" height="34" rx="2" fill="#00818F"/>
-                    <!-- Sep -->
-                    <rect x="197" y="90"  width="18" height="70" rx="2" fill="#00A2B4"/>
-                    <rect x="218" y="105" width="18" height="55" rx="2" fill="#34E1F4"/>
-                    <rect x="239" y="118" width="18" height="42" rx="2" fill="#00818F"/>
-                    <!-- Oct -->
-                    <rect x="266" y="77"  width="18" height="83" rx="2" fill="#00A2B4"/>
-                    <rect x="287" y="92"  width="18" height="68" rx="2" fill="#34E1F4"/>
-                    <rect x="308" y="109" width="18" height="51" rx="2" fill="#00818F"/>
-                    <!-- Nov -->
-                    <rect x="335" y="98"  width="18" height="62" rx="2" fill="#00A2B4"/>
-                    <rect x="356" y="110" width="18" height="50" rx="2" fill="#34E1F4"/>
-                    <rect x="377" y="121" width="18" height="39" rx="2" fill="#00818F"/>
-                    <!-- Dec -->
-                    <rect x="404" y="122" width="18" height="38" rx="2" fill="#00A2B4"/>
-                    <rect x="425" y="133" width="18" height="27" rx="2" fill="#34E1F4"/>
-                    <rect x="446" y="142" width="18" height="18" rx="2" fill="#00818F"/>
-                    <!-- X-axis labels (center of each group) -->
-                    <text x="89"  y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Jul</text>
-                    <text x="158" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Aug</text>
-                    <text x="227" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Sep</text>
-                    <text x="296" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Oct</text>
-                    <text x="365" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Nov</text>
-                    <text x="434" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Dec</text>
-                  </svg>
-                </div>
-                <div class="slide-legend">
-                  <div class="legend-item"><div class="legend-dot" style="background:#00A2B4"></div>Center Green</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:#34E1F4"></div>Foothills</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:#00818F"></div>Mesa Lab</div>
-                </div>
-              </div>
-
-              <!-- Slide 2: Monthly Labor Expense Multi-line Chart -->
-              <div class="carousel-slide">
-                <div class="slide-label">FP&amp;A</div>
-                <div class="slide-title">Monthly Labor Expense</div>
-                <div class="slide-sub">Salaries + benefits · 13-month rolling</div>
-                <div class="slide-chart">
-                  <svg viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
-                    <!-- Grid lines -->
-                    <line x1="50" y1="12"  x2="472" y2="12"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="42"  x2="472" y2="42"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="71"  x2="472" y2="71"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="101" x2="472" y2="101" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="130" x2="472" y2="130" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
-                    <line x1="50" y1="160" x2="472" y2="160" stroke="rgba(255,255,255,0.10)"/>
-                    <!-- Y-axis labels -->
-                    <text x="46" y="160" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$0</text>
-                    <text x="46" y="130" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$10K</text>
-                    <text x="46" y="101" text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$20K</text>
-                    <text x="46" y="71"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$30K</text>
-                    <text x="46" y="42"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$40K</text>
-                    <text x="46" y="12"  text-anchor="end" dominant-baseline="middle" fill="#9EB7C8" font-size="11">$50K</text>
-                    <!-- x[i]=50+i*53: 50,103,156,209,262,315,368,421,474→472 -->
-                    <!-- Mesa Lab (#00818F): 22,23,24,26,25,23,27,28,30K -->
-                    <polyline points="50,95 103,92 156,89 209,83 262,86 315,92 368,80 421,77 472,71"
-                              fill="none" stroke="#00818F" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-                    <!-- Foothills (#34E1F4): 18,19,20,21,22,20,23,24,26K -->
-                    <polyline points="50,107 103,104 156,101 209,98 262,95 315,101 368,92 421,89 472,83"
-                              fill="none" stroke="#34E1F4" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-                    <!-- Center Green (#00A2B4): 15,16,17,18,19,17,20,21,23K -->
-                    <polyline points="50,116 103,112 156,110 209,107 262,104 315,110 368,101 421,98 472,92"
-                              fill="none" stroke="#00A2B4" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-                    <!-- ES Admin (#FAA119): 8,8.5,9,9.5,10,9,10.5,11,12K -->
-                    <polyline points="50,136 103,135 156,134 209,132 262,130 315,134 368,129 421,127 472,124"
-                              fill="none" stroke="#FAA119" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-                    <!-- Dots: Mesa Lab -->
-                    <circle cx="50"  cy="95"  r="3.5" fill="#00818F"/><circle cx="103" cy="92"  r="3.5" fill="#00818F"/>
-                    <circle cx="156" cy="89"  r="3.5" fill="#00818F"/><circle cx="209" cy="83"  r="3.5" fill="#00818F"/>
-                    <circle cx="262" cy="86"  r="3.5" fill="#00818F"/><circle cx="315" cy="92"  r="3.5" fill="#00818F"/>
-                    <circle cx="368" cy="80"  r="3.5" fill="#00818F"/><circle cx="421" cy="77"  r="3.5" fill="#00818F"/>
-                    <circle cx="472" cy="71"  r="3.5" fill="#00818F"/>
-                    <!-- Dots: Foothills -->
-                    <circle cx="50"  cy="107" r="3.5" fill="#34E1F4"/><circle cx="103" cy="104" r="3.5" fill="#34E1F4"/>
-                    <circle cx="156" cy="101" r="3.5" fill="#34E1F4"/><circle cx="209" cy="98"  r="3.5" fill="#34E1F4"/>
-                    <circle cx="262" cy="95"  r="3.5" fill="#34E1F4"/><circle cx="315" cy="101" r="3.5" fill="#34E1F4"/>
-                    <circle cx="368" cy="92"  r="3.5" fill="#34E1F4"/><circle cx="421" cy="89"  r="3.5" fill="#34E1F4"/>
-                    <circle cx="472" cy="83"  r="3.5" fill="#34E1F4"/>
-                    <!-- Dots: Center Green -->
-                    <circle cx="50"  cy="116" r="3.5" fill="#00A2B4"/><circle cx="103" cy="112" r="3.5" fill="#00A2B4"/>
-                    <circle cx="156" cy="110" r="3.5" fill="#00A2B4"/><circle cx="209" cy="107" r="3.5" fill="#00A2B4"/>
-                    <circle cx="262" cy="104" r="3.5" fill="#00A2B4"/><circle cx="315" cy="110" r="3.5" fill="#00A2B4"/>
-                    <circle cx="368" cy="101" r="3.5" fill="#00A2B4"/><circle cx="421" cy="98"  r="3.5" fill="#00A2B4"/>
-                    <circle cx="472" cy="92"  r="3.5" fill="#00A2B4"/>
-                    <!-- Dots: ES Admin -->
-                    <circle cx="50"  cy="136" r="3.5" fill="#FAA119"/><circle cx="103" cy="135" r="3.5" fill="#FAA119"/>
-                    <circle cx="156" cy="134" r="3.5" fill="#FAA119"/><circle cx="209" cy="132" r="3.5" fill="#FAA119"/>
-                    <circle cx="262" cy="130" r="3.5" fill="#FAA119"/><circle cx="315" cy="134" r="3.5" fill="#FAA119"/>
-                    <circle cx="368" cy="129" r="3.5" fill="#FAA119"/><circle cx="421" cy="127" r="3.5" fill="#FAA119"/>
-                    <circle cx="472" cy="124" r="3.5" fill="#FAA119"/>
-                    <!-- X-axis labels -->
-                    <text x="50"  y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Jul</text>
-                    <text x="103" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Aug</text>
-                    <text x="156" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Sep</text>
-                    <text x="209" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Oct</text>
-                    <text x="262" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Nov</text>
-                    <text x="315" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Dec</text>
-                    <text x="368" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Jan</text>
-                    <text x="421" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Feb</text>
-                    <text x="472" y="178" text-anchor="middle" fill="#9EB7C8" font-size="10.5">Mar</text>
-                  </svg>
-                </div>
-                <div class="slide-legend">
-                  <div class="legend-item"><div class="legend-dot" style="background:#00818F"></div>Mesa Lab</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:#34E1F4"></div>Foothills</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:#00A2B4"></div>Center Green</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:#FAA119"></div>ES Admin</div>
-                </div>
-              </div>
-
-            </div><!-- /.carousel-track -->
-            <div class="carousel-footer">
-              <button class="carousel-dot active" data-index="0" aria-label="Cafe Sales"></button>
-              <button class="carousel-dot" data-index="1" aria-label="Event Revenue"></button>
-              <button class="carousel-dot" data-index="2" aria-label="Labor Expense"></button>
-            </div>
-          </div><!-- /.carousel -->
-        </div><!-- /.hero-visual -->
-
-      </section>
-
-      <section class="section" id="why">
-        <div class="section-head">
-          <div class="section-label">Why it matters</div>
-          <h2>Operational complexity grows quickly when workflows are scattered</h2>
-          <p class="section-intro">
-            Café and event operations generate a steady stream of schedules, event documents, menus, financial files, uploads, and reporting needs. When those workflows are fragmented across tools and handoffs, visibility slows down and operational effort increases. Cafe Connection brings those workflows together in a more efficient digital environment.
-          </p>
-        </div>
-        <div class="before-after-grid">
-          <div class="ba-card ba-before">
-            <div class="ba-header">
-              <span class="ba-icon">✕</span>
-              <h3>Before</h3>
-            </div>
-            <ul class="ba-list">
-              <li>Schedules emailed as separate PDFs each week</li>
-              <li>Sales reports uploaded to shared drives manually</li>
-              <li>No cross-campus financial visibility in one place</li>
-              <li>Event documents scattered across inboxes and folders</li>
-              <li>Leadership reporting requires extra coordination effort</li>
-            </ul>
-          </div>
-          <div class="ba-card ba-after">
-            <div class="ba-header">
-              <span class="ba-icon">✓</span>
-              <h3>After</h3>
-            </div>
-            <ul class="ba-list">
-              <li>Staff schedule fetched live from Google Sheets every week</li>
-              <li>Sales reports parsed and stored in seconds after upload</li>
-              <li>Cafe Sales and FP&amp;A dashboards always current, all campuses</li>
-              <li>BEOs, setup reports, and event orders in one searchable library</li>
-              <li>Monthly accounting reports generated and emailed in one click</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="capabilities">
-        <div class="section-head">
-          <div class="section-label">Capabilities</div>
-          <h2>Five capability pillars that translate operational work into clearer insight</h2>
-          <p class="section-intro">
-            The platform combines front-line operational support with structured reporting and leadership visibility. Each area reinforces the others, creating a system that is more useful than any single workflow alone.
-          </p>
-        </div>
-
-        <div class="features-grid">
-          <article class="feature-card">
-            <div>
-              <div class="icon-wrap">
-                <svg viewBox="0 0 24 24"><path d="M4 7h16M7 4v6M17 4v6M5 11h14v8H5z"/></svg>
-              </div>
-              <h3>Operational Workspace</h3>
-              <p>Schedules, weekly exceptions, campus workflows, specials, and core day-to-day operational support in one connected environment.</p>
-            </div>
-            <div class="feature-tag">Daily coordination</div>
-          </article>
-
-          <article class="feature-card">
-            <div>
-              <div class="icon-wrap">
-                <svg viewBox="0 0 24 24"><path d="M6 5h9l3 3v11H6z"/><path d="M15 5v4h4"/><path d="M9 14h6M9 18h4"/></svg>
-              </div>
-              <h3>Event Coordination</h3>
-              <p>Event orders, setup documents, BEO access, and weekly packet workflows help bring supporting event materials into one operational flow.</p>
-            </div>
-            <div class="feature-tag">Document flow</div>
-          </article>
-
-          <article class="feature-card">
-            <div>
-              <div class="icon-wrap">
-                <svg viewBox="0 0 24 24"><path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/></svg>
-              </div>
-              <h3>Financial Reporting</h3>
-              <p>Cafe sales, event revenue, monthly accounting outputs, and export-ready reporting streamline how financial information is viewed and shared.</p>
-            </div>
-            <div class="feature-tag">Export-ready outputs</div>
-          </article>
-
-          <article class="feature-card">
-            <div>
-              <div class="icon-wrap">
-                <svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M7 15l3-3 3 2 5-6"/></svg>
-              </div>
-              <h3>Executive Dashboards</h3>
-              <p>FP&amp;A visibility, rolling financial trends, and executive-facing views help translate operational data into decision-ready insight.</p>
-            </div>
-            <div class="feature-tag">Leadership visibility</div>
-          </article>
-
-          <article class="feature-card">
-            <div>
-              <div class="icon-wrap">
-                <svg viewBox="0 0 24 24"><path d="M12 3v6"/><path d="M12 15v6"/><path d="M4.9 7.5l5.2 3"/><path d="M13.9 13.5l5.2 3"/><path d="M19.1 7.5l-5.2 3"/><path d="M10.1 13.5l-5.2 3"/></svg>
-              </div>
-              <h3>Future-Ready Architecture</h3>
-              <p>Built on a modern cloud stack with secure access controls, reporting workflows, and room for deeper integration as needs evolve.</p>
-            </div>
-            <div class="feature-tag">Expand over time</div>
-          </article>
-        </div>
-
-        <div class="capabilities-carousel-wrap">
-          <div class="carousel" aria-label="Platform module previews">
-            <div class="carousel-track cap-carousel-track">
-
-              <div class="carousel-slide cap-slide active">
-                <div class="slide-label">Cafe Sales</div>
-                <div class="slide-title">At-a-Glance Metrics</div>
-                <div class="slide-sub">Net revenue · avg check · total volume · all campuses</div>
-                <div class="cap-stat-grid">
-                  <div class="cap-stat-card">
-                    <div class="cap-stat-label">Net Revenue MTD</div>
-                    <div class="cap-stat-value">$42,318</div>
-                    <div class="cap-stat-delta positive">↑ 8.4% vs last month</div>
-                  </div>
-                  <div class="cap-stat-card">
-                    <div class="cap-stat-label">Total Checks MTD</div>
-                    <div class="cap-stat-value">3,204</div>
-                    <div class="cap-stat-delta positive">↑ 5.1%</div>
-                  </div>
-                  <div class="cap-stat-card">
-                    <div class="cap-stat-label">Avg Check</div>
-                    <div class="cap-stat-value">$13.21</div>
-                    <div class="cap-stat-delta neutral">— flat</div>
-                  </div>
-                  <div class="cap-stat-card">
-                    <div class="cap-stat-label">Avg Daily Revenue</div>
-                    <div class="cap-stat-value">$2,116</div>
-                    <div class="cap-stat-delta positive">↑ 3.2%</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="carousel-slide cap-slide">
-                <div class="slide-label">Weekly Ops</div>
-                <div class="slide-title">Operational Workspace</div>
-                <div class="slide-sub">Week of Apr 21 · Mesa Lab</div>
-                <div class="cap-ops-list">
-                  <div class="cap-ops-row">
-                    <div class="cap-ops-icon">
-                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="2" width="14" height="14" rx="2"/><path d="M6 2v4M12 2v4M2 8h14"/></svg>
-                    </div>
-                    <div class="cap-ops-text">
-                      <span class="cap-ops-name">Staff Schedule</span>
-                      <span class="cap-ops-status ready">Loaded</span>
-                    </div>
-                  </div>
-                  <div class="cap-ops-row">
-                    <div class="cap-ops-icon">
-                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M9 2v7l4 2"/><circle cx="9" cy="9" r="7"/></svg>
-                    </div>
-                    <div class="cap-ops-text">
-                      <span class="cap-ops-name">Cafe Specials</span>
-                      <span class="cap-ops-status ready">Week of Apr 21</span>
-                    </div>
-                  </div>
-                  <div class="cap-ops-row">
-                    <div class="cap-ops-icon">
-                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M3 9h12M9 3l6 6-6 6"/></svg>
-                    </div>
-                    <div class="cap-ops-text">
-                      <span class="cap-ops-name">Cash Drop</span>
-                      <span class="cap-ops-status ready">2 drops logged</span>
-                    </div>
-                  </div>
-                  <div class="cap-ops-row">
-                    <div class="cap-ops-icon">
-                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M9 3v12M3 9l6-6 6 6"/></svg>
-                    </div>
-                    <div class="cap-ops-text">
-                      <span class="cap-ops-name">DropBox Upload</span>
-                      <span class="cap-ops-status pending">Awaiting report</span>
-                    </div>
-                  </div>
-                  <div class="cap-ops-row">
-                    <div class="cap-ops-icon">
-                      <svg viewBox="0 0 18 18" fill="none" stroke="#34E1F4" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h10v10H4z"/><path d="M4 8h10M8 4v10"/></svg>
-                    </div>
-                    <div class="cap-ops-text">
-                      <span class="cap-ops-name">Event Order Library</span>
-                      <span class="cap-ops-status ready">4 BEOs this week</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="carousel-slide cap-slide">
-                <div class="slide-label">Admin</div>
-                <div class="slide-title">Registered Users</div>
-                <div class="slide-sub">Role-based access · UCAR email only</div>
-                <div class="cap-table">
-                  <div class="cap-table-head">
-                    <span>User</span>
-                    <span>Role</span>
-                    <span>Status</span>
-                  </div>
-                  <div class="cap-table-row">
-                    <span>j.daskam@ucar.edu</span>
-                    <span class="cap-role admin">Administrator</span>
-                    <span class="cap-badge active">Active</span>
-                  </div>
-                  <div class="cap-table-row">
-                    <span>s.morgan@ucar.edu</span>
-                    <span class="cap-role manager">Manager</span>
-                    <span class="cap-badge active">Active</span>
-                  </div>
-                  <div class="cap-table-row">
-                    <span>r.chen@ucar.edu</span>
-                    <span class="cap-role senior">Senior Leader</span>
-                    <span class="cap-badge active">Active</span>
-                  </div>
-                  <div class="cap-table-row">
-                    <span>t.walsh@ucar.edu</span>
-                    <span class="cap-role user">User</span>
-                    <span class="cap-badge pending">Invite pending</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-            <div class="carousel-footer">
-              <button class="carousel-dot cap-dot active" data-carousel="cap" data-index="0" aria-label="Stat cards"></button>
-              <button class="carousel-dot cap-dot" data-carousel="cap" data-index="1" aria-label="Weekly Ops"></button>
-              <button class="carousel-dot cap-dot" data-carousel="cap" data-index="2" aria-label="Admin users"></button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="value">
-        <div class="section-head">
-          <div class="section-label">Executive value</div>
-          <h2>A platform built to improve efficiency and strengthen operational visibility</h2>
-          <p class="section-intro">
-            Cafe Connection is designed to reduce friction, improve access to operational information, and create a stronger foundation for long-term digital workflow improvement.
-          </p>
-        </div>
-
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-number">3</div>
-            <div class="kpi-label">Campuses</div>
-            <div class="kpi-sub">Mesa Lab · Foothills · Center Green</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-number">7</div>
-            <div class="kpi-label">App Tabs</div>
-            <div class="kpi-sub">Dashboard · Weekly Ops · Cafe Sales · Event Revenue · FP&amp;A · Reports · Admin</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-number">4</div>
-            <div class="kpi-label">Access Roles</div>
-            <div class="kpi-sub">User · Manager · Senior Leader · Administrator</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-number">8</div>
-            <div class="kpi-label">FP&amp;A Visuals</div>
-            <div class="kpi-sub">FYTD and 13-month rolling financial dashboards</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="technology">
-        <div class="section-head">
-          <div class="section-label">Technology and trust</div>
-          <h2>Modern architecture supporting secure internal use and future growth</h2>
-          <p class="section-intro">
-            Built on a modern cloud architecture, Cafe Connection combines secure authentication, role-based access, reporting workflows, and Google Workspace integrations in a single internal platform.
-          </p>
-        </div>
-
-        <div class="tech-grid">
-          <article class="tech-card arch-card">
-            <h3>How it fits together</h3>
-            <div class="arch-diagram">
-              <div class="arch-row">
-                <div class="arch-node user-node">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="6" r="3"/><path d="M3 18c0-4 3-7 7-7s7 3 7 7"/></svg>
-                  <span>UCAR Staff</span>
-                  <small>@ucar.edu login</small>
-                </div>
-                <div class="arch-arrow">→</div>
-                <div class="arch-node auth-node">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="4" y="9" width="12" height="9" rx="2"/><path d="M7 9V6a3 3 0 0 1 6 0v3"/></svg>
-                  <span>Firebase Auth</span>
-                  <small>Magic-link only</small>
-                </div>
-                <div class="arch-arrow">→</div>
-                <div class="arch-node app-node">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v4"/><path d="M14 3v4"/></svg>
-                  <span>React App</span>
-                  <small>Vercel · auto-deploy</small>
-                </div>
-              </div>
-              <div class="arch-down-row">
-                <div class="arch-spacer"></div>
-                <div class="arch-spacer"></div>
-                <div class="arch-down-arrow">↓</div>
-              </div>
-              <div class="arch-row arch-row-data">
-                <div class="arch-node data-node">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><ellipse cx="10" cy="5" rx="7" ry="3"/><path d="M3 5v5c0 1.66 3.13 3 7 3s7-1.34 7-3V5"/><path d="M3 10v5c0 1.66 3.13 3 7 3s7-1.34 7-3v-5"/></svg>
-                  <span>Firestore</span>
-                  <small>Metrics · roles · events</small>
-                </div>
-                <div class="arch-arrow">+</div>
-                <div class="arch-node data-node">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4h12v12H4z"/><path d="M4 8h12M8 4v12"/></svg>
-                  <span>Google Workspace</span>
-                  <small>Sheets · Drive · Docs</small>
-                </div>
-                <div class="arch-arrow">+</div>
-                <div class="arch-node data-node">
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4h14l-2 9H5L3 4z"/><path d="M3 4L2 2"/><path d="M8 17a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M14 17a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/></svg>
-                  <span>Workday / Excel</span>
-                  <small>FP&amp;A reports · uploads</small>
-                </div>
-              </div>
-            </div>
-          </article>
-
-          <article class="tech-card">
-            <h3>What this enables</h3>
-            <div class="stack-list">
-              <div class="stack-item">
-                <div class="stack-dot"></div>
-                <div>
-                  <strong>Controlled access</strong>
-                  <span>Role-based permissions and internal-only authentication help align visibility with responsibility.</span>
-                </div>
-              </div>
-              <div class="stack-item">
-                <div class="stack-dot"></div>
-                <div>
-                  <strong>Connected workflows</strong>
-                  <span>Operational tasks, reporting, and leadership views are unified instead of scattered across disconnected steps.</span>
-                </div>
-              </div>
-              <div class="stack-item">
-                <div class="stack-dot"></div>
-                <div>
-                  <strong>Ready to evolve</strong>
-                  <span>The platform is positioned as a starting point for expanded integration and smarter operational automation.</span>
-                </div>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="close-panel">
-          <div class="section-label">Closing perspective</div>
-          <h2>More than a reporting tool</h2>
-          <p>
-            Cafe Connection is the foundation of a more connected, efficient, and insight-driven model for café and event operations.
-          </p>
-          <p style="margin-top: 24px; font-size: 1.02rem;">
-          To request access, contact Jeff Daskam at: <a href="mailto:jdaskam@ucar.edu" style="color: #34E1F4; text-decoration: underline;">jdaskam@ucar.edu</a>
-          </p>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div>UCAR Cafe Connection</div>
-      <div>Internal concept microsite • Executive preview</div>
-    </footer>
+    </div>
+    <nav class="topnav" aria-label="Page sections">
+      <a href="#why">Why It Matters</a>
+      <a href="#platform">Platform</a>
+      <a href="#capabilities">Capabilities</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#roadmap">Roadmap</a>
+      <a class="cta" href="#decision">The case →</a>
+    </nav>
   </div>
-  <script>
-    (function () {
-      function initCarousel(trackSelector, dotSelector) {
-        var slides = document.querySelectorAll(trackSelector + ' > .carousel-slide');
-        var dots   = document.querySelectorAll(dotSelector);
-        if (!slides.length || !dots.length) return;
-        var current = 0;
-        var timer;
+</header>
 
-        function goTo(index) {
-          slides[current].classList.remove('active');
-          dots[current].classList.remove('active');
-          current = index;
-          slides[current].classList.add('active');
-          dots[current].classList.add('active');
-        }
+<main id="top">
 
-        function startTimer() {
-          timer = setInterval(function () { goTo((current + 1) % slides.length); }, 4000);
-        }
+<!-- ─────────── HERO ─────────── -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-eyebrow"><span class="pulse"></span>Live · Internal pilot · 3 campuses</div>
+      <h1 class="hero-title">
+        Three campuses.<br/>
+        One operating <em>system.</em>
+      </h1>
+      <p class="hero-deck">
+        Cafe Connection is the operations hub UCAR's café and event teams have been building toward — schedules, sales, events, and FP&amp;A unified into one role-aware platform. It's working today.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#why">See why it matters <span class="btn-arrow">→</span></a>
+        <a class="btn btn-ghost" href="#platform">Tour the platform</a>
+      </div>
+      <div class="hero-meta">
+        <div class="hero-meta-item"><strong>Status</strong>In production</div>
+        <div class="hero-meta-item"><strong>Owner</strong>Jeff Daskam · ES</div>
+        <div class="hero-meta-item"><strong>Stack</strong>React · Firebase · Vercel</div>
+        <div class="hero-meta-item"><strong>Campuses</strong>Mesa Lab · Foothills · Center Green</div>
+      </div>
+    </div>
 
-        dots.forEach(function (dot, i) {
-          dot.addEventListener('click', function () {
-            clearInterval(timer);
-            goTo(i);
-            startTimer();
-          });
-        });
+    <!-- App-mock cluster -->
+    <div class="hero-mocks" aria-hidden="true">
 
-        startTimer();
+      <!-- Primary dashboard mock -->
+      <div class="mock-window mock-primary">
+        <div class="mock-chrome">
+          <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
+          <span class="mock-tab">Dashboard · Mesa Lab · Apr 29</span>
+        </div>
+        <div class="mock-body">
+          <div class="mock-row">
+            <div class="mock-tile aqua">
+              <div class="mock-tile-l">Sales Today</div>
+              <div class="mock-tile-v">$8,421</div>
+              <div class="mock-tile-d">▲ 12.4%</div>
+            </div>
+            <div class="mock-tile yellow">
+              <div class="mock-tile-l">Events</div>
+              <div class="mock-tile-v">4</div>
+              <div class="mock-tile-d">Next 11:00a</div>
+            </div>
+            <div class="mock-tile">
+              <div class="mock-tile-l" style="color:var(--light-aqua)">Avg Check</div>
+              <div class="mock-tile-v">$26.99</div>
+              <div class="mock-tile-d" style="color:var(--text-dim)">MTD flat</div>
+            </div>
+          </div>
+          <div class="mock-chart">
+            <div class="mock-chart-head">
+              <span class="mock-chart-title">Cafe Sales · 9 months</span>
+              <span class="mock-chart-sub">FY25 · all campuses</span>
+            </div>
+            <svg viewBox="0 0 480 110" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="hg" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%"   stop-color="#34E1F4" stop-opacity="0.45"/>
+                  <stop offset="100%" stop-color="#34E1F4" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M0 78 L60 72 L120 64 L180 50 L240 56 L300 70 L360 38 L420 30 L480 14 L480 110 L0 110 Z" fill="url(#hg)"/>
+              <path d="M0 78 L60 72 L120 64 L180 50 L240 56 L300 70 L360 38 L420 30 L480 14" fill="none" stroke="#34E1F4" stroke-width="2.2"/>
+            </svg>
+          </div>
+          <div class="mock-row" style="margin-bottom:0;">
+            <div class="mock-tile" style="padding:10px 12px;">
+              <div class="mock-list-row" style="border:0;padding:4px 0;">
+                <span class="mock-status-dot green"></span>
+                <span style="font-size:11px;font-weight:600;">M. Alvarez · Lead Barista</span>
+                <span style="font-size:10px;color:var(--text-faint);font-variant-numeric:tabular-nums;">5:30a</span>
+              </div>
+              <div class="mock-list-row" style="border:0;padding:4px 0;">
+                <span class="mock-status-dot green"></span>
+                <span style="font-size:11px;font-weight:600;">J. Park · Line Cook</span>
+                <span style="font-size:10px;color:var(--text-faint);font-variant-numeric:tabular-nums;">6:00a</span>
+              </div>
+              <div class="mock-list-row" style="border:0;padding:4px 0;">
+                <span class="mock-status-dot orange"></span>
+                <span style="font-size:11px;font-weight:600;">S. Patel · Catering</span>
+                <span style="font-size:10px;color:var(--text-faint);font-variant-numeric:tabular-nums;">9:00a</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alert mock -->
+      <div class="mock-window mock-secondary" style="background:var(--orange);">
+        <div class="mock-body" style="color:var(--space-blue);padding:18px 18px 16px;">
+          <div style="font-size:9.5px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;">1 Alert · Action needed</div>
+          <div style="font-size:14px;font-weight:700;margin-top:8px;line-height:1.3;">Mesa short one barista Friday — needs PM relief.</div>
+          <div style="display:flex;gap:6px;margin-top:12px;">
+            <span style="font-size:10px;font-weight:700;background:rgba(1,24,55,0.16);padding:5px 10px;border-radius:999px;">Snooze</span>
+            <span style="font-size:10px;font-weight:700;background:var(--space-blue);color:#fff;padding:5px 10px;border-radius:999px;">Acknowledge</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events mock -->
+      <div class="mock-window mock-tertiary">
+        <div class="mock-chrome">
+          <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
+          <span class="mock-tab">Weekly Ops · Today</span>
+        </div>
+        <div class="mock-body" style="padding:14px 16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:var(--light-aqua);">Today · 4 events</div>
+          <div style="margin-top:10px;">
+            <div class="mock-list-row"><span style="font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;">8:30a</span><span style="font-size:11.5px;font-weight:600;opacity:0.6;">NSF Briefing</span><span style="font-size:9.5px;color:var(--text-faint);">Damon</span></div>
+            <div class="mock-list-row" style="background:rgba(52,225,244,0.08);border-radius:8px;padding:6px 8px;border:0;">
+              <span style="font-size:10.5px;font-weight:700;color:var(--light-aqua);font-variant-numeric:tabular-nums;">11:00a</span>
+              <span style="font-size:11.5px;font-weight:700;">HAO All-Hands</span>
+              <span style="font-size:9px;font-weight:700;background:var(--light-aqua);color:var(--space-blue);padding:2px 6px;border-radius:999px;">NEXT</span>
+            </div>
+            <div class="mock-list-row"><span style="font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;">1:00p</span><span style="font-size:11.5px;font-weight:600;">CGD Faculty</span><span style="font-size:9.5px;color:var(--text-faint);">Mesa</span></div>
+            <div class="mock-list-row"><span style="font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;">5:30p</span><span style="font-size:11.5px;font-weight:600;">Foothills Town Hall</span><span style="font-size:9.5px;color:var(--text-faint);">FL2</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Numbers strip ─────────── -->
+<section class="section section-mid" style="padding-top:72px;padding-bottom:72px;">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-eyebrow">By the numbers</div>
+      <h2 class="section-title" style="font-size:clamp(28px,3.4vw,44px);max-width:24ch;">A quietly <em>load-bearing</em> platform.</h2>
+    </div>
+    <div class="num-strip reveal delay-1" style="margin-top:32px;">
+      <div class="num-cell">
+        <div class="num-big" data-count="3">0</div>
+        <div class="num-label">Campuses live</div>
+        <div class="num-sub">Mesa Lab · Foothills · Center Green</div>
+      </div>
+      <div class="num-cell">
+        <div class="num-big"><span data-count="7">0</span><span class="num-suffix"> tabs</span></div>
+        <div class="num-label">Functional surfaces</div>
+        <div class="num-sub">Dashboard · Ops · Sales · Events · FP&amp;A · Reports · Admin</div>
+      </div>
+      <div class="num-cell">
+        <div class="num-big"><span data-count="4">0</span><span class="num-suffix"> roles</span></div>
+        <div class="num-label">Access tiers</div>
+        <div class="num-sub">User · Manager · Senior Leader · Administrator</div>
+      </div>
+      <div class="num-cell">
+        <div class="num-big"><span data-count="100">0</span><span class="num-suffix">%</span></div>
+        <div class="num-label">UCAR-only access</div>
+        <div class="num-sub">Magic-link sign-in · role-based permissions · no self-registration</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Why it matters (Before / After) ─────────── -->
+<section class="section section-light" id="why">
+  <div class="section-inner">
+    <div class="reveal">
+      <div class="section-eyebrow">Why it matters</div>
+      <h2 class="section-title">Operational complexity grows when workflows are <em>scattered.</em></h2>
+      <p class="section-deck">
+        Café and event operations across UCAR generate dozens of weekly artifacts — schedules, BEOs, sales reports, FP&amp;A uploads, accounting closes. Until recently, every one lived somewhere different. Cafe Connection consolidates them into a single platform that leadership, managers, and staff each see in their own way.
+      </p>
+    </div>
+
+    <div class="mandate-grid reveal delay-1">
+      <div class="mandate-col mandate-before">
+        <div class="mandate-col-head">
+          <span class="mandate-tag">Before</span>
+          <h3 class="mandate-h">Fragmented &amp; manual</h3>
+        </div>
+        <ul class="mandate-list">
+          <li>Schedules emailed as PDFs every week, by campus</li>
+          <li>Sales reports re-keyed into shared drives by hand</li>
+          <li>BEOs and event orders scattered across inboxes</li>
+          <li>FP&amp;A reporting required reassembling the same data multiple times</li>
+          <li>No single view senior leaders could trust on demand</li>
+        </ul>
+      </div>
+      <div class="mandate-col mandate-after">
+        <div class="mandate-col-head">
+          <span class="mandate-tag">After</span>
+          <h3 class="mandate-h">Connected &amp; live</h3>
+        </div>
+        <ul class="mandate-list">
+          <li>Schedules pull live from Google Sheets, by campus and role</li>
+          <li>Sales reports parse on upload — Firestore updated in seconds</li>
+          <li>BEOs, setups, and weekly packets in one searchable library</li>
+          <li>FP&amp;A dashboards always current — 8 visuals, FYTD + rolling</li>
+          <li>Leadership signs in once and sees the full picture</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Showcase ─────────── -->
+<section class="section section-light" id="platform" style="padding-top:0;">
+  <div class="section-inner">
+    <div class="reveal" style="margin-bottom:48px;">
+      <div class="section-eyebrow">The platform</div>
+      <h2 class="section-title">What's running, <em>right now.</em></h2>
+      <p class="section-deck">
+        Four production surfaces, role-aware, all backed by the same data layer. Each screen below reflects the real capabilities of the deployed application.
+      </p>
+    </div>
+
+    <div class="showcase-grid">
+      <div class="showcase-tabs reveal" role="tablist">
+        <button class="show-tab active" role="tab" data-screen="dashboard">
+          <span class="show-tab-num">01</span>
+          <div class="show-tab-title">Daily Dashboard</div>
+          <div class="show-tab-desc">Sales, events, schedule, and alerts — campus-aware, with a personalized widget grid for each user.</div>
+        </button>
+        <button class="show-tab" role="tab" data-screen="sales">
+          <span class="show-tab-num">02</span>
+          <div class="show-tab-title">Cafe Sales</div>
+          <div class="show-tab-desc">Net revenue, avg check, and monthly trends across all three campuses — daily and fiscal-year views.</div>
+        </button>
+        <button class="show-tab" role="tab" data-screen="ops">
+          <span class="show-tab-num">03</span>
+          <div class="show-tab-title">Weekly Ops</div>
+          <div class="show-tab-desc">Staff schedule, cash drops, cafe specials, event orders, setup reports, and BEOs — all in one workspace.</div>
+        </button>
+        <button class="show-tab" role="tab" data-screen="fpa">
+          <span class="show-tab-num">04</span>
+          <div class="show-tab-title">FP&amp;A &amp; Reporting</div>
+          <div class="show-tab-desc">Eight executive visuals from Workday uploads — FYTD totals, 13-month rolling trends, and monthly accounting exports.</div>
+        </button>
+      </div>
+
+      <div class="showcase-screen reveal delay-1">
+        <div class="show-chrome">
+          <span class="show-chrome-dot" style="background:#ff5f57;"></span>
+          <span class="show-chrome-dot" style="background:#ffbd2e;"></span>
+          <span class="show-chrome-dot" style="background:#28c840;"></span>
+          <span class="show-chrome-url" id="show-url">cafe-connection-eosin.vercel.app / dashboard</span>
+        </div>
+
+        <!-- Screen 1: Dashboard -->
+        <div class="screen active" data-screen="dashboard">
+          <div class="screen-head">
+            <div class="screen-h">Good morning, <em>Jeff.</em></div>
+            <div class="screen-pills">
+              <span class="screen-pill">Mesa Lab</span>
+              <span class="screen-pill active">Center Green</span>
+              <span class="screen-pill">Foothills</span>
+            </div>
+          </div>
+          <div class="scr-stats">
+            <div class="scr-stat aqua">
+              <div class="scr-stat-l">Net Revenue MTD</div>
+              <div class="scr-stat-v">$18,912</div>
+              <div class="scr-stat-d up">▲ 8.2%</div>
+            </div>
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Total Checks</div>
+              <div class="scr-stat-v">1,440</div>
+              <div class="scr-stat-d up">▲ 5.1%</div>
+            </div>
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Avg Check</div>
+              <div class="scr-stat-v">$13.13</div>
+              <div class="scr-stat-d flat">— flat</div>
+            </div>
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Events Today</div>
+              <div class="scr-stat-v">4</div>
+              <div class="scr-stat-d up">Next 11:00a</div>
+            </div>
+          </div>
+          <div class="scr-grid-2">
+            <div class="scr-card">
+              <div class="scr-card-head">
+                <span class="scr-card-t">Cafe Sales · 9 months</span>
+                <span class="scr-card-s">FY25 · Center Green</span>
+              </div>
+              <div class="chart-large">
+                <svg viewBox="0 0 480 180" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    <linearGradient id="d1" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%"   stop-color="#34E1F4" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#34E1F4" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="40" y1="20"  x2="470" y2="20"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                  <line x1="40" y1="60"  x2="470" y2="60"  stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                  <line x1="40" y1="100" x2="470" y2="100" stroke="rgba(255,255,255,0.06)" stroke-dasharray="3 3"/>
+                  <line x1="40" y1="140" x2="470" y2="140" stroke="rgba(255,255,255,0.10)"/>
+                  <text x="36" y="22"  text-anchor="end" fill="rgba(215,234,244,0.5)" font-size="9">$20K</text>
+                  <text x="36" y="62"  text-anchor="end" fill="rgba(215,234,244,0.5)" font-size="9">$15K</text>
+                  <text x="36" y="102" text-anchor="end" fill="rgba(215,234,244,0.5)" font-size="9">$10K</text>
+                  <text x="36" y="142" text-anchor="end" fill="rgba(215,234,244,0.5)" font-size="9">$5K</text>
+                  <path d="M50 100 L100 95 L150 80 L200 65 L250 75 L300 105 L350 55 L400 42 L450 25 L450 140 L50 140 Z" fill="url(#d1)"/>
+                  <path d="M50 100 L100 95 L150 80 L200 65 L250 75 L300 105 L350 55 L400 42 L450 25" fill="none" stroke="#34E1F4" stroke-width="2.5"/>
+                  <circle cx="450" cy="25" r="4" fill="#34E1F4"/>
+                  <circle cx="450" cy="25" r="8" fill="rgba(52,225,244,0.3)"/>
+                  <text x="50"  y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Jul</text>
+                  <text x="100" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Aug</text>
+                  <text x="150" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Sep</text>
+                  <text x="200" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Oct</text>
+                  <text x="250" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Nov</text>
+                  <text x="300" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Dec</text>
+                  <text x="350" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Jan</text>
+                  <text x="400" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Feb</text>
+                  <text x="450" y="160" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9">Mar</text>
+                </svg>
+              </div>
+            </div>
+            <div class="scr-card">
+              <div class="scr-card-head">
+                <span class="scr-card-t">Today · Events</span>
+                <span class="scr-card-s">4 scheduled</span>
+              </div>
+              <div class="ev-row past">
+                <div class="ev-time">8:30a</div>
+                <div><div class="ev-name">NSF Briefing</div><div class="ev-where">Damon · 24</div></div>
+                <span></span>
+              </div>
+              <div class="ev-row">
+                <div class="ev-time" style="color:var(--light-aqua);">11:00a</div>
+                <div><div class="ev-name">HAO All-Hands</div><div class="ev-where">Aud · 60</div></div>
+                <span class="ev-tag next">NEXT</span>
+              </div>
+              <div class="ev-row">
+                <div class="ev-time">1:00p</div>
+                <div><div class="ev-name">CGD Faculty</div><div class="ev-where">Mesa · 12</div></div>
+                <span></span>
+              </div>
+              <div class="ev-row">
+                <div class="ev-time">5:30p</div>
+                <div><div class="ev-name">Foothills Town Hall</div><div class="ev-where">FL2 · 80</div></div>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 2: Cafe Sales -->
+        <div class="screen" data-screen="sales">
+          <div class="screen-head">
+            <div class="screen-h">Cafe Sales · <em>April</em></div>
+            <div class="screen-pills">
+              <span class="screen-pill active">All Campuses</span>
+              <span class="screen-pill">Monthly</span>
+              <span class="screen-pill">Export</span>
+            </div>
+          </div>
+          <div class="sales-row">
+            <div>
+              <div class="mock-kicker" style="font-size:10px;">Net Revenue · Month-to-date</div>
+              <div class="sales-bignum">$42,318<span class="cents">.40</span></div>
+              <div>
+                <span class="sales-delta">▲ 8.4%</span>
+                <span class="sales-delta-sub">vs. March · all three campuses</span>
+              </div>
+              <div class="sales-mini">
+                <div><div class="sales-mini-l">Checks</div><div class="sales-mini-v">3,204</div></div>
+                <div><div class="sales-mini-l">Avg Check</div><div class="sales-mini-v">$13.21</div></div>
+                <div><div class="sales-mini-l">Daily Avg</div><div class="sales-mini-v">$2,116</div></div>
+              </div>
+            </div>
+            <svg viewBox="0 0 320 160" style="width:100%;">
+              <defs>
+                <linearGradient id="s1" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%"   stop-color="#34E1F4" stop-opacity="0.4"/>
+                  <stop offset="100%" stop-color="#34E1F4" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M0 110 L40 100 L80 90 L120 78 L160 70 L200 56 L240 44 L280 32 L320 20 L320 160 L0 160 Z" fill="url(#s1)"/>
+              <path d="M0 110 L40 100 L80 90 L120 78 L160 70 L200 56 L240 44 L280 32 L320 20" fill="none" stroke="#34E1F4" stroke-width="2.5"/>
+              <circle cx="320" cy="20" r="5" fill="#34E1F4" stroke="#011837" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="scr-card">
+            <div class="scr-card-head">
+              <span class="scr-card-t">Revenue by campus · MTD</span>
+              <span class="scr-card-s">% of $42,318</span>
+            </div>
+            <div class="sales-bar-row">
+              <span class="sales-bar-name">Center Green</span>
+              <div class="sales-bar-track"><div class="sales-bar-fill" data-fill="92%"></div></div>
+              <span class="sales-bar-val">$18,912</span>
+            </div>
+            <div class="sales-bar-row">
+              <span class="sales-bar-name">Mesa Lab</span>
+              <div class="sales-bar-track"><div class="sales-bar-fill" data-fill="68%"></div></div>
+              <span class="sales-bar-val">$14,210</span>
+            </div>
+            <div class="sales-bar-row">
+              <span class="sales-bar-name">Foothills</span>
+              <div class="sales-bar-track"><div class="sales-bar-fill" data-fill="44%"></div></div>
+              <span class="sales-bar-val">$9,196</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 3: Weekly Ops -->
+        <div class="screen" data-screen="ops">
+          <div class="screen-head">
+            <div class="screen-h">Weekly Ops · <em>Apr 28–May 2</em></div>
+            <div class="screen-pills">
+              <span class="screen-pill active">Mesa Lab</span>
+              <span class="screen-pill">Foothills</span>
+              <span class="screen-pill">Center Green</span>
+            </div>
+          </div>
+          <div class="ops-grid">
+            <div class="ops-card featured">
+              <div class="ops-card-label">Staff Schedule</div>
+              <div class="ops-card-title">Week of Apr 28</div>
+              <div class="ops-staff-row"><span class="ops-staff-dot" style="background:#22c55e;"></span><span class="ops-staff-name">M. Alvarez · Lead Barista</span><span class="ops-staff-time">5:30a – 2:00p</span></div>
+              <div class="ops-staff-row"><span class="ops-staff-dot" style="background:#22c55e;"></span><span class="ops-staff-name">J. Park · Line Cook</span><span class="ops-staff-time">6:00a – 2:30p</span></div>
+              <div class="ops-staff-row"><span class="ops-staff-dot" style="background:var(--light-aqua);"></span><span class="ops-staff-name">S. Patel · Catering</span><span class="ops-staff-time">9:00a – 5:30p</span></div>
+              <div class="ops-staff-row"><span class="ops-staff-dot" style="background:var(--orange);"></span><span class="ops-staff-name">R. Kim · WFH Mon–Tue</span><span class="ops-staff-time">Remote</span></div>
+            </div>
+            <div class="ops-card">
+              <div class="ops-card-label">Cash Drops · This Week</div>
+              <div class="ops-cash-row"><span class="ops-cash-campus">Mesa Lab</span><span class="ops-cash-amount">$1,248.00</span></div>
+              <div class="ops-cash-row"><span class="ops-cash-campus">Center Green</span><span class="ops-cash-amount">$892.50</span></div>
+              <div class="ops-cash-row"><span class="ops-cash-campus">Foothills</span><span class="ops-cash-amount">$614.25</span></div>
+            </div>
+            <div class="ops-card">
+              <div class="ops-card-label">Cafe Specials · Week of Apr 28</div>
+              <div class="ops-special-item"><strong>Monday</strong>Turkey Pesto Panini · Tomato Bisque</div>
+              <div class="ops-special-item"><strong>Tuesday</strong>Southwest Chicken Bowl · Corn Chowder</div>
+              <div class="ops-special-item"><strong>Wednesday</strong>Caprese Flatbread · Minestrone</div>
+            </div>
+            <div class="ops-card">
+              <div class="ops-card-label">Event Orders · This Week</div>
+              <div class="ops-cash-row" style="color:var(--text-dim);"><span>HAO All-Hands — Apr 29</span><span style="color:var(--light-aqua);font-size:10.5px;font-weight:700;">BEO Filed</span></div>
+              <div class="ops-cash-row" style="color:var(--text-dim);"><span>CGD Faculty Lunch — Apr 29</span><span style="color:var(--light-aqua);font-size:10.5px;font-weight:700;">BEO Filed</span></div>
+              <div class="ops-cash-row" style="color:var(--text-dim);"><span>Foothills Town Hall — Apr 29</span><span style="color:#4ade80;font-size:10.5px;font-weight:700;">Reviewed</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen 4: FP&A -->
+        <div class="screen" data-screen="fpa">
+          <div class="screen-head">
+            <div class="screen-h">FP&amp;A · <em>FY26 to date</em></div>
+            <div class="screen-pills">
+              <span class="screen-pill active">All Campuses</span>
+              <span class="screen-pill">Upload Report</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <div>
+              <div class="mock-kicker" style="font-size:10px;">Total Revenue · FYTD</div>
+              <div class="sales-bignum" style="font-size:60px;">$186,420</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px;color:var(--text-faint);font-weight:600;">of $214,000 budget</div>
+              <div style="font-size:14px;color:var(--light-aqua);font-weight:700;margin-top:4px;">87% · 4 pts ahead of pace</div>
+            </div>
+          </div>
+          <div class="fpa-rail">
+            <div class="fpa-rail-fill" data-fill="87%"></div>
+            <div class="fpa-rail-marker" style="left:83%"></div>
+          </div>
+          <div class="fpa-rail-axis"><span>$0</span><span>$214K</span></div>
+          <div class="fpa-grid">
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Cafe Sales</div>
+              <div class="scr-stat-v" style="font-size:22px;">$112.4k</div>
+              <div class="scr-stat-d up">+8.2%</div>
+            </div>
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Event Revenue</div>
+              <div class="scr-stat-v" style="font-size:22px;">$48.9k</div>
+              <div class="scr-stat-d up">+22.0%</div>
+            </div>
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Labor Expense</div>
+              <div class="scr-stat-v" style="font-size:22px;">$72.1k</div>
+              <div class="scr-stat-d" style="color:var(--orange);">−3.0%</div>
+            </div>
+            <div class="scr-stat">
+              <div class="scr-stat-l" style="color:var(--light-aqua);">Materials</div>
+              <div class="scr-stat-v" style="font-size:22px;">$41.2k</div>
+              <div class="scr-stat-d up">+1.4%</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Capabilities ─────────── -->
+<section class="section section-mid" id="capabilities">
+  <div class="section-inner">
+    <div class="reveal" style="margin-bottom:56px;">
+      <div class="section-eyebrow">Capabilities</div>
+      <h2 class="section-title">Everything operational, <em>in one place.</em></h2>
+      <p class="section-deck" style="margin-bottom:0;">
+        The platform combines front-line operational support with structured reporting and leadership visibility. Each capability reinforces the others.
+      </p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;" class="reveal delay-1">
+      <!-- Cap 1 -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(52,225,244,0.14);border-radius:22px;padding:26px 22px;">
+        <div style="width:48px;height:48px;border-radius:16px;background:rgba(52,225,244,0.10);border:1px solid rgba(52,225,244,0.18);display:grid;place-items:center;margin-bottom:18px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34E1F4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M7 4v6M17 4v6M5 11h14v8H5z"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-0.01em;">Operational Workspace</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Schedules, exceptions, cash drops, specials, and event coordination — all in a campus-selectable weekly view.</div>
+      </div>
+      <!-- Cap 2 -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(52,225,244,0.14);border-radius:22px;padding:26px 22px;">
+        <div style="width:48px;height:48px;border-radius:16px;background:rgba(52,225,244,0.10);border:1px solid rgba(52,225,244,0.18);display:grid;place-items:center;margin-bottom:18px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34E1F4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h9l3 3v11H6z"/><path d="M15 5v4h4"/><path d="M9 14h6M9 18h4"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-0.01em;">Event Coordination</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">BEOs, setup reports, event orders, and weekly packet exports bring every event document into one searchable library.</div>
+      </div>
+      <!-- Cap 3 -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(52,225,244,0.14);border-radius:22px;padding:26px 22px;">
+        <div style="width:48px;height:48px;border-radius:16px;background:rgba(52,225,244,0.10);border:1px solid rgba(52,225,244,0.18);display:grid;place-items:center;margin-bottom:18px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34E1F4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19V9"/><path d="M12 19V5"/><path d="M19 19v-8"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-0.01em;">Sales Reporting</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Cafe sales, event revenue, and monthly accounting outputs — exportable as UCAR-branded Excel reports with one click.</div>
+      </div>
+      <!-- Cap 4 -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(52,225,244,0.14);border-radius:22px;padding:26px 22px;">
+        <div style="width:48px;height:48px;border-radius:16px;background:rgba(52,225,244,0.10);border:1px solid rgba(52,225,244,0.18);display:grid;place-items:center;margin-bottom:18px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34E1F4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M7 15l3-3 3 2 5-6"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-0.01em;">Executive Dashboards</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">FP&amp;A visibility, rolling financial trends, and eight Workday-ingested visuals — FYTD and 13-month rolling views.</div>
+      </div>
+      <!-- Cap 5 -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(52,225,244,0.14);border-radius:22px;padding:26px 22px;">
+        <div style="width:48px;height:48px;border-radius:16px;background:rgba(52,225,244,0.10);border:1px solid rgba(52,225,244,0.18);display:grid;place-items:center;margin-bottom:18px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34E1F4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px;letter-spacing:-0.01em;">Role-Based Access</div>
+        <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Four access tiers — User, Manager, Senior Leader, Administrator — ensure visibility is proportional to responsibility.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Architecture ─────────── -->
+<section class="section section-light" id="architecture">
+  <div class="section-inner">
+    <div class="reveal" style="margin-bottom:48px;">
+      <div class="section-eyebrow">Architecture &amp; trust</div>
+      <h2 class="section-title">Built like a <em>real</em> internal product.</h2>
+      <p class="section-deck">
+        Modern cloud foundation, secure UCAR-only authentication, role-based access, and clean integrations with the systems UCAR already runs on.
+      </p>
+    </div>
+
+    <div class="arch-wrap">
+      <div class="arch-card reveal">
+        <h3>How it fits together</h3>
+        <p>End-to-end flow from a UCAR sign-in to dashboards leadership can act on.</p>
+        <svg class="arch-svg" viewBox="0 0 600 380" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+              <path d="M0 0 L10 5 L0 10 Z" fill="#34E1F4"/>
+            </marker>
+            <linearGradient id="appg" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%"   stop-color="#00A2B4"/>
+              <stop offset="100%" stop-color="#00818F"/>
+            </linearGradient>
+          </defs>
+          <g>
+            <rect x="20" y="40" width="150" height="80" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(52,225,244,0.18)"/>
+            <text x="95" y="68"  text-anchor="middle" fill="#fff" font-size="13" font-weight="700">UCAR Staff</text>
+            <text x="95" y="88"  text-anchor="middle" fill="rgba(215,234,244,0.6)" font-size="11">@ucar.edu only</text>
+            <text x="95" y="105" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="10">4 access roles</text>
+          </g>
+          <line x1="170" y1="80" x2="220" y2="80" stroke="#34E1F4" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+          <g>
+            <rect x="225" y="40" width="150" height="80" rx="14" fill="rgba(0,53,122,0.45)" stroke="rgba(52,225,244,0.30)"/>
+            <text x="300" y="68"  text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Firebase Auth</text>
+            <text x="300" y="88"  text-anchor="middle" fill="rgba(215,234,244,0.6)" font-size="11">Magic-link sign-in</text>
+            <text x="300" y="105" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="10">Domain-restricted</text>
+          </g>
+          <line x1="375" y1="80" x2="425" y2="80" stroke="#34E1F4" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+          <g>
+            <rect x="430" y="40" width="150" height="80" rx="14" fill="url(#appg)" stroke="rgba(52,225,244,0.40)"/>
+            <text x="505" y="68"  text-anchor="middle" fill="#fff" font-size="13" font-weight="700">React App</text>
+            <text x="505" y="88"  text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="11">Vercel · CI/CD</text>
+            <text x="505" y="105" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="10">Auto-deploy</text>
+          </g>
+          <path d="M505 120 L505 180 L300 180 L300 220" stroke="#34E1F4" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#arr)"/>
+          <text x="510" y="160" fill="rgba(52,225,244,0.7)" font-size="10">reads / writes</text>
+          <g>
+            <rect x="20" y="225" width="170" height="100" rx="14" fill="rgba(255,255,255,0.03)" stroke="rgba(52,225,244,0.12)"/>
+            <text x="105" y="252" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Firestore</text>
+            <text x="105" y="270" text-anchor="middle" fill="rgba(215,234,244,0.6)" font-size="10">Roles · metrics · events</text>
+            <text x="105" y="285" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9.5">Real-time listeners</text>
+            <text x="105" y="300" text-anchor="middle" fill="rgba(215,234,244,0.4)" font-size="9">Security rules per role</text>
+          </g>
+          <g>
+            <rect x="215" y="225" width="170" height="100" rx="14" fill="rgba(255,255,255,0.03)" stroke="rgba(52,225,244,0.12)"/>
+            <text x="300" y="252" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Google Workspace</text>
+            <text x="300" y="270" text-anchor="middle" fill="rgba(215,234,244,0.6)" font-size="10">Sheets · Drive · Docs</text>
+            <text x="300" y="285" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9.5">Schedules · BEOs · packets</text>
+            <text x="300" y="300" text-anchor="middle" fill="rgba(215,234,244,0.4)" font-size="9">Service-account read</text>
+          </g>
+          <g>
+            <rect x="410" y="225" width="170" height="100" rx="14" fill="rgba(255,255,255,0.03)" stroke="rgba(52,225,244,0.12)"/>
+            <text x="495" y="252" text-anchor="middle" fill="#fff" font-size="12" font-weight="700">Workday + Excel</text>
+            <text x="495" y="270" text-anchor="middle" fill="rgba(215,234,244,0.6)" font-size="10">FP&amp;A reports · uploads</text>
+            <text x="495" y="285" text-anchor="middle" fill="rgba(215,234,244,0.5)" font-size="9.5">Parsed on ingest</text>
+            <text x="495" y="300" text-anchor="middle" fill="rgba(215,234,244,0.4)" font-size="9">Stored, searchable</text>
+          </g>
+          <rect x="20" y="345" width="560" height="24" rx="6" fill="rgba(52,225,244,0.06)" stroke="rgba(52,225,244,0.14)"/>
+          <text x="300" y="361" text-anchor="middle" fill="rgba(215,234,244,0.7)" font-size="10" font-weight="600" letter-spacing="2">ROLE-BASED ACCESS · USER · MANAGER · SENIOR LEADER · ADMINISTRATOR</text>
+        </svg>
+      </div>
+      <div class="arch-side">
+        <div class="arch-feat reveal">
+          <span class="arch-feat-tag">Controlled access</span>
+          <h4>UCAR-only, role-aware</h4>
+          <p>Magic-link sign-in restricted to @ucar.edu, plus four permission tiers — visibility scales with responsibility, not assumption.</p>
+        </div>
+        <div class="arch-feat reveal delay-1">
+          <span class="arch-feat-tag">Cloud-native</span>
+          <h4>Built to scale, day one</h4>
+          <p>React on Vercel, Firestore for live data, Firebase Auth for identity — a modern stack with a proven track record in production environments.</p>
+        </div>
+        <div class="arch-feat reveal delay-2">
+          <span class="arch-feat-tag">Integrates, doesn't replace</span>
+          <h4>Lives in your existing stack</h4>
+          <p>Reads schedules from Google Sheets, retrieves documents from Drive, and ingests Workday exports — strengthening the tools UCAR already runs on.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Roadmap ─────────── -->
+<section class="section section-mid" id="roadmap">
+  <div class="section-inner">
+    <div class="reveal" style="margin-bottom:56px;">
+      <div class="section-eyebrow">Roadmap</div>
+      <h2 class="section-title">Where we are — and where this <em>can go.</em></h2>
+      <p class="section-deck">
+        The platform is already in production across all three campuses. The foundation is in place to extend it further as priorities develop.
+      </p>
+    </div>
+
+    <div class="roadmap reveal delay-1">
+      <div class="road-card now">
+        <span class="road-dot"></span>
+        <div class="road-phase">Now · Live</div>
+        <div class="road-title">Café &amp; events operations</div>
+        <div class="road-sub">In production · 3 campuses</div>
+        <ul class="road-list">
+          <li>Unified dashboard for all three campuses</li>
+          <li>Schedules, sales, BEOs, and specials</li>
+          <li>FP&amp;A visuals from Workday uploads</li>
+          <li>Monthly accounting in one click</li>
+          <li>Role-based access for all staff tiers</li>
+        </ul>
+      </div>
+      <div class="road-card">
+        <span class="road-dot"></span>
+        <div class="road-phase">Next</div>
+        <div class="road-title">IT review &amp; hardening</div>
+        <div class="road-sub">In progress</div>
+        <ul class="road-list">
+          <li>IT security review and sign-off</li>
+          <li>Firestore rule audit by collection</li>
+          <li>Email ingestion pipeline activation</li>
+          <li>Deployment and release discipline</li>
+        </ul>
+      </div>
+      <div class="road-card">
+        <span class="road-dot"></span>
+        <div class="road-phase">Future</div>
+        <div class="road-title">Expanded integrations</div>
+        <div class="road-sub">Pending priorities</div>
+        <ul class="road-list">
+          <li>UCAR SSO migration</li>
+          <li>Automated event-order email ingestion</li>
+          <li>Configurable dashboard personalization</li>
+          <li>Broader reporting engine</li>
+        </ul>
+      </div>
+      <div class="road-card">
+        <span class="road-dot"></span>
+        <div class="road-phase">Long-term</div>
+        <div class="road-title">Platform expansion</div>
+        <div class="road-sub">Pending sponsorship</div>
+        <ul class="road-list">
+          <li>Cross-department operational visibility</li>
+          <li>Vendor and invoice tracking</li>
+          <li>Predictive trend analysis</li>
+          <li>API surface for adjacent systems</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────── Closing CTA ─────────── -->
+<section class="section section-deep" id="decision">
+  <div class="section-inner">
+    <div class="cta-card reveal">
+      <div class="section-eyebrow cta-eyebrow">Project contact</div>
+      <h2 class="cta-h">A solid foundation, <em>ready to grow.</em></h2>
+      <p class="cta-deck">
+        Cafe Connection was built to meet a real operational need, and it's delivering on that every day. The decisions ahead are about how far this foundation extends — and what it becomes for UCAR over time.
+      </p>
+
+      <div class="cta-contact">
+        <div class="cta-contact-l">Project lead</div>
+        <div class="cta-owner">
+          <div class="cta-owner-avatar">JD</div>
+          <div style="text-align:left;">
+            <div class="cta-owner-name">Jeff Daskam</div>
+            <div class="cta-owner-role">Employee Services · <a href="mailto:jdaskam@ucar.edu">jdaskam@ucar.edu</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div>UCAR · Cafe Connection · Internal preview</div>
+    <div>Confidential · Executive briefing materials · FY26</div>
+  </div>
+</footer>
+
+<script>
+  // ─────────── Showcase tabs ───────────
+  (function () {
+    var tabs    = document.querySelectorAll('.show-tab');
+    var screens = document.querySelectorAll('.screen');
+    var urlEl   = document.getElementById('show-url');
+    var paths = {
+      dashboard: 'cafe-connection-eosin.vercel.app / dashboard',
+      sales:     'cafe-connection-eosin.vercel.app / cafe-sales',
+      ops:       'cafe-connection-eosin.vercel.app / weekly-ops',
+      fpa:       'cafe-connection-eosin.vercel.app / fpa'
+    };
+    function activate(id) {
+      tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.screen === id); });
+      screens.forEach(function (s) { s.classList.toggle('active', s.dataset.screen === id); });
+      if (urlEl && paths[id]) urlEl.textContent = paths[id];
+      requestAnimationFrame(animateFills);
+    }
+    tabs.forEach(function (t) {
+      t.addEventListener('click', function () { activate(t.dataset.screen); });
+    });
+  }());
+
+  // ─────────── Reveal-on-scroll ───────────
+  (function () {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+  }());
+
+  // ─────────── Counter animation ───────────
+  (function () {
+    var animated = new WeakSet();
+    function animate(el) {
+      if (animated.has(el)) return;
+      animated.add(el);
+      var target   = parseFloat(el.dataset.count);
+      var duration = 1400;
+      var start    = performance.now();
+      function tick(now) {
+        var t     = Math.min(1, (now - start) / duration);
+        var eased = 1 - Math.pow(1 - t, 3);
+        var v     = target * eased;
+        el.textContent = (target % 1 === 0) ? Math.round(v) : v.toFixed(1);
+        if (t < 1) requestAnimationFrame(tick);
+        else el.textContent = (target % 1 === 0) ? target : target.toFixed(1);
       }
+      requestAnimationFrame(tick);
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) animate(e.target); });
+    }, { threshold: 0.3 });
+    document.querySelectorAll('[data-count]').forEach(function (c) { io.observe(c); });
+  }());
 
-      initCarousel('.carousel-track:not(.cap-carousel-track)', '.carousel-dot:not(.cap-dot)');
-      initCarousel('.cap-carousel-track', '.cap-dot');
-    }());
-  </script>
+  // ─────────── Animated bar / rail fills ───────────
+  function animateFills() {
+    document.querySelectorAll('[data-fill]').forEach(function (el) {
+      var rect    = el.getBoundingClientRect();
+      var visible = rect.top < window.innerHeight && rect.bottom > 0;
+      if (visible) {
+        requestAnimationFrame(function () { el.style.width = el.dataset.fill; });
+      }
+    });
+  }
+  window.addEventListener('scroll', animateFills, { passive: true });
+  window.addEventListener('load', animateFills);
+  setTimeout(animateFills, 200);
+</script>
 </body>
 </html>
