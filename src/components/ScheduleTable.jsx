@@ -8,8 +8,8 @@ const SCHED_HEADER_BG   = COLORS._DARKBLUE;
 const SCHED_SUBHEAD_BG  = COLORS.MOBILE_SUBHEAD_BG;
 const SCHED_SUBHEAD_ALT = COLORS.MOBILE_SUBHEAD_ALT;
 
-// Only these labels create top-level campus sections.
-const CAMPUS_NAMES = ["Mesa Lab", "Mesa", "Foothills", "Center Green"];
+// Only these labels create top-level sections.
+const ALLOWED_HEADERS = ["CG2", "Banquets", "Center Green", "Foothills", "Mesa"];
 
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
@@ -49,7 +49,7 @@ function hasDateColumns(row) {
 function isCampusHeaderRow(row) {
   if (!row[0]) return false;
   const label = row[0].toString().trim();
-  return CAMPUS_NAMES.includes(label) && hasDateColumns(row);
+  return ALLOWED_HEADERS.includes(label) && hasDateColumns(row);
 }
 
 // ── Merge consecutive rows sharing same name (col-A merged cell pattern) ──────
@@ -133,26 +133,8 @@ export default function ScheduleTable({ rows, colorMap }) {
       return;
     }
 
-    // ── Sub-section label inside a campus section ───────────────────────────
-    // A row is a sub-label if it has a text label (non-numeric) AND any of:
-    //   - no data in day columns (empty B–F)
-    //   - dates in B–F (repeated date header)
-    //   - header/subheader background color (dark blue like "Café Thru Line")
+    // All rows inside a campus section are staff rows (no sub-sections)
     if (currentSection?.isCampus) {
-      const isSubLabel =
-        firstCell &&
-        !firstCell.match(/^\d/) &&
-        (row.slice(1).every(c => !c) ||
-         hasDateColumns(row) ||
-         (colorInfo && (colorInfo.label === "header" || colorInfo.label === "subheader")));
-
-      if (isSubLabel) {
-        currentSection.currentSub = { title: firstCell, rows: [] };
-        currentSection.subSections.push(currentSection.currentSub);
-        return;
-      }
-
-      // Staff row — goes into current sub-section (or a default one)
       if (!currentSection.currentSub) {
         currentSection.currentSub = { title: null, rows: [] };
         currentSection.subSections.push(currentSection.currentSub);
@@ -161,11 +143,8 @@ export default function ScheduleTable({ rows, colorMap }) {
       return;
     }
 
-    // ── Top-level section header (CG2, Banquets, PTO…) ──────────────────────
-    const isHeader = colorInfo?.label === "header" ||
-      (firstCell && firstCell.length < 30 &&
-       firstCell === firstCell.toUpperCase() &&
-       !firstCell.match(/^\d/));
+    // ── Top-level section header (CG2, Banquets) ────────────────────────────
+    const isHeader = ALLOWED_HEADERS.includes(firstCell);
 
     if (isHeader && firstCell) {
       currentSection = {
@@ -255,21 +234,7 @@ export default function ScheduleTable({ rows, colorMap }) {
           </thead>
           <tbody>
             {mergedRows.map(({ cells, ri, ri2, isMerged }, rowIdx) => {
-              const nameCell    = (cells[0] || "").toString().trim();
-              const isSubHeader = colorMap[`${ri},0`] &&
-                classifyColor(colorMap[`${ri},0`])?.label === "subheader";
-
-              if (isSubHeader) {
-                return (
-                  <tr key={rowIdx}>
-                    <td colSpan={dayCols.length + 1} style={{
-                      padding: "6px 14px", background: SCHED_SUBHEAD_ALT,
-                      color: COLORS.LAQUA, fontWeight: 600, fontSize: 10,
-                      letterSpacing: "0.08em", textTransform: "uppercase",
-                    }}>{nameCell}</td>
-                  </tr>
-                );
-              }
+              const nameCell = (cells[0] || "").toString().trim();
 
               return (
                 <tr key={rowIdx} style={{
