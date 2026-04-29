@@ -573,6 +573,61 @@ export default function FpaPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", gap: 24, flexWrap: "wrap" }}>
+          {/* ── ES Admin toggle ── */}
+          <div>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+              letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>
+              ES Admin
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{
+                fontSize: 11,
+                color: includeEsAdmin ? COLORS.TEXT_SECONDARY : COLORS.TEXT_PRIMARY,
+                fontWeight: 600,
+                fontFamily: "'Poppins',sans-serif",
+                transition: "color 0.3s ease"
+              }}>
+                Excluded
+              </span>
+              <button
+                onClick={() => setIncludeEsAdmin(!includeEsAdmin)}
+                style={{
+                  position: "relative",
+                  width: 48,
+                  height: 24,
+                  borderRadius: 12,
+                  border: `1px solid ${COLORS.BORDER}`,
+                  background: includeEsAdmin ? COLORS.AQUA : COLORS.BG_SURFACE_ALT,
+                  cursor: "pointer",
+                  transition: "background 0.3s ease",
+                  padding: 0,
+                }}
+                aria-label={includeEsAdmin ? "Exclude ES Admin" : "Include ES Admin"}
+              >
+                <div style={{
+                  position: "absolute",
+                  top: 2,
+                  left: includeEsAdmin ? 26 : 2,
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: COLORS.TEXT_PRIMARY,
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                  transition: "left 0.3s ease",
+                }} />
+              </button>
+              <span style={{
+                fontSize: 11,
+                color: includeEsAdmin ? COLORS.TEXT_PRIMARY : COLORS.TEXT_SECONDARY,
+                fontWeight: 600,
+                fontFamily: "'Poppins',sans-serif",
+                transition: "color 0.3s ease"
+              }}>
+                Included
+              </span>
+            </div>
+          </div>
+
           {fiscalYears.length > 0 && (
             <div>
               <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
@@ -594,26 +649,6 @@ export default function FpaPage() {
               </select>
             </div>
           )}
-
-          {/* ── ES Admin toggle ── */}
-          <div>
-            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-              letterSpacing: "1.5px", textTransform: "uppercase", marginBottom: 10 }}>
-              ES Admin
-            </div>
-            <button
-              onClick={() => setIncludeEsAdmin(!includeEsAdmin)}
-              style={{
-                padding: "8px 16px", borderRadius: RADIUS.SM,
-                border: `1px solid ${COLORS.BORDER}`,
-                background: includeEsAdmin ? `${COLORS.AQUA}20` : COLORS.BG_SURFACE_ALT,
-                color: includeEsAdmin ? COLORS.AQUA : COLORS.TEXT_SECONDARY,
-                fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
-                cursor: "pointer", transition: "all 0.2s ease",
-              }}>
-              {includeEsAdmin ? "Included" : "Excluded"}
-            </button>
-          </div>
         </div>
       </div>
 
