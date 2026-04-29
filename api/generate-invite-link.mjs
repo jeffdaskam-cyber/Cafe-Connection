@@ -100,6 +100,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, link });
   } catch (err) {
     if (err.status) return respondWithError(res, err);
-    return respondWithInternalError(res, SCOPE, err);
+    return respondWithInternalError(res, SCOPE, err, { detail: err?.message });
   }
 }
