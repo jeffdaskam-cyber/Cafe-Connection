@@ -42,9 +42,9 @@ export const COLORS = {
   LAQUA:            '#34E1F4',   // light aqua — use sparingly; works on dark chips only
   ORANGE:           '#FAA119',   // warning badges, alerts
   // ─── Navigation / Tab Bar ──────────────────────────────────────────────────
-  NAV_BG:           '#FFFFFF',   // tab bar background
+  NAV_BG:           '#011837',   // tab bar background
   NAV_BORDER:       '#DDD9D4',   // bottom border of nav bar
-  NAV_TEXT:         '#5A7A91',   // inactive tab label
+  NAV_TEXT:         '#FFFFFF',   // inactive tab label
   NAV_TEXT_ACTIVE:  '#00A2B4',   // active tab label
   NAV_INDICATOR:    '#00A2B4',   // active tab underline indicator
   // ─── Chart colors ──────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ export const SHADOWS = {
 // ─── Border Radius ─────────────────────────────────────────────────────────────
 export const RADIUS = {
   SM:  '6px',
-  MD:  '10px',
+  MD:  '4px',
   LG:  '14px',
   XL:  '20px',
   PILL:'9999px',
