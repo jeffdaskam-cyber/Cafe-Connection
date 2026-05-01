@@ -95,21 +95,20 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ hd: "ucar.edu", prompt: "select_account" });
 
-    // iOS standalone PWAs block popups; use redirect instead.
-    const isStandalone =
-      window.matchMedia?.("(display-mode: standalone)").matches ||
-      window.navigator.standalone === true;
-
+    // Popup is more reliable on iOS Safari than signInWithRedirect, which is
+    // known to lose the auth result due to ITP storage partitioning when the
+    // redirect bounces through the default *.firebaseapp.com auth domain.
     try {
-      if (isStandalone) {
-        await signInWithRedirect(auth, provider);
-        // Page will reload; getRedirectResult handles the return.
-        return;
-      }
       const result = await signInWithPopup(auth, provider);
       await enforceUcarDomain(result.user);
     } catch (err) {
       console.error("[LoginPage] Google sign-in failed:", err);
+      if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+        setStatus("idle");
+        return;
+      }
+      // Fall back to redirect if the environment can't open a popup at all
+      // (e.g. some standalone PWA contexts).
       if (err?.code === "auth/popup-blocked" || err?.code === "auth/operation-not-supported-in-this-environment") {
         try {
           await signInWithRedirect(auth, provider);
@@ -117,10 +116,6 @@ export default function LoginPage() {
         } catch (redirectErr) {
           console.error("[LoginPage] Google redirect fallback failed:", redirectErr);
         }
-      }
-      if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
-        setStatus("idle");
-        return;
       }
       setStatus("error");
       setErrorMsg(err.message || "Google sign-in failed. Please try again.");

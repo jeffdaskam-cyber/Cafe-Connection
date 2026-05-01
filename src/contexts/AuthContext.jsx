@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc, getDoc, setDoc, deleteDoc, serverTimestamp,
+  collection, query, where, getDocs, limit,
+} from "firebase/firestore";
 import { auth, db } from "../firebase.js";
 
 const AuthContext = createContext(null);
@@ -36,6 +39,42 @@ export function AuthProvider({ children }) {
             },
             { merge: true }
           );
+          setAuthError("");
+          setUser(firebaseUser);
+          return;
+        }
+
+        // No role doc under this UID — fall back to email lookup. This handles
+        // the case where the same authorized user signs in via a new provider
+        // (e.g. Google after originally being invited via email link), which
+        // produces a different Firebase UID for the same email.
+        const emailMatch = await getDocs(
+          query(collection(db, "user_roles"), where("email", "==", email), limit(1))
+        );
+        if (!emailMatch.empty) {
+          const existing = emailMatch.docs[0];
+          const existingData = existing.data();
+
+          // Migrate the role doc to the new UID so useRole (keyed by UID) works.
+          await setDoc(roleRef, {
+            ...existingData,
+            uid: firebaseUser.uid,
+          });
+          if (existing.id !== firebaseUser.uid) {
+            await deleteDoc(existing.ref);
+          }
+
+          await setDoc(
+            doc(db, "users", firebaseUser.uid),
+            {
+              uid:         firebaseUser.uid,
+              email:       firebaseUser.email,
+              displayName: firebaseUser.displayName || existingData.displayName || "",
+              lastLoginAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+
           setAuthError("");
           setUser(firebaseUser);
           return;
