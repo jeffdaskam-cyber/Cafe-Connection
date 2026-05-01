@@ -5,7 +5,7 @@ import { launchInviteEmail } from "../../utils/emailLauncher.js";
 import { COLORS } from "../../theme.js";
 
 const ROLES = ["user", "manager", "senior_leader", "administrator"];
-const EXPIRY_MS = 24 * 60 * 60 * 1000;
+const EXPIRY_MS = 72 * 60 * 60 * 1000;
 
 function formatRoleLabel(role) {
   return role
