@@ -1,0 +1,21 @@
+{
+  "name": "Cafe Connection",
+  "short_name": "Cafe Connection",
+  "description": "UCAR Cafe Operations",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#011837",
+  "theme_color": "#011837",
+  "icons": [
+    {
+      "src": "/Icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/Icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
