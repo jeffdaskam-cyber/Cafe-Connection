@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
-import { sendSignInLinkToEmail, signInWithEmailLink, isSignInWithEmailLink } from "firebase/auth";
+import {
+  sendSignInLinkToEmail,
+  signInWithEmailLink,
+  isSignInWithEmailLink,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  signOut,
+} from "firebase/auth";
 import { auth } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
@@ -42,7 +51,7 @@ export default function LoginPage() {
   // idle | sending | sent | completing | crossDevice | error
   const [errorMsg, setErrorMsg] = useState("");
 
-  // On mount: check if this is a magic-link return URL
+  // On mount: handle magic-link return OR Google redirect-result
   useEffect(() => {
     if (isSignInWithEmailLink(auth, window.location.href)) {
       const savedEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
@@ -52,8 +61,71 @@ export default function LoginPage() {
         // Cross-device: link opened on a different device than where it was requested
         setStatus("crossDevice");
       }
+      return;
     }
+
+    // Pick up Google sign-in redirect (used on iOS standalone PWAs where popups are blocked)
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) enforceUcarDomain(result.user);
+      })
+      .catch((err) => {
+        if (err?.code && err.code !== "auth/no-auth-event") {
+          console.error("[LoginPage] Google redirect sign-in failed:", err);
+          setStatus("error");
+          setErrorMsg(err.message || "Google sign-in failed. Please try again.");
+        }
+      });
   }, []);
+
+  async function enforceUcarDomain(firebaseUser) {
+    const userEmail = (firebaseUser.email || "").toLowerCase();
+    if (!userEmail.endsWith("@ucar.edu")) {
+      await signOut(auth);
+      setStatus("error");
+      setErrorMsg("Access is restricted to @ucar.edu email addresses.");
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    setStatus("sending");
+    setErrorMsg("");
+    clearAuthError();
+
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: "ucar.edu", prompt: "select_account" });
+
+    // iOS standalone PWAs block popups; use redirect instead.
+    const isStandalone =
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+
+    try {
+      if (isStandalone) {
+        await signInWithRedirect(auth, provider);
+        // Page will reload; getRedirectResult handles the return.
+        return;
+      }
+      const result = await signInWithPopup(auth, provider);
+      await enforceUcarDomain(result.user);
+    } catch (err) {
+      console.error("[LoginPage] Google sign-in failed:", err);
+      if (err?.code === "auth/popup-blocked" || err?.code === "auth/operation-not-supported-in-this-environment") {
+        try {
+          await signInWithRedirect(auth, provider);
+          return;
+        } catch (redirectErr) {
+          console.error("[LoginPage] Google redirect fallback failed:", redirectErr);
+        }
+      }
+      if (err?.code === "auth/popup-closed-by-user" || err?.code === "auth/cancelled-popup-request") {
+        setStatus("idle");
+        return;
+      }
+      setStatus("error");
+      setErrorMsg(err.message || "Google sign-in failed. Please try again.");
+    }
+  }
 
   async function completeMagicLink(emailForLink) {
     setStatus("completing");
@@ -250,9 +322,42 @@ export default function LoginPage() {
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 8 }}>
               Sign In
             </div>
-            <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, marginBottom: 24, lineHeight: 1.6 }}>
-              Enter your UCAR email and we'll send you a one-click sign-in link.
-              No password required.
+            <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, marginBottom: 20, lineHeight: 1.6 }}>
+              Sign in with your UCAR Google account, or get a one-click email link.
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={isBusy}
+              style={{
+                width: "100%", padding: "11px 0", borderRadius: 8,
+                border: `1px solid ${COLORS.BORDER}`,
+                background: "#fff", color: "#1f1f1f",
+                fontFamily: "'Poppins',sans-serif",
+                fontWeight: 600, fontSize: 13,
+                cursor: isBusy ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                marginBottom: 14, opacity: isBusy ? 0.6 : 1,
+              }}>
+              <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.4-.4-3.5z"/>
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.5 29.3 4.5 24 4.5 16.3 4.5 9.7 8.7 6.3 14.7z"/>
+                <path fill="#4CAF50" d="M24 43.5c5.2 0 9.9-2 13.4-5.3l-6.2-5.2C29.2 34.4 26.7 35.5 24 35.5c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.6 39.3 16.2 43.5 24 43.5z"/>
+                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.6l6.2 5.2c-.4.4 6.6-4.8 6.6-14.8 0-1.2-.1-2.4-.4-3.5z"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              marginBottom: 14,
+            }}>
+              <div style={{ flex: 1, height: 1, background: COLORS.BORDER }} />
+              or email link
+              <div style={{ flex: 1, height: 1, background: COLORS.BORDER }} />
             </div>
 
             {authError && (
