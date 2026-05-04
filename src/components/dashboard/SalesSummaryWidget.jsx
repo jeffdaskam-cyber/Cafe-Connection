@@ -143,11 +143,6 @@ export default function SalesSummaryWidget({ config = {} }) {
         </div>
       ) : (
         <div>
-          <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
-            letterSpacing: "0.08em", textTransform: "uppercase",
-            marginBottom: 4 }}>
-            Month to date · {dayCount} {dayCount === 1 ? "day" : "days"}
-          </div>
           <KpiRow label={isAll ? "Total Net Revenue" : "Net Revenue"}
                   value={fmt$(mtd.net_revenue)} color={accentColor} />
           <KpiRow label="Total Checks" value={fmtInt(mtd.total_checks)} />
