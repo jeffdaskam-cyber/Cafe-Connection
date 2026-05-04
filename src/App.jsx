@@ -179,11 +179,8 @@ function AppShell() {
             )}
           </div>
 
-          {/* Date + user info */}
+          {/* User info */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, zIndex: 1 }}>
-            <div style={{ fontSize: 11, color: "#FFFFFF", fontWeight: 500, letterSpacing: "0.04em" }}>
-              {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{
                 fontSize: 10, color: "#FFFFFF", fontWeight: 500,
