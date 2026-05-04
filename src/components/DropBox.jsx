@@ -46,7 +46,7 @@ function UploadZone({ onDrop, uploadState }) {
       ? (errorMsg || "Upload failed — try again")
     : isDragActive
       ? "Release to upload"
-      : "Drop any campus report · PDF or Excel · campus auto-detected";
+      : "Drop any campus Sales Summary (Excel). Campus is auto-detected.";
 
   return (
     <div {...getRootProps()} style={{
@@ -143,7 +143,7 @@ export default function DropBox() {
   return (
     <Widget
       title="Sales Report Drop Box"
-      subtitle="PDF or Excel · campus auto-detected"
+      subtitle="Drop any campus Sales Summary (Excel). Campus is auto-detected."
       icon="📥"
       accentColor={COLORS.AQUA}
     >
