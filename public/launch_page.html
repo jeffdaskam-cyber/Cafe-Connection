@@ -66,11 +66,8 @@
     }
     .brand { display: flex; align-items: center; gap: 14px; }
     .brand-text { display: flex; flex-direction: column; line-height: 1; }
-    .brand-eyebrow {
-      font-size: 9.5px; font-weight: 700; letter-spacing: 0.20em;
-      text-transform: uppercase; color: var(--light-aqua); margin-bottom: 4px;
-    }
-    .brand-name { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+    .brand-wordmark { font-size: 18px; font-weight: 800; letter-spacing: 0.02em; color: #FFFFFF; }
+    .brand-wordmark .brand-ucar { color: var(--ucar-aqua); }
 
     .topnav { display: flex; gap: 4px; }
     .topnav a {
@@ -679,9 +676,8 @@
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <div class="brand-text">
-        <span class="brand-eyebrow">UCAR · Internal</span>
-        <span class="brand-name">Cafe Connection</span>
+      <div class="brand-wordmark">
+        <span class="brand-ucar">UCAR</span> Cafe Connection
       </div>
     </div>
     <nav class="topnav" aria-label="Page sections">
