@@ -240,12 +240,10 @@ export default function DashboardPage() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
             <div style={{ fontSize: 21, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 6 }}>
-              Welcome back, {displayName}.
+              Welcome back, <span style={{ color: COLORS.AQUA, fontStyle: "italic" }}>{displayName}</span>.
             </div>
             <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, fontWeight: 500, lineHeight: 1.65 }}>
-              {enabledWidgets.length > 0
-                ? `Your dashboard — ${enabledWidgets.length} widget${enabledWidgets.length !== 1 ? "s" : ""} active`
-                : "No widgets enabled. Click Edit Dashboard to choose what to show here."}
+              {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </div>
             {saveErr && (
               <div style={{ fontSize: 11, color: COLORS.WARNING, marginTop: 8 }}>

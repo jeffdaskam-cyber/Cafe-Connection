@@ -28,13 +28,13 @@ export function AuthProvider({ children }) {
         const roleSnap = await getDoc(roleRef);
 
         if (roleSnap.exists()) {
-          // Upsert lightweight user profile for display-name tracking
+          // Upsert lightweight user profile. displayName is intentionally omitted
+          // so admin-set names are never overwritten by the Google Auth profile on login.
           await setDoc(
             doc(db, "users", firebaseUser.uid),
             {
               uid:         firebaseUser.uid,
               email:       firebaseUser.email,
-              displayName: firebaseUser.displayName || roleSnap.data().displayName || "",
               lastLoginAt: serverTimestamp(),
             },
             { merge: true }
