@@ -94,7 +94,7 @@ async function getAccessToken() {
 // ─── Drive helpers ────────────────────────────────────────────────────────────
 async function findInFolder(token, parentId, name) {
   // Escape single quotes in the name to prevent Drive query injection.
-  const safeName = name.replace(/'/g, "\\'");
+  const safeName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const q   = `'${parentId}' in parents and name = '${safeName}' and trashed = false`;
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
   const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
