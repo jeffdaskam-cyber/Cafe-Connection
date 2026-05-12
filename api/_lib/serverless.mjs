@@ -61,7 +61,7 @@ export function respondWithInternalError(res, scope, err, extra = {}) {
 }
 
 export function escapeDriveQueryValue(value) {
-  return String(value).replace(/'/g, "\\'");
+  return String(value).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
 export function isValidStorageUrl(url, allowedBucket) {
