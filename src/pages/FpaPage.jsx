@@ -37,6 +37,7 @@ import {
   expenseTypeAsPctOfRevenue,
   monthlySupportLevel,
   supportLevelFYTD,
+  supportLevelFYTDForMonthKey,
   deriveFiscalYearsFromFacts,
   defaultFiscalYearFromFacts,
   latestMonthKey,
@@ -435,25 +436,47 @@ function ExpensePctChart({ data, loading }) {
 }
 
 // ── Chart: Monthly Support Level (Report 8) ──────────────────────────────────
-function SupportLevelChart({ data, fytdTotal = 0, loading }) {
-  const fytdChip = (
-    <div style={{
-      display: "flex", flexDirection: "column", alignItems: "flex-end",
-      background: `${COLORS.AQUA}14`,
-      border: `1px solid ${COLORS.AQUA}30`,
-      borderRadius: 8,
-      padding: "4px 10px",
-      lineHeight: 1.1,
-    }}>
-      <span style={{
-        fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
-        textTransform: "uppercase", color: COLORS.TEXT_MUTED,
-        fontFamily: "'Poppins',sans-serif",
-      }}>FYTD Total</span>
-      <span style={{
-        fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
-        fontFamily: "'Poppins',sans-serif", marginTop: 1,
-      }}>{fmtCurrency(fytdTotal)}</span>
+function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
+  const headerRight = (
+    <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+      {stlyTotal !== null && (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "flex-end",
+          background: `${COLORS.ORANGE}14`,
+          border: `1px solid ${COLORS.ORANGE}40`,
+          borderRadius: 8,
+          padding: "4px 10px",
+          lineHeight: 1.1,
+        }}>
+          <span style={{
+            fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: COLORS.TEXT_MUTED,
+            fontFamily: "'Poppins',sans-serif",
+          }}>STLY Total</span>
+          <span style={{
+            fontSize: 13, fontWeight: 700, color: COLORS.ORANGE,
+            fontFamily: "'Poppins',sans-serif", marginTop: 1,
+          }}>{fmtCurrency(stlyTotal)}</span>
+        </div>
+      )}
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "flex-end",
+        background: `${COLORS.AQUA}14`,
+        border: `1px solid ${COLORS.AQUA}30`,
+        borderRadius: 8,
+        padding: "4px 10px",
+        lineHeight: 1.1,
+      }}>
+        <span style={{
+          fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: COLORS.TEXT_MUTED,
+          fontFamily: "'Poppins',sans-serif",
+        }}>FYTD Total</span>
+        <span style={{
+          fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
+          fontFamily: "'Poppins',sans-serif", marginTop: 1,
+        }}>{fmtCurrency(fytdTotal)}</span>
+      </div>
     </div>
   );
   return (
@@ -463,7 +486,7 @@ function SupportLevelChart({ data, fytdTotal = 0, loading }) {
       loading={loading}
       empty={!loading && data.length === 0}
       emptyMessage="No monthly data for the selected fiscal year"
-      headerRight={fytdChip}>
+      headerRight={headerRight}>
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} margin={{ top: 14, right: 16, left: 8, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLORS.CHART_GRID} vertical={false} />
@@ -472,10 +495,13 @@ function SupportLevelChart({ data, fytdTotal = 0, loading }) {
           <YAxis tick={{ fill: COLORS.CHART_AXIS, fontSize: 10, fontFamily: "'Poppins'" }}
             tickLine={false} axisLine={false} tickFormatter={fmtCurrencyK} />
           <Tooltip content={<CurrencyTooltip />} />
-          <Bar dataKey="supportLevel" name="Support Level" fill={COLORS.AQUA_DARK} radius={[3, 3, 0, 0]}>
+          <Legend wrapperStyle={{ fontSize: 11, fontFamily: "'Poppins'" }} />
+          <Bar dataKey="supportLevel" name="This Year" fill={COLORS.AQUA_DARK} radius={[3, 3, 0, 0]}>
             <LabelList dataKey="supportLevel" position="top" formatter={fmtCurrencyK}
               style={{ fill: COLORS.TEXT_SECONDARY, fontSize: 9, fontFamily: "'Poppins'" }} />
           </Bar>
+          <Bar dataKey="stlySupportLevel" name="Prior Year" fill={COLORS.ORANGE}
+            radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Widget>
@@ -549,6 +575,26 @@ export default function FpaPage() {
   const expPct      = useMemo(() => expenseTypeAsPctOfRevenue(factsForToggleable, activeFY, latestKey), [factsForToggleable, activeFY, latestKey]);
   const support     = useMemo(() => monthlySupportLevel(factsForSupportLevel, activeFY), [factsForSupportLevel, activeFY]);
   const supportFYTD = useMemo(() => supportLevelFYTD(factsForSupportLevel, activeFY), [factsForSupportLevel, activeFY]);
+  const priorFY = activeFY - 1;
+  const supportSTLY = useMemo(() => monthlySupportLevel(factsForSupportLevel, priorFY), [factsForSupportLevel, priorFY]);
+  const supportMerged = useMemo(() => {
+    const stlyByFM = Object.fromEntries(
+      supportSTLY.map(d => [d.fiscalMonthNumber, d.supportLevel])
+    );
+    return support.map(d => ({
+      ...d,
+      stlySupportLevel: stlyByFM[d.fiscalMonthNumber] ?? null,
+    }));
+  }, [support, supportSTLY]);
+  const supportFYTDSTLY = useMemo(() => {
+    if (supportSTLY.length === 0) return null;
+    const currentMaxFM = support.length > 0
+      ? Math.max(...support.map(d => d.fiscalMonthNumber))
+      : 0;
+    const matchingRow = supportSTLY.find(d => d.fiscalMonthNumber === currentMaxFM);
+    if (!matchingRow) return null;
+    return supportLevelFYTDForMonthKey(factsForSupportLevel, priorFY, matchingRow.monthKey);
+  }, [support, supportSTLY, factsForSupportLevel, priorFY]);
   const latestLabel = latestKey
     ? new Date(Number(latestKey.split("-")[0]), Number(latestKey.split("-")[1]) - 1, 1)
         .toLocaleDateString("en-US", { month: "short", year: "numeric" })
@@ -710,7 +756,12 @@ export default function FpaPage() {
       {/* ── Row 5: Expense % + Support level ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 28 }}>
         <ExpensePctChart data={expPct} loading={factsLoading} />
-        <SupportLevelChart data={support} fytdTotal={supportFYTD} loading={factsLoading} />
+        <SupportLevelChart
+          data={supportMerged}
+          fytdTotal={supportFYTD}
+          stlyTotal={supportFYTDSTLY}
+          loading={factsLoading}
+        />
       </div>
 
       {/* ── Upload panel ── */}

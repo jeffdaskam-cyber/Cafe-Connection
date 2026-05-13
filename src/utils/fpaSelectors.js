@@ -221,6 +221,23 @@ export function supportLevelFYTD(facts, fiscalYear) {
   return expense - revenue;
 }
 
+// FYTD support level anchored to a specific month key — used for STLY pill
+// so the prior-year total is capped at the matching fiscal month, not the
+// prior year's own latest upload.
+export function supportLevelFYTDForMonthKey(facts, fiscalYear, monthKey) {
+  if (!monthKey) return 0;
+  const slice = facts.filter(f =>
+    f.fiscalYear === fiscalYear &&
+    f.monthKey === monthKey &&
+    f.campus !== "ES Admin"
+  );
+  const revenue = sumByPredicate(slice, "ytdAmount",
+    f => REVENUE_NORMALIZED_NAMES.includes(f.normalizedName));
+  const expense = sumByPredicate(slice, "ytdAmount",
+    f => EXPENSE_NORMALIZED_NAMES.includes(f.normalizedName));
+  return expense - revenue;
+}
+
 // ── Fiscal year helper for the UI ────────────────────────────────────────────
 export function deriveFiscalYearsFromFacts(facts) {
   return listFiscalYears(facts);
