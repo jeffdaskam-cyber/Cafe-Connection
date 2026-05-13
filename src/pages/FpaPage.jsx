@@ -439,6 +439,24 @@ function ExpensePctChart({ data, loading }) {
 function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
   const headerRight = (
     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "flex-end",
+        background: `${COLORS.AQUA}14`,
+        border: `1px solid ${COLORS.AQUA}30`,
+        borderRadius: 8,
+        padding: "4px 10px",
+        lineHeight: 1.1,
+      }}>
+        <span style={{
+          fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
+          textTransform: "uppercase", color: COLORS.TEXT_MUTED,
+          fontFamily: "'Poppins',sans-serif",
+        }}>FYTD Total</span>
+        <span style={{
+          fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
+          fontFamily: "'Poppins',sans-serif", marginTop: 1,
+        }}>{fmtCurrency(fytdTotal)}</span>
+      </div>
       {stlyTotal !== null && (
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "flex-end",
@@ -459,24 +477,6 @@ function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
           }}>{fmtCurrency(stlyTotal)}</span>
         </div>
       )}
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "flex-end",
-        background: `${COLORS.AQUA}14`,
-        border: `1px solid ${COLORS.AQUA}30`,
-        borderRadius: 8,
-        padding: "4px 10px",
-        lineHeight: 1.1,
-      }}>
-        <span style={{
-          fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
-          textTransform: "uppercase", color: COLORS.TEXT_MUTED,
-          fontFamily: "'Poppins',sans-serif",
-        }}>FYTD Total</span>
-        <span style={{
-          fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
-          fontFamily: "'Poppins',sans-serif", marginTop: 1,
-        }}>{fmtCurrency(fytdTotal)}</span>
-      </div>
     </div>
   );
   return (
@@ -501,7 +501,10 @@ function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
               style={{ fill: COLORS.TEXT_SECONDARY, fontSize: 9, fontFamily: "'Poppins'" }} />
           </Bar>
           <Bar dataKey="stlySupportLevel" name="Prior Year" fill={COLORS.ORANGE}
-            radius={[3, 3, 0, 0]} />
+            radius={[3, 3, 0, 0]}>
+            <LabelList dataKey="stlySupportLevel" position="top" formatter={fmtCurrencyK}
+              style={{ fill: COLORS.ORANGE, fontSize: 9, fontFamily: "'Poppins'" }} />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </Widget>
