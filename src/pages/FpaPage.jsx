@@ -43,6 +43,7 @@ import {
   latestMonthKey,
 } from "../utils/fpaSelectors.js";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
+import { exportAgentJson } from "../utils/fpaExport.js";
 
 // ── Palettes ─────────────────────────────────────────────────────────────────
 // Restrained palette for stacked segments (revenue types, expense types).
@@ -517,6 +518,56 @@ function filterOutEsAdmin(facts) {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
+function AgentExportPanel({ accentColor = COLORS.AQUA }) {
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState(null);
+
+  async function handleExport() {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await exportAgentJson();
+    } catch (err) {
+      console.error("[FPA Export]", err);
+      setExportError("Export failed. Check console for details.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  return (
+    <Widget title="Export for Financial Agent"
+      subtitle="Download a JSON data file to use with the Cafe Connection financial analyst agent."
+      accentColor={accentColor}>
+      <button
+        onClick={handleExport}
+        disabled={isExporting}
+        style={{
+          background: "transparent",
+          border: `1px solid ${accentColor}`,
+          color: accentColor,
+          padding: "8px 18px",
+          borderRadius: RADIUS.SM,
+          cursor: isExporting ? "not-allowed" : "pointer",
+          opacity: isExporting ? 0.6 : 1,
+          fontFamily: "'Poppins',sans-serif",
+          fontWeight: 600,
+          fontSize: 12,
+          letterSpacing: "0.04em",
+        }}
+      >
+        {isExporting ? "Preparing export…" : "Export JSON"}
+      </button>
+      {exportError && (
+        <div style={{ color: COLORS.WARNING, fontSize: 11, marginTop: 10,
+          fontFamily: "'Poppins',sans-serif" }}>
+          {exportError}
+        </div>
+      )}
+    </Widget>
+  );
+}
+
 export default function FpaPage() {
   const { role } = useRole();
   const canSeeUploadZone = canSeeWidget(role, "fpa_report_dropbox");
@@ -769,10 +820,15 @@ export default function FpaPage() {
 
       {/* ── Upload panel ── */}
       {canSeeUploadZone && (
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ marginBottom: 22 }}>
           <FpaUploadZone />
         </div>
       )}
+
+      {/* ── Agent export panel ── */}
+      <div style={{ marginBottom: 28 }}>
+        <AgentExportPanel />
+      </div>
 
       {/* ── Footer ── */}
       <div style={{ marginTop: 8, textAlign: "center", fontSize: 10, color: COLORS.TEXT_DISABLED,
