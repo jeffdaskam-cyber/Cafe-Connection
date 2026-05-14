@@ -7,7 +7,7 @@
  *   - Weekly Packet              ✅  schedule + BEOs + setup + event PDFs
  */
 
-import CafeChargesReport  from "../components/CafeChargesReport.jsx";
+import FpaReport from "../components/reports/FpaReport.jsx";
 import WeeklyPacketReport from "../components/reports/WeeklyPacketReport.jsx";
 import AccountingReport   from "../components/reports/AccountingReport.jsx";
 
@@ -36,7 +36,7 @@ export default function ReportsPage() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
         marginBottom: 32, animation: "ucar-fadein .5s ease both" }}>
         <AccountingReport />
-        <CafeChargesReport />
+        <FpaReport />
       </div>
 
       {/* ── Operations reports ── */}
