@@ -92,16 +92,17 @@ function buildDocument({
   const narrativeParagraphs = (text) =>
     text.split("\n\n").map((para) => bodyText(para));
 
-  const IMG_WIDTH = 9000;
+  // docx ImageRun.transformation is in pixels (96 DPI). 600px ≈ 6.25" wide.
+  const IMG_WIDTH = 600;
   const imgHeight = (capturedH, capturedW) => Math.round(IMG_WIDTH * capturedH / capturedW);
-  const chartImage = (data, widthDxa, heightDxa, description) =>
+  const chartImage = (data, widthPx, heightPx, description) =>
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 120, after: 200 },
       children: [new ImageRun({
         type: "png",
         data,
-        transformation: { width: widthDxa, height: heightDxa },
+        transformation: { width: widthPx, height: heightPx },
         altText: { title: description, description, name: description },
       })],
     });
