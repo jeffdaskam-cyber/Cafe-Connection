@@ -14,8 +14,6 @@ import MobileSchedulePage     from "./pages/mobile/MobileSchedulePage.jsx";
 import MobileSpecialsPage     from "./pages/mobile/MobileSpecialsPage.jsx";
 import MobileOpsPage          from "./pages/mobile/MobileOpsPage.jsx";
 import MobileEventOrdersPage  from "./pages/mobile/MobileEventOrdersPage.jsx";
-import MobileEventReportPage  from "./pages/mobile/MobileEventReportPage.jsx";
-import MobileSetUpReportPage  from "./pages/mobile/MobileSetUpReportPage.jsx";
 import { COLORS, FONT } from "./theme";
 
 const TABS = [
@@ -41,18 +39,13 @@ const TABS = [
     id:    "ops",
     label: "Ops",
     icon:  "⚙️",
-    subItems: [
-      { id: "cash-drop",    label: "Cash Drop" },
-      { id: "event-report", label: "Event Report" },
-      { id: "setup-report", label: "Set Up Report" },
-    ],
   },
 ];
 
 export default function MobileApp() {
   const { user, loading, logout } = useAuth();
   const [activeTab,     setActiveTab]     = useState("schedule");
-  const [activeSubView, setActiveSubView] = useState({ beos: "event-orders", ops: "cash-drop" });
+  const [activeSubView, setActiveSubView] = useState({ beos: "event-orders" });
   const [subMenuOpen,   setSubMenuOpen]   = useState(false);
 
   if (loading) {
@@ -94,11 +87,7 @@ export default function MobileApp() {
     if (activeTab === "beos") {
       if (activeSubView.beos === "event-orders") return <MobileEventOrdersPage />;
     }
-    if (activeTab === "ops") {
-      if (activeSubView.ops === "cash-drop")    return <MobileOpsPage />;
-      if (activeSubView.ops === "event-report") return <MobileEventReportPage />;
-      if (activeSubView.ops === "setup-report") return <MobileSetUpReportPage />;
-    }
+    if (activeTab === "ops") return <MobileOpsPage />;
     return null;
   }
 
