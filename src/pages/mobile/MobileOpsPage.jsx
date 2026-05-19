@@ -163,9 +163,9 @@ const sectionStyle  = {
   marginBottom: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
 };
 const inputStyle = {
-  width: "100%", borderRadius: 8, border: `1px solid ${COLORS.BORDER_STRONG}`,
+  width: "100%", minWidth: 0, borderRadius: 8, border: `1px solid ${COLORS.BORDER_STRONG}`,
   fontSize: 14, padding: "10px 12px", boxSizing: "border-box",
-  fontFamily: "inherit",
+  fontFamily: "inherit", WebkitAppearance: "none", appearance: "none",
 };
 const buttonStyle = (disabled) => ({
   background:    disabled ? COLORS.TEXT_DISABLED : COLORS.AQUA,
