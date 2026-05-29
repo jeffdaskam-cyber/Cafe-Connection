@@ -1,7 +1,6 @@
 /**
- * MobileOpsPage — mobile-friendly ops: Cash Drop.
- *
- * Cash Drops are per-campus, using addCashDrop / subscribeRecentCashDrops.
+ * MobileOpsPage — Cash Drop, Event Report, and Set Up Report stacked
+ * vertically, each rendered with the full desktop widget style.
  */
 
 import { useState, useEffect } from "react";
@@ -11,6 +10,8 @@ import {
   subscribeRecentCashDrops,
 } from "../../firebase.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import EventReportDashWidget from "../../components/dashboard/EventReportDashWidget.jsx";
+import SetUpReportWidget     from "../../components/dashboard/SetUpReportWidget.jsx";
 import { COLORS } from "../../theme.js";
 
 const CAMPUSES = ["Center Green", "Foothills", "Mesa Lab"];
@@ -20,13 +21,21 @@ export default function MobileOpsPage() {
 
   return (
     <div style={{ padding: 16 }}>
-      <h2 style={headingStyle}>Weekly Ops</h2>
+      <h2 style={headingStyle}>Ops</h2>
 
       <select value={campus} onChange={(e) => setCampus(e.target.value)} style={selectStyle}>
         {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
 
       <CashDropSection campus={campus} />
+
+      <div style={{ marginTop: 16 }}>
+        <EventReportDashWidget config={{}} />
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <SetUpReportWidget config={{}} />
+      </div>
     </div>
   );
 }
@@ -154,7 +163,7 @@ function CashDropSection({ campus }) {
                   <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
                     {d.date || fmtDate(d.created_at)}
                     {d.bag_number ? ` \u2014 Bag #${d.bag_number}` : ""}
-                    {d.notes ? ` \u2014 ${d.notes}` : ""}
+                    {d.notes ? ` — ${d.notes}` : ""}
                   </span>
                 </div>
               ))}
@@ -177,12 +186,12 @@ const selectStyle   = {
 };
 const sectionStyle  = {
   background: COLORS.BG_SURFACE, borderRadius: 10, padding: 16,
-  marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+  marginBottom: 0, boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
 };
 const inputStyle = {
-  width: "100%", borderRadius: 8, border: `1px solid ${COLORS.BORDER_STRONG}`,
+  width: "100%", minWidth: 0, borderRadius: 8, border: `1px solid ${COLORS.BORDER_STRONG}`,
   fontSize: 14, padding: "10px 12px", boxSizing: "border-box",
-  fontFamily: "inherit",
+  fontFamily: "inherit", WebkitAppearance: "none", appearance: "none",
 };
 const buttonStyle = (disabled) => ({
   background:    disabled ? COLORS.TEXT_DISABLED : COLORS.AQUA,
