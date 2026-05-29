@@ -147,12 +147,23 @@ export async function saveCafeSpecials(weekOf, campus, body, uid, email) {
   }, { merge: true });
 }
 
-export async function addCashDrop({ campus, amount, date, notes, uid, email }) {
+export async function isBagNumberTaken(bagNumber) {
+  const q = query(
+    collection(db, "cash_drops"),
+    where("bag_number", "==", bagNumber.trim()),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+}
+
+export async function addCashDrop({ campus, amount, date, notes, bag_number, uid, email }) {
   await addDoc(collection(db, "cash_drops"), {
     campus,
     amount: Number(amount),
     date,
     notes: notes || "",
+    bag_number: bag_number.trim(),
     created_by: email,
     created_by_uid: uid,
     created_at: serverTimestamp(),

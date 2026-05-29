@@ -7,6 +7,7 @@
 import { useState, useEffect } from "react";
 import {
   addCashDrop,
+  isBagNumberTaken,
   subscribeRecentCashDrops,
 } from "../../firebase.js";
 import { useAuth } from "../../contexts/AuthContext.jsx";
@@ -37,9 +38,11 @@ function CashDropSection({ campus }) {
   const [amount,  setAmount]  = useState("");
   const [date,    setDate]    = useState(() => new Date().toISOString().slice(0, 10));
   const [notes,   setNotes]   = useState("");
+  const [bagNumber, setBagNumber] = useState("");
   const [saving,  setSaving]  = useState(false);
   const [recent,  setRecent]  = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -53,18 +56,30 @@ function CashDropSection({ campus }) {
   async function handleSubmit() {
     const num = parseFloat(amount);
     if (isNaN(num) || num <= 0 || !user) return;
+    if (!bagNumber.trim()) {
+      setError("Please enter the bag number.");
+      return;
+    }
+    const taken = await isBagNumberTaken(bagNumber);
+    if (taken) {
+      setError(`Bag #${bagNumber.trim()} has already been used. Check the number and try again.`);
+      return;
+    }
     setSaving(true);
+    setError(null);
     try {
       await addCashDrop({
         campus,
         amount: num,
         date,
         notes,
+        bag_number: bagNumber,
         uid:   user.uid,
         email: user.email,
       });
       setAmount("");
       setNotes("");
+      setBagNumber("");
       setDate(new Date().toISOString().slice(0, 10));
     } catch (err) {
       console.error("[MobileOpsPage] Cash drop error:", err);
@@ -104,11 +119,21 @@ function CashDropSection({ campus }) {
             />
             <input
               type="text"
+              placeholder="Bag Number"
+              value={bagNumber}
+              onChange={(e) => { setBagNumber(e.target.value); setError(null); }}
+              style={inputStyle}
+            />
+            <input
+              type="text"
               placeholder="Notes (optional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               style={inputStyle}
             />
+            {error && (
+              <p style={{ fontSize: 12, color: COLORS.WARNING, margin: 0 }}>{error}</p>
+            )}
             <button
               onClick={handleSubmit}
               disabled={saving || !amount}
@@ -128,6 +153,7 @@ function CashDropSection({ campus }) {
                   <span style={{ fontWeight: 600 }}>{fmtMoney(d.amount)}</span>
                   <span style={{ color: COLORS.TEXT_MUTED, fontSize: 12 }}>
                     {d.date || fmtDate(d.created_at)}
+                    {d.bag_number ? ` \u2014 Bag #${d.bag_number}` : ""}
                     {d.notes ? ` \u2014 ${d.notes}` : ""}
                   </span>
                 </div>

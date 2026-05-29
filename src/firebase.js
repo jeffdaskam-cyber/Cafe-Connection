@@ -9,6 +9,7 @@ export {
   getCafeChargesData,
   getDashboardNotes,
   getEventOrdersByWeek,
+  isBagNumberTaken,
   saveCafeSpecials,
   saveDashboardPrefs,
   saveEventReport,

@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { addCashDrop, removeCashDrop, subscribeRecentCashDrops } from "../firebase.js";
+import { addCashDrop, removeCashDrop, subscribeRecentCashDrops, isBagNumberTaken } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import Widget from "./Widget.jsx";
 import { COLORS, RADIUS } from "../theme.js";
@@ -34,6 +34,7 @@ export default function CashDrop({ campus }) {
   const [amount, setAmount] = useState("");
   const [date,   setDate]   = useState(() => new Date().toISOString().slice(0, 10));
   const [notes,  setNotes]  = useState("");
+  const [bagNumber, setBagNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
   const [error,  setError]  = useState(null);
@@ -59,6 +60,15 @@ export default function CashDrop({ campus }) {
       return;
     }
     if (!user) return;
+    if (!bagNumber.trim()) {
+      setError("Please enter the bag number.");
+      return;
+    }
+    const taken = await isBagNumberTaken(bagNumber);
+    if (taken) {
+      setError(`Bag #${bagNumber.trim()} has already been used. Check the number and try again.`);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -67,11 +77,13 @@ export default function CashDrop({ campus }) {
         amount: Number(amount),
         date,
         notes,
+        bag_number: bagNumber,
         uid:   user.uid,
         email: user.email,
       });
       setAmount("");
       setNotes("");
+      setBagNumber("");
       setDate(new Date().toISOString().slice(0, 10));
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -153,6 +165,25 @@ export default function CashDrop({ campus }) {
           </div>
         </div>
 
+        {/* Bag Number */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{
+            fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
+            letterSpacing: "1.1px", textTransform: "uppercase",
+            marginBottom: 6, fontFamily: "'Poppins',sans-serif"
+          }}>Bag Number</div>
+          <input
+            type="text"
+            placeholder="e.g. 1042"
+            value={bagNumber}
+            onChange={e => { setBagNumber(e.target.value); setError(null); }}
+            style={{
+              ...inputStyle,
+              borderColor: error && !bagNumber.trim() ? `${COLORS.WARNING}88` : COLORS.BORDER,
+            }}
+          />
+        </div>
+
         {/* Notes */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600,
@@ -223,6 +254,7 @@ export default function CashDrop({ campus }) {
                     fontFamily: "'Poppins',sans-serif", marginTop: 1 }}>
                     {drop.date && new Date(drop.date + "T12:00:00").toLocaleDateString("en-US",
                       { month: "short", day: "numeric", year: "numeric" })}
+                    {drop.bag_number ? ` · Bag #${drop.bag_number}` : ""}
                     {drop.notes ? ` · ${drop.notes}` : ""}
                   </div>
                 </div>

@@ -191,20 +191,20 @@ export const CAFE_SPECIALS_SCHEMA = {
 /**
  * cash_drops
  * Daily cash drop submissions from cafe staff.
+ * Written by addCashDrop(); read by subscribeRecentCashDrops() (per-campus,
+ * ordered by created_at desc).
  *
  * Document ID: auto-generated Firestore ID
  */
 export const CASH_DROPS_SCHEMA = {
-  campus:      "String — one of CAMPUSES",
-  dropDate:    "Timestamp — business date of the drop",
-  weekOf:      "String — ISO Monday date of the drop's week",
-  amount:      "Number — cash amount dropped",
-  submittedBy: "String — UID of the submitting staff member",
-  notes:       "String? — optional notes (e.g. discrepancy explanation)",
-  created_by:  "String — UID",
-  created_at:  "Timestamp",
-  updated_at:  "Timestamp",
-  status:      "String — 'submitted' | 'verified' | 'flagged'",
+  campus:         "String — one of CAMPUSES",
+  date:           "String — ISO date 'YYYY-MM-DD' of the drop (business date)",
+  amount:         "Number — cash amount dropped",
+  bag_number:     "String — physical cash bag identifier; must be unique across all cash_drops documents",
+  notes:          "String — optional notes (e.g. discrepancy explanation); '' when omitted",
+  created_by:     "String — email of the submitting user",
+  created_by_uid: "String — Firebase Auth UID of the submitting user",
+  created_at:     "Timestamp — server timestamp",
 };
 
 /**
