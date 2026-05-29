@@ -55,6 +55,7 @@ export default function CashDrop({ campus }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (saving) return;
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       setError("Please enter a valid amount.");
       return;
@@ -64,14 +65,16 @@ export default function CashDrop({ campus }) {
       setError("Please enter the bag number.");
       return;
     }
-    const taken = await isBagNumberTaken(bagNumber);
-    if (taken) {
-      setError(`Bag #${bagNumber.trim()} has already been used. Check the number and try again.`);
-      return;
-    }
+    // Lock submission before the awaited uniqueness check so a double-click
+    // can't run two checks (and two writes) with the same bag number.
     setSaving(true);
     setError(null);
     try {
+      const taken = await isBagNumberTaken(bagNumber);
+      if (taken) {
+        setError(`Bag #${bagNumber.trim()} has already been used. Check the number and try again.`);
+        return;
+      }
       await addCashDrop({
         campus,
         amount: Number(amount),
