@@ -472,7 +472,7 @@ function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
             fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
             textTransform: "uppercase", color: COLORS.TEXT_MUTED,
             fontFamily: "'Poppins',sans-serif",
-          }}>YoY Delta</span>
+          }}>YoY Δ</span>
           <span style={{
             fontSize: 13, fontWeight: 700, color: COLORS.ORANGE,
             fontFamily: "'Poppins',sans-serif", marginTop: 1,
