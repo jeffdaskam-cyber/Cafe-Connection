@@ -476,7 +476,7 @@ function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
           <span style={{
             fontSize: 13, fontWeight: 700, color: COLORS.ORANGE,
             fontFamily: "'Poppins',sans-serif", marginTop: 1,
-          }}>{yoyΔ >= 0 ? "+" : ""}{fmtCurrency(yoyΔ)}</span>
+          }}>{yoyDelta >= 0 ? "+" : ""}{fmtCurrency(yoyDelta)}</span>
         </div>
       )}
     </div>
