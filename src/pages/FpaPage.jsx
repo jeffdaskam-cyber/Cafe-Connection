@@ -438,6 +438,7 @@ function ExpensePctChart({ data, loading }) {
 
 // ── Chart: Monthly Support Level (Report 8) ──────────────────────────────────
 function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
+  const yoyDelta = stlyTotal !== null ? fytdTotal - stlyTotal : null;
   const headerRight = (
     <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
       <div style={{
@@ -471,11 +472,11 @@ function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
             fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
             textTransform: "uppercase", color: COLORS.TEXT_MUTED,
             fontFamily: "'Poppins',sans-serif",
-          }}>STLY Total</span>
+          }}>YoY Delta</span>
           <span style={{
             fontSize: 13, fontWeight: 700, color: COLORS.ORANGE,
             fontFamily: "'Poppins',sans-serif", marginTop: 1,
-          }}>{fmtCurrency(stlyTotal)}</span>
+          }}>{yoyDelta >= 0 ? "+" : ""}{fmtCurrency(yoyDelta)}</span>
         </div>
       )}
     </div>
