@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/main.jsx",
+    "src/App.jsx",
+    "api/**/*.{js,mjs}",
+    "vite.config.js",
+    "eslint.config.js"
+  ],
+  "project": ["src/**/*.{js,jsx}", "api/**/*.{js,mjs}"],
+  "ignore": [".claude/**", "dist/**", "test/**"],
+  "ignoreDependencies": ["firebase-admin"]
+}
