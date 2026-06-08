@@ -90,10 +90,14 @@ export async function exportAgentJson() {
       byMonth[monthKey] = { monthKey, monthLabel, fiscalYear, fiscalMonthNumber, campuses: {} };
     }
     if (!byMonth[monthKey].campuses[campus]) byMonth[monthKey].campuses[campus] = {};
-    byMonth[monthKey].campuses[campus][normalizedName] = {
-      mtd: mtdAmount ?? 0,
-      ytd: ytdAmount ?? 0,
-    };
+    // Accumulate rather than assign: several ledger codes share a normalizedName
+    // (e.g. 5051 "Benefits - Applied" and 9989 "Final Rate-Full Benefits" both
+    // normalize to "Benefits"). Keying by normalizedName means the second fact
+    // would otherwise clobber the first; summing keeps both.
+    const bucket = byMonth[monthKey].campuses[campus][normalizedName] ?? { mtd: 0, ytd: 0 };
+    bucket.mtd += mtdAmount ?? 0;
+    bucket.ytd += ytdAmount ?? 0;
+    byMonth[monthKey].campuses[campus][normalizedName] = bucket;
   }
 
   // ── daily_metrics → volumeAccum[monthKey][campus] = { net_revenue, total_checks }
