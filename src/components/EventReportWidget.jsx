@@ -136,7 +136,6 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
     <>
       <Widget
         title="Event Report"
-        subtitle={firestoreWeekLabel}
         icon="📋"
         accentColor={COLORS.AQUA}
         actions={[
