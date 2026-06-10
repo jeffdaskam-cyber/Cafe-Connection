@@ -40,6 +40,13 @@ service cloud.firestore {
       return campus in ['Mesa Lab', 'Foothills', 'Center Green'];
     }
 
+    // Manager-or-above check against the /user_roles/{uid} document
+    function isManagerOrAbove() {
+      return isAuthedUCAR() &&
+             get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role in
+               ['manager', 'senior_leader', 'administrator'];
+    }
+
     // ── daily_metrics ──────────────────────────────────────────────────────
     // Read: any authenticated UCAR user
     // Write: server-side only (Admin SDK via /api/parse-report)
@@ -216,6 +223,15 @@ service cloud.firestore {
       allow read: if isAuthedUCAR();
       allow write: if isAuthedUCAR() &&
                       get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
+    }
+
+    // ── event_report_entries ───────────────────────────────────────────────
+    // Native event report authoring (one document per event booking)
+    // Read: any authenticated UCAR user
+    // Create/Update/Delete: manager, senior_leader, or administrator only
+    match /event_report_entries/{entryId} {
+      allow read: if isAuthedUCAR();
+      allow create, update, delete: if isManagerOrAbove();
     }
 
     // ── Catch-all: deny everything not explicitly matched ──────────────────
