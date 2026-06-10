@@ -53,6 +53,15 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
   const [firestoreEntries, setFirestoreEntries] = useState([]);
   const [firestoreLoading, setFirestoreLoading] = useState(false);
   const [firestoreError, setFirestoreError] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Close preview on Escape
+  useEffect(() => {
+    if (!previewOpen) return;
+    const handler = (e) => { if (e.key === "Escape") setPreviewOpen(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [previewOpen]);
 
   // Follow the page-level week selector when it changes
   useEffect(() => {
@@ -108,6 +117,21 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
     ? `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
     : `${window.location.origin}?tab=weekly-ops`;
 
+  // Print the preview content in a clean window (inline styles carry over)
+  const handlePrint = () => {
+    const el = document.getElementById("event-report-preview-content");
+    if (!el) return;
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(
+      `<!doctype html><html><head><title>Event Report — ${firestoreWeekLabel}</title></head>` +
+      `<body style="margin:24px">${el.innerHTML}</body></html>`
+    );
+    win.document.close();
+    win.focus();
+    win.print();
+  };
+
   return (
     <>
       <Widget
@@ -116,6 +140,11 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
         icon="📋"
         accentColor={COLORS.AQUA}
         actions={[
+          {
+            icon: "👁",
+            label: "Preview",
+            onClick: () => setPreviewOpen(true),
+          },
           ...(canEdit ? [{
             icon: "＋",
             label: "Add Event",
@@ -308,6 +337,174 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
           )}
         </div>
       </Widget>
+
+      {/* ── Preview modal (full-screen report view) ── */}
+      {previewOpen && (
+        <div
+          onClick={() => setPreviewOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 1000,
+            background: "rgba(1,24,55,0.82)",
+            display: "flex", alignItems: "flex-start",
+            justifyContent: "center",
+            padding: "48px 24px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: COLORS.BG_SURFACE,
+              borderRadius: 16,
+              border: `1px solid ${COLORS.BORDER}`,
+              width: "100%", maxWidth: 1100,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.5)",
+              overflow: "hidden",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            {/* Modal header */}
+            <div style={{
+              display: "flex", alignItems: "center",
+              justifyContent: "space-between",
+              padding: "18px 24px",
+              borderBottom: `1px solid ${COLORS.BORDER}`,
+              background: COLORS.BG_SURFACE_ALT,
+              flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 18 }}>📋</span>
+                <div>
+                  <div style={{
+                    fontSize: 14, fontWeight: 700,
+                    color: COLORS.TEXT_PRIMARY,
+                    fontFamily: "'Poppins',sans-serif",
+                  }}>Event Report</div>
+                  <div style={{
+                    fontSize: 11, color: COLORS.TEXT_MUTED,
+                    fontFamily: "'Poppins',sans-serif",
+                  }}>{firestoreWeekLabel}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  onClick={handlePrint}
+                  disabled={firestoreEntries.length === 0}
+                  style={{
+                    background: firestoreEntries.length ? COLORS.AQUA : "transparent",
+                    border: firestoreEntries.length ? "none" : `1px solid ${COLORS.BORDER}`,
+                    borderRadius: 8, padding: "6px 16px",
+                    color: firestoreEntries.length ? COLORS.TEXT_ON_ACCENT : COLORS.TEXT_DISABLED,
+                    fontSize: 12, cursor: firestoreEntries.length ? "pointer" : "not-allowed",
+                    fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+                  }}>Print</button>
+                <button
+                  onClick={() => setPreviewOpen(false)}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${COLORS.BORDER}`,
+                    borderRadius: 8, padding: "5px 14px",
+                    color: COLORS.TEXT_MUTED, fontSize: 16,
+                    cursor: "pointer", lineHeight: 1,
+                  }}>&#10005;</button>
+              </div>
+            </div>
+
+            {/* Modal body — printable report */}
+            <div style={{ padding: 24, overflowY: "auto" }}>
+              <div id="event-report-preview-content" style={{
+                fontFamily: "'Poppins',Helvetica,sans-serif",
+                color: COLORS.TEXT_PRIMARY,
+              }}>
+                <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 2 }}>
+                  Event Report
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 18 }}>
+                  {firestoreWeekLabel}
+                </div>
+
+                {firestoreEntries.length === 0 ? (
+                  <div style={{
+                    padding: "32px 0", textAlign: "center",
+                    fontSize: 13, color: COLORS.TEXT_MUTED,
+                  }}>
+                    No events scheduled for this week.
+                  </div>
+                ) : (
+                  CAMPUS_ORDER.filter(c => groupedEntries[c]?.size).map(campusKey => (
+                    <div key={campusKey} style={{ marginBottom: 24 }}>
+                      <div style={{
+                        fontSize: 13, fontWeight: 700, color: COLORS.AQUA_DARK,
+                        letterSpacing: "0.04em", textTransform: "uppercase",
+                        paddingBottom: 4, marginBottom: 8,
+                        borderBottom: `2px solid ${COLORS.AQUA_BORDER}`,
+                      }}>
+                        {CAMPUS_LABELS[campusKey]}
+                      </div>
+                      <table style={{
+                        width: "100%", borderCollapse: "collapse", fontSize: 11,
+                      }}>
+                        <thead>
+                          <tr>
+                            {["Day", "Time", "Event", "Location", "Type", "# Att.", "Catering", "Details", "Contact"].map(h => (
+                              <th key={h} style={{
+                                border: `1px solid ${COLORS.BORDER}`,
+                                background: COLORS.BG_SURFACE_ALT,
+                                padding: "5px 8px", textAlign: "left",
+                                fontWeight: 700, whiteSpace: "nowrap",
+                              }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...groupedEntries[campusKey].entries()].flatMap(([dateLabel, dayEntries]) =>
+                            dayEntries.map(entry => (
+                              <tr key={entry.id}>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", whiteSpace: "nowrap" }}>
+                                  {dateLabel}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", whiteSpace: "nowrap" }}>
+                                  {formatTime12(entry.startTime)} – {formatTime12(entry.endTime)}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", fontWeight: 600 }}>
+                                  {entry.eventName}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
+                                  {entry.location || "—"}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
+                                  {entry.eventType || "—"}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", textAlign: "right" }}>
+                                  {entry.attendeeCount ?? "—"}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
+                                  {entry.catering ? "Yes" : "No"}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
+                                  {[
+                                    entry.wasteNeeds ? `Waste: ${entry.wasteNeeds}` : null,
+                                    entry.security ? `Security: ${entry.security}` : null,
+                                    entry.securityPostHours ? `Post hours: ${entry.securityPostHours}` : null,
+                                    entry.notes || null,
+                                  ].filter(Boolean).join(" · ") || "—"}
+                                </td>
+                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
+                                  {[entry.contactName, entry.contactPhone].filter(Boolean).join(" · ") || "—"}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Entry modal (create / edit) ── */}
       {entryModalOpen && (
