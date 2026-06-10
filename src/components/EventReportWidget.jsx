@@ -54,6 +54,7 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
   const [firestoreLoading, setFirestoreLoading] = useState(false);
   const [firestoreError, setFirestoreError] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   // Close preview on Escape
   useEffect(() => {
@@ -116,6 +117,46 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
   const reportLink = weekOf
     ? `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
     : `${window.location.origin}?tab=weekly-ops`;
+
+  // Capture the preview content and save it as a letter-landscape PDF,
+  // ready to attach to an email.
+  const handleDownloadPdf = async () => {
+    const el = document.getElementById("event-report-preview-content");
+    if (!el || downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      // Loaded on demand so the PDF libraries stay out of the initial bundle
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#FFFFFF" });
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+      const margin = 36;
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const imgW = pageW - margin * 2;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      const imgData = canvas.toDataURL("image/png");
+
+      let heightLeft = imgH;
+      let position = margin;
+      pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
+      heightLeft -= pageH - margin * 2;
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = margin - (imgH - heightLeft);
+        pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
+        heightLeft -= pageH - margin * 2;
+      }
+
+      pdf.save(`Event Report — ${firestoreWeekLabel}.pdf`);
+    } catch (err) {
+      console.error("Error generating event report PDF:", err);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   // Print the preview content in a clean window (inline styles carry over)
   const handlePrint = () => {
@@ -386,6 +427,19 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={firestoreEntries.length === 0 || downloadingPdf}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${firestoreEntries.length ? COLORS.AQUA_BORDER : COLORS.BORDER}`,
+                    borderRadius: 8, padding: "6px 16px",
+                    color: firestoreEntries.length ? COLORS.AQUA_DARK : COLORS.TEXT_DISABLED,
+                    fontSize: 12,
+                    cursor: firestoreEntries.length && !downloadingPdf ? "pointer" : "not-allowed",
+                    fontFamily: "'Poppins',sans-serif", fontWeight: 700,
+                    opacity: downloadingPdf ? 0.6 : 1,
+                  }}>{downloadingPdf ? "Generating…" : "Download PDF"}</button>
                 <button
                   onClick={handlePrint}
                   disabled={firestoreEntries.length === 0}

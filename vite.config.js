@@ -11,6 +11,7 @@ export default defineConfig({
           if (id.includes("firebase")) return "firebase";
           if (id.includes("recharts")) return "charts";
           if (id.includes("exceljs") || id.includes("pdf-parse")) return "documents";
+          if (id.includes("jspdf") || id.includes("html2canvas")) return "pdf-export";
           if (id.includes("framer-motion")) return "motion";
           if (id.includes("lucide-react")) return "icons";
           if (id.includes("react-dropzone")) return "uploads";
