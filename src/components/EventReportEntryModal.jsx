@@ -56,9 +56,9 @@ function emptyForm() {
     eventType: "",
     attendeeCount: "",
     catering: false,
-    wasteNeeds: "",
     security: "",
-    securityPostHours: "",
+    wasteNeeds: "",
+    access: "",
     notes: "",
     contactName: "",
     contactPhone: "",
@@ -80,9 +80,10 @@ function formFromEntry(entry) {
     eventType: entry.eventType ?? "",
     attendeeCount: entry.attendeeCount ?? "",
     catering: !!entry.catering,
-    wasteNeeds: entry.wasteNeeds ?? "",
     security: entry.security ?? "",
-    securityPostHours: entry.securityPostHours ?? "",
+    wasteNeeds: entry.wasteNeeds ?? "",
+    // Older entries stored access info as `securityPostHours`.
+    access: entry.access ?? entry.securityPostHours ?? "",
     notes: entry.notes ?? "",
     contactName: entry.contactName ?? "",
     contactPhone: entry.contactPhone ?? "",
@@ -144,7 +145,6 @@ export default function EventReportEntryModal({
 
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
-  const [showDetails, setShowDetails] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -165,9 +165,6 @@ export default function EventReportEntryModal({
     setErrors({});
     setSubmitError("");
     setConfirmingDelete(false);
-    setShowDetails(existingEntry
-      ? !!(existingEntry.wasteNeeds || existingEntry.security || existingEntry.securityPostHours)
-      : false);
   }, [isOpen, existingEntry]);
 
   // Close on Escape
@@ -229,9 +226,11 @@ export default function EventReportEntryModal({
       eventType: form.eventType.trim(),
       attendeeCount: form.attendeeCount === "" ? null : Number(form.attendeeCount),
       catering: !!form.catering,
-      wasteNeeds: form.wasteNeeds.trim() || null,
       security: form.security.trim() || null,
-      securityPostHours: form.securityPostHours.trim() || null,
+      wasteNeeds: form.wasteNeeds.trim() || null,
+      access: form.access.trim() || null,
+      // Cleared so a legacy value can't resurface after an edit (access replaces it).
+      securityPostHours: null,
       notes: form.notes.trim() || null,
       contactName: form.contactName.trim() || null,
       contactPhone: form.contactPhone.trim() || null,
@@ -511,44 +510,37 @@ export default function EventReportEntryModal({
             </label>
           </div>
 
-          {/* Details section (collapsed by default) */}
-          <button
-            type="button"
-            onClick={() => setShowDetails((v) => !v)}
-            style={{
-              background: "transparent", border: "none", padding: 0,
-              marginBottom: showDetails ? 12 : 14,
-              color: COLORS.AQUA, fontSize: 12, fontWeight: 700,
-              fontFamily: FONT_FAMILY, cursor: "pointer",
-            }}
-          >
-            {showDetails ? "Hide Details ▴" : "Show Details ▾"}
-          </button>
+          <Field label="Security">
+            <input
+              type="text"
+              value={form.security}
+              onChange={set("security")}
+              placeholder="e.g. Yes"
+              style={inputStyle}
+            />
+          </Field>
 
-          {showDetails && (
-            <div style={{
-              padding: "14px 14px 2px",
-              background: COLORS.BG_SURFACE_ALT,
-              border: `1px solid ${COLORS.BORDER}`,
-              borderRadius: RADIUS.MD,
-              marginBottom: 14,
-            }}>
-              <Field label="Waste Needs">
-                <input type="text" value={form.wasteNeeds} onChange={set("wasteNeeds")}
-                  style={{ ...inputStyle, background: COLORS.BG_SURFACE }} />
-              </Field>
-              <Field label="Security">
-                <input type="text" value={form.security} onChange={set("security")}
-                  style={{ ...inputStyle, background: COLORS.BG_SURFACE }} />
-              </Field>
-              <Field label="Security Post Hours">
-                <input type="text" value={form.securityPostHours} onChange={set("securityPostHours")}
-                  style={{ ...inputStyle, background: COLORS.BG_SURFACE }} />
-              </Field>
-            </div>
-          )}
+          <Field label="Waste Needs">
+            <input
+              type="text"
+              value={form.wasteNeeds}
+              onChange={set("wasteNeeds")}
+              placeholder="e.g. Recycle bins on Monday"
+              style={inputStyle}
+            />
+          </Field>
 
-          <Field label="Notes">
+          <Field label="Access">
+            <input
+              type="text"
+              value={form.access}
+              onChange={set("access")}
+              placeholder="e.g. Post-hours 4–8 PM, Monday only"
+              style={inputStyle}
+            />
+          </Field>
+
+          <Field label="Additional Details">
             <textarea
               value={form.notes}
               onChange={set("notes")}

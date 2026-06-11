@@ -33,6 +33,31 @@ const CAMPUS_LABELS = {
   foothills:    "Foothills Lab",
   center_green: "Center Green",
 };
+// Report accent colors per campus (Claude Design event-card layout)
+const CAMPUS_ACCENTS = {
+  mesa:         "#00A2B4",
+  foothills:    "#0057C2",
+  center_green: "#FAA119",
+};
+
+// Older entries stored access info as `securityPostHours`.
+function entryAccess(entry) {
+  return entry.access ?? entry.securityPostHours ?? null;
+}
+
+function isMultiDay(entry) {
+  const start = entry.date?.toDate?.();
+  const end = entry.endDate?.toDate?.();
+  return !!(start && end && end.toDateString() !== start.toDateString());
+}
+
+// Pill colors for the event-type chip; eventType is free text.
+function eventTypeChipColors(eventType) {
+  const t = (eventType || "").toLowerCase();
+  if (t.includes("meeting"))   return { background: "rgba(0,162,180,0.12)",  color: "#00818F" };
+  if (t.includes("gathering")) return { background: "rgba(250,161,25,0.16)", color: "#B5710A" };
+  return { background: "rgba(1,24,55,0.06)", color: "#4A5870" };
+}
 
 // ["Monday, June 8"] for single-day entries, ["Monday, June 8", "– Wednesday, June 10"]
 // for multi-day entries. Entries created before multi-day support have no endDate.
@@ -373,9 +398,9 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                             }}>
                               Attendees: {entry.attendeeCount ?? "—"}
                               {" · "}Catering: {entry.catering ? "Yes" : "No"}
-                              {entry.wasteNeeds ? ` · Waste: ${entry.wasteNeeds}` : ""}
                               {entry.security ? ` · Security: ${entry.security}` : ""}
-                              {entry.securityPostHours ? ` (${entry.securityPostHours})` : ""}
+                              {entry.wasteNeeds ? ` · Waste: ${entry.wasteNeeds}` : ""}
+                              {entryAccess(entry) ? ` · Access: ${entryAccess(entry)}` : ""}
                             </div>
                             {(entry.notes || entry.contactName || entry.contactPhone) && (
                               <div style={{
@@ -524,80 +549,168 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                     No events scheduled for this week.
                   </div>
                 ) : (
-                  CAMPUS_ORDER.filter(c => groupedEntries[c]?.size).map(campusKey => (
-                    <div key={campusKey} style={{ marginBottom: 24 }}>
+                  CAMPUS_ORDER.filter(c => groupedEntries[c]?.size).map(campusKey => {
+                    const accent = CAMPUS_ACCENTS[campusKey];
+                    const cardLabelStyle = {
+                      fontSize: 10.5, letterSpacing: "0.1em", textTransform: "uppercase",
+                      color: "#8693A8", fontWeight: 700, marginBottom: 5,
+                    };
+                    const chipStyle = {
+                      display: "inline-block", padding: "4px 11px", borderRadius: 999,
+                      fontSize: 11.5, fontWeight: 600,
+                    };
+                    return (
+                    <div key={campusKey} style={{ marginBottom: 30 }}>
                       <div style={{
-                        fontSize: 13, fontWeight: 700, color: COLORS.AQUA_DARK,
-                        letterSpacing: "0.04em", textTransform: "uppercase",
-                        paddingBottom: 4, marginBottom: 8,
-                        borderBottom: `2px solid ${COLORS.AQUA_BORDER}`,
+                        display: "flex", alignItems: "center", gap: 12, marginBottom: 14,
                       }}>
-                        {CAMPUS_LABELS[campusKey]}
+                        <span style={{
+                          width: 14, height: 14, borderRadius: 4,
+                          background: accent, flexShrink: 0,
+                        }} />
+                        <span style={{
+                          fontSize: 13, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
+                          letterSpacing: "0.16em", textTransform: "uppercase",
+                        }}>
+                          {CAMPUS_LABELS[campusKey]}
+                        </span>
                       </div>
-                      <table style={{
-                        width: "100%", borderCollapse: "collapse", fontSize: 11,
-                      }}>
-                        <thead>
-                          <tr>
-                            {["Date(s)", "Time", "Event", "Location", "Type", "# Att.", "Catering", "Details", "Contact"].map(h => (
-                              <th key={h} style={{
-                                border: `1px solid ${COLORS.BORDER}`,
-                                background: COLORS.BG_SURFACE_ALT,
-                                padding: "5px 8px", textAlign: "left",
-                                fontWeight: 700, whiteSpace: "nowrap",
-                              }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...groupedEntries[campusKey].values()].flatMap(dayEntries =>
-                            dayEntries.map(entry => (
-                              <tr key={entry.id}>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", whiteSpace: "nowrap" }}>
-                                  {entryDateLines(entry).map((line, i) => (
-                                    <div key={i}>{line}</div>
-                                  ))}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", whiteSpace: "nowrap" }}>
-                                  {formatTime12(entry.startTime)} – {formatTime12(entry.endTime)}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", fontWeight: 600 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {[...groupedEntries[campusKey].values()].flat().map(entry => (
+                          <div key={entry.id} style={{
+                            border: "1px solid rgba(1,24,55,0.10)",
+                            borderLeft: `5px solid ${accent}`,
+                            borderRadius: 14, padding: "20px 24px",
+                            background: "#FFFFFF",
+                          }}>
+                            {/* Card header: name + location, type chips on the right */}
+                            <div style={{
+                              display: "flex", justifyContent: "space-between",
+                              alignItems: "flex-start", gap: 16,
+                            }}>
+                              <div>
+                                <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.TEXT_PRIMARY }}>
                                   {entry.eventName}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
+                                </div>
+                                <div style={{ fontSize: 13, color: "#4A5870", marginTop: 4 }}>
                                   {entry.location || "—"}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
-                                  {entry.eventType || "—"}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", textAlign: "right" }}>
-                                  {entry.attendeeCount ?? "—"}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
-                                  {entry.catering ? "Yes" : "No"}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
-                                  {[
-                                    entry.wasteNeeds ? `Waste: ${entry.wasteNeeds}` : null,
-                                    entry.security ? `Security: ${entry.security}` : null,
-                                    entry.securityPostHours ? `Post hours: ${entry.securityPostHours}` : null,
-                                    entry.notes || null,
-                                  ].filter(Boolean).join(" · ") || "—"}
-                                </td>
-                                <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
-                                  {entry.contactName || entry.contactPhone
-                                    ? [entry.contactName, entry.contactPhone].filter(Boolean).map((line, i) => (
-                                        <div key={i} style={{ whiteSpace: "nowrap" }}>{line}</div>
-                                      ))
-                                    : "—"}
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                                {isMultiDay(entry) && (
+                                  <span style={{
+                                    ...chipStyle,
+                                    background: "rgba(1,24,55,0.06)", color: "#4A5870",
+                                  }}>Multi-day</span>
+                                )}
+                                {entry.eventType && (
+                                  <span style={{ ...chipStyle, ...eventTypeChipColors(entry.eventType) }}>
+                                    {entry.eventType}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Key facts grid */}
+                            <div style={{
+                              marginTop: 18, display: "grid",
+                              gridTemplateColumns: "1.6fr 1fr 1fr 1.4fr", gap: 18,
+                            }}>
+                              <div>
+                                <div style={cardLabelStyle}>When</div>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY }}>
+                                  {formatEntryDateLabel(entry)}
+                                </div>
+                                <div style={{ fontSize: 13, color: "#4A5870", marginTop: 2 }}>
+                                  {formatTime12(entry.startTime)} – {formatTime12(entry.endTime)}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={cardLabelStyle}>Attendance</div>
+                                {entry.attendeeCount != null ? (
+                                  <>
+                                    <div style={{
+                                      fontSize: 20, fontWeight: 700, color: COLORS.TEXT_PRIMARY,
+                                      fontVariantNumeric: "tabular-nums", lineHeight: 1,
+                                    }}>{entry.attendeeCount}</div>
+                                    <div style={{ fontSize: 12, color: "#8693A8", marginTop: 3 }}>expected</div>
+                                  </>
+                                ) : (
+                                  <div style={{ fontSize: 14, color: "#B3BCC9" }}>—</div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={cardLabelStyle}>Catering</div>
+                                {entry.catering ? (
+                                  <div style={{
+                                    display: "inline-flex", alignItems: "center", gap: 7,
+                                    fontSize: 14, fontWeight: 600, color: "#00818F",
+                                  }}>
+                                    <span style={{
+                                      width: 9, height: 9, borderRadius: 999, background: "#00A2B4",
+                                    }} />
+                                    Yes
+                                  </div>
+                                ) : (
+                                  <div style={{ fontSize: 14, color: "#B3BCC9" }}>—</div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={cardLabelStyle}>Contact</div>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.TEXT_PRIMARY }}>
+                                  {entry.contactName || "—"}
+                                </div>
+                                {entry.contactPhone && (
+                                  <div style={{
+                                    fontSize: 13, color: "#4A5870", marginTop: 2,
+                                    fontVariantNumeric: "tabular-nums",
+                                  }}>{entry.contactPhone}</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Logistics row: Security / Waste / Access */}
+                            <div style={{
+                              marginTop: 18, paddingTop: 16,
+                              borderTop: "1px solid rgba(1,24,55,0.08)",
+                              display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18,
+                            }}>
+                              <div>
+                                <div style={cardLabelStyle}>Security</div>
+                                <div style={{ fontSize: 14, color: COLORS.TEXT_PRIMARY, fontWeight: 500, lineHeight: 1.45 }}>
+                                  {entry.security || "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={cardLabelStyle}>Waste</div>
+                                <div style={{ fontSize: 14, color: COLORS.TEXT_PRIMARY, fontWeight: 500, lineHeight: 1.45 }}>
+                                  {entry.wasteNeeds || "—"}
+                                </div>
+                              </div>
+                              <div>
+                                <div style={cardLabelStyle}>Access</div>
+                                <div style={{ fontSize: 14, color: COLORS.TEXT_PRIMARY, fontWeight: 500, lineHeight: 1.45 }}>
+                                  {entryAccess(entry) || "—"}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Additional Details */}
+                            <div style={{
+                              marginTop: 16, paddingTop: 16,
+                              borderTop: "1px solid rgba(1,24,55,0.08)",
+                            }}>
+                              <div style={cardLabelStyle}>Additional Details</div>
+                              <div style={{ fontSize: 14, color: "#4A5870", lineHeight: 1.55 }}>
+                                {entry.notes || "—"}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
