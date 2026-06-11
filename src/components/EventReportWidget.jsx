@@ -194,6 +194,7 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
         title="Event Report"
         icon="📋"
         accentColor={COLORS.AQUA}
+        stackActions
         actions={[
           {
             icon: "👁",
@@ -218,7 +219,6 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
               reportLink
             ),
           }]),
-          { label: "↻ Refresh", onClick: () => fetchEntriesFromFirestore(currentWeekSunday) },
         ]}
       >
         <div style={{ padding: "8px 0 4px" }}>
