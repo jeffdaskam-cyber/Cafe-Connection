@@ -34,16 +34,21 @@ const CAMPUS_LABELS = {
   center_green: "Center Green",
 };
 
-// "Monday, June 8" for single-day entries, "Monday, June 8 – Wednesday, June 10"
+// ["Monday, June 8"] for single-day entries, ["Monday, June 8", "– Wednesday, June 10"]
 // for multi-day entries. Entries created before multi-day support have no endDate.
-function formatEntryDateLabel(entry) {
+function entryDateLines(entry) {
   const fmt = { weekday: "long", month: "long", day: "numeric" };
   const start = entry.date?.toDate?.();
-  if (!start) return "—";
+  if (!start) return ["—"];
   const startLabel = start.toLocaleDateString("en-US", fmt);
   const end = entry.endDate?.toDate?.();
-  if (!end || end.toDateString() === start.toDateString()) return startLabel;
-  return `${startLabel} – ${end.toLocaleDateString("en-US", fmt)}`;
+  if (!end || end.toDateString() === start.toDateString()) return [startLabel];
+  return [startLabel, `– ${end.toLocaleDateString("en-US", fmt)}`];
+}
+
+// Single-line variant, e.g. "Monday, June 8 – Wednesday, June 10"
+function formatEntryDateLabel(entry) {
+  return entryDateLines(entry).join(" ");
 }
 
 // "13:30" → "1:30 PM"
@@ -545,11 +550,13 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                           </tr>
                         </thead>
                         <tbody>
-                          {[...groupedEntries[campusKey].entries()].flatMap(([dateLabel, dayEntries]) =>
+                          {[...groupedEntries[campusKey].values()].flatMap(dayEntries =>
                             dayEntries.map(entry => (
                               <tr key={entry.id}>
                                 <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", whiteSpace: "nowrap" }}>
-                                  {dateLabel}
+                                  {entryDateLines(entry).map((line, i) => (
+                                    <div key={i}>{line}</div>
+                                  ))}
                                 </td>
                                 <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px", whiteSpace: "nowrap" }}>
                                   {formatTime12(entry.startTime)} – {formatTime12(entry.endTime)}
@@ -578,7 +585,11 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                                   ].filter(Boolean).join(" · ") || "—"}
                                 </td>
                                 <td style={{ border: `1px solid ${COLORS.BORDER}`, padding: "5px 8px" }}>
-                                  {[entry.contactName, entry.contactPhone].filter(Boolean).join(" · ") || "—"}
+                                  {entry.contactName || entry.contactPhone
+                                    ? [entry.contactName, entry.contactPhone].filter(Boolean).map((line, i) => (
+                                        <div key={i} style={{ whiteSpace: "nowrap" }}>{line}</div>
+                                      ))
+                                    : "—"}
                                 </td>
                               </tr>
                             ))
