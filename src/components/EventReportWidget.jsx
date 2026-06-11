@@ -34,6 +34,18 @@ const CAMPUS_LABELS = {
   center_green: "Center Green",
 };
 
+// "Monday, June 8" for single-day entries, "Monday, June 8 – Wednesday, June 10"
+// for multi-day entries. Entries created before multi-day support have no endDate.
+function formatEntryDateLabel(entry) {
+  const fmt = { weekday: "long", month: "long", day: "numeric" };
+  const start = entry.date?.toDate?.();
+  if (!start) return "—";
+  const startLabel = start.toLocaleDateString("en-US", fmt);
+  const end = entry.endDate?.toDate?.();
+  if (!end || end.toDateString() === start.toDateString()) return startLabel;
+  return `${startLabel} – ${end.toLocaleDateString("en-US", fmt)}`;
+}
+
 // "13:30" → "1:30 PM"
 function formatTime12(hhmm) {
   if (!hhmm) return "—";
@@ -105,9 +117,7 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
   const groupedEntries = {};
   for (const entry of firestoreEntries) {
     const entryCampus = entry.campus || "mesa";
-    const dateKey = entry.date?.toDate
-      ? entry.date.toDate().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
-      : "—";
+    const dateKey = formatEntryDateLabel(entry);
     (groupedEntries[entryCampus] ??= new Map());
     const byDate = groupedEntries[entryCampus];
     if (!byDate.has(dateKey)) byDate.set(dateKey, []);
@@ -499,7 +509,7 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                       }}>
                         <thead>
                           <tr>
-                            {["Day", "Time", "Event", "Location", "Type", "# Att.", "Catering", "Details", "Contact"].map(h => (
+                            {["Date(s)", "Time", "Event", "Location", "Type", "# Att.", "Catering", "Details", "Contact"].map(h => (
                               <th key={h} style={{
                                 border: `1px solid ${COLORS.BORDER}`,
                                 background: COLORS.BG_SURFACE_ALT,

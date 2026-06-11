@@ -47,7 +47,8 @@ function toIsoLocal(date) {
 function emptyForm() {
   return {
     campus: "",
-    date: "",
+    startDate: "",
+    endDate: "",
     location: "",
     eventName: "",
     startTime: "",
@@ -67,7 +68,11 @@ function emptyForm() {
 function formFromEntry(entry) {
   return {
     campus: entry.campus ?? "",
-    date: entry.date?.toDate ? toIsoLocal(entry.date.toDate()) : "",
+    startDate: entry.date?.toDate ? toIsoLocal(entry.date.toDate()) : "",
+    // Older entries predate multi-day support; fall back to the single date.
+    endDate: entry.endDate?.toDate
+      ? toIsoLocal(entry.endDate.toDate())
+      : (entry.date?.toDate ? toIsoLocal(entry.date.toDate()) : ""),
     location: entry.location ?? "",
     eventName: entry.eventName ?? "",
     startTime: entry.startTime ?? "",
@@ -184,9 +189,15 @@ export default function EventReportEntryModal({
   function validate() {
     const next = {};
     if (!form.campus) next.campus = "Select a campus.";
-    if (!form.date) next.date = "Select a date.";
-    else if (form.date < minDate || form.date > maxDate) {
-      next.date = "Date must fall within the viewed week.";
+    if (!form.startDate) next.startDate = "Select a start date.";
+    else if (form.startDate < minDate || form.startDate > maxDate) {
+      next.startDate = "Start date must fall within the viewed week.";
+    }
+    if (!form.endDate) next.endDate = "Select an end date.";
+    else if (form.endDate < minDate || form.endDate > maxDate) {
+      next.endDate = "End date must fall within the viewed week.";
+    } else if (form.startDate && form.endDate < form.startDate) {
+      next.endDate = "End date cannot be before the start date.";
     }
     if (!form.location.trim()) next.location = "Location is required.";
     if (!form.eventName.trim()) next.eventName = "Event name is required.";
@@ -204,8 +215,10 @@ export default function EventReportEntryModal({
     return {
       weekOf: Timestamp.fromDate(weekStart),
       campus: form.campus,
-      // Noon local avoids DST boundary issues (repo date convention)
-      date: Timestamp.fromDate(new Date(form.date + "T12:00:00")),
+      // Noon local avoids DST boundary issues (repo date convention).
+      // `date` stays the start date so existing sort order / index still apply.
+      date: Timestamp.fromDate(new Date(form.startDate + "T12:00:00")),
+      endDate: Timestamp.fromDate(new Date(form.endDate + "T12:00:00")),
       location: form.location.trim(),
       eventName: form.eventName.trim(),
       startTime: form.startTime,
@@ -367,16 +380,45 @@ export default function EventReportEntryModal({
             </select>
           </Field>
 
-          <Field label="Date" required error={errors.date}>
-            <input
-              type="date"
-              value={form.date}
-              min={minDate}
-              max={maxDate}
-              onChange={set("date")}
-              style={{ ...inputStyle, ...(errors.date ? errorInputStyle : {}) }}
-            />
-          </Field>
+          {/* Start / End date side by side */}
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <Field label="Start Date" required error={errors.startDate}>
+                <input
+                  type="date"
+                  value={form.startDate}
+                  min={minDate}
+                  max={maxDate}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      startDate: value,
+                      // Keep end date in sync until the user picks one later
+                      endDate: !f.endDate || f.endDate < value ? value : f.endDate,
+                    }));
+                    setErrors((prev) =>
+                      prev.startDate || prev.endDate
+                        ? { ...prev, startDate: null, endDate: null }
+                        : prev);
+                  }}
+                  style={{ ...inputStyle, ...(errors.startDate ? errorInputStyle : {}) }}
+                />
+              </Field>
+            </div>
+            <div style={{ flex: 1 }}>
+              <Field label="End Date" required error={errors.endDate}>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  min={form.startDate || minDate}
+                  max={maxDate}
+                  onChange={set("endDate")}
+                  style={{ ...inputStyle, ...(errors.endDate ? errorInputStyle : {}) }}
+                />
+              </Field>
+            </div>
+          </div>
 
           <Field label="Location" required error={errors.location}>
             <input
