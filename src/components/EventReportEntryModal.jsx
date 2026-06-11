@@ -203,7 +203,10 @@ export default function EventReportEntryModal({
     if (!form.eventName.trim()) next.eventName = "Event name is required.";
     if (!form.startTime) next.startTime = "Select a start time.";
     if (!form.endTime) next.endTime = "Select an end time.";
-    if (form.startTime && form.endTime && form.endTime <= form.startTime) {
+    // Time order only matters when the event starts and ends on the same day;
+    // a multi-day event can legitimately end at an earlier clock time.
+    if (form.startTime && form.endTime && form.endDate === form.startDate &&
+        form.endTime <= form.startTime) {
       next.endTime = "End time must be after start time.";
     }
     if (!form.eventType.trim()) next.eventType = "Event type is required.";
