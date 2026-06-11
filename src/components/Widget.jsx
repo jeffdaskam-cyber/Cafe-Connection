@@ -232,6 +232,8 @@ function ExpandModal({ title, subtitle, accentColor, children, onClose, printabl
  *   expandable   {boolean}  — show expand-to-modal button
  *   printable    {boolean}  — show print button (in header and expand modal)
  *   actions      {Array}    — extra action buttons: [{ icon, label, onClick, disabled }]
+ *   stackActions {boolean}  — render actions on their own left-aligned row below the title
+ *                             instead of beside it (keeps long titles from being squeezed)
  *   headerRight  {ReactNode} — custom element in the header's right slot (replaces actions/print/expand)
  *   noPad        {boolean}  — omit content area padding (for widgets with full-bleed tables)
  *   minHeight    {number}   — minimum content area height in px
@@ -252,6 +254,7 @@ export default function Widget({
   expandable = false,
   printable = false,
   actions = [],
+  stackActions = false,
   headerRight = null,
   noPad = false,
   minHeight,
@@ -327,12 +330,12 @@ export default function Widget({
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions (beside the title unless stacked below it) */}
           {headerRight ? (
             <div style={{ display: "flex", alignItems: "center", flexShrink: 0, marginLeft: 12 }}>
               {headerRight}
             </div>
-          ) : (actions.length > 0 || printable || expandable) && (
+          ) : !stackActions && (actions.length > 0 || printable || expandable) && (
             <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 12 }}>
               {actions.map((a, i) => <ActionBtn key={i} {...a} />)}
               {printable && (
@@ -344,6 +347,22 @@ export default function Widget({
             </div>
           )}
         </div>
+
+        {/* Stacked actions row (left-aligned, below the title) */}
+        {stackActions && !headerRight && (actions.length > 0 || printable || expandable) && (
+          <div style={{
+            display: "flex", gap: 6, flexWrap: "wrap",
+            padding: "0 20px 12px", position: "relative",
+          }}>
+            {actions.map((a, i) => <ActionBtn key={i} {...a} />)}
+            {printable && (
+              <ActionBtn icon="🖨️" label="Print" onClick={() => window.print()} />
+            )}
+            {expandable && (
+              <ActionBtn icon="⤢" label="Expand" onClick={() => setExpanded(true)} />
+            )}
+          </div>
+        )}
 
         {/* Divider between header and content */}
         <div style={{ height: 1, background: COLORS.BORDER, margin: "0 20px" }} />
