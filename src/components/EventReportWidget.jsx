@@ -67,6 +67,11 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
   const [firestoreError, setFirestoreError] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  // Campus sections collapsed in the widget list (keyed by campus, true = collapsed)
+  const [collapsedCampuses, setCollapsedCampuses] = useState({});
+
+  const toggleCampusCollapsed = (campusKey) =>
+    setCollapsedCampuses((prev) => ({ ...prev, [campusKey]: !prev[campusKey] }));
 
   // Close preview on Escape
   useEffect(() => {
@@ -295,19 +300,37 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
               No events scheduled for this week.
             </div>
           ) : (
-            CAMPUS_ORDER.filter(c => groupedEntries[c]?.size).map(campusKey => (
-              <div key={campusKey} style={{ marginBottom: 18 }}>
-                {/* Campus section header */}
-                <div style={{
-                  fontSize: 12, fontWeight: 700, color: COLORS.AQUA_DARK,
-                  fontFamily: "'Poppins',sans-serif",
-                  letterSpacing: "0.04em", textTransform: "uppercase",
-                  paddingBottom: 4, marginBottom: 8,
-                  borderBottom: `2px solid ${COLORS.AQUA_BORDER}`,
-                }}>
-                  {CAMPUS_LABELS[campusKey]}
-                </div>
-                {[...groupedEntries[campusKey].entries()].map(([dateLabel, dayEntries]) => (
+            <div style={{ maxHeight: 420, overflowY: "auto", paddingRight: 6 }}>
+            {CAMPUS_ORDER.filter(c => groupedEntries[c]?.size).map(campusKey => {
+              const isCollapsed = !!collapsedCampuses[campusKey];
+              const eventCount = [...groupedEntries[campusKey].values()]
+                .reduce((sum, dayEntries) => sum + dayEntries.length, 0);
+              return (
+              <div key={campusKey} style={{ marginBottom: isCollapsed ? 10 : 18 }}>
+                {/* Campus section header — click to expand / collapse */}
+                <button
+                  onClick={() => toggleCampusCollapsed(campusKey)}
+                  aria-expanded={!isCollapsed}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    width: "100%", background: "transparent", border: "none",
+                    padding: "0 0 4px", marginBottom: isCollapsed ? 0 : 8,
+                    cursor: "pointer", textAlign: "left",
+                    fontSize: 12, fontWeight: 700, color: COLORS.AQUA_DARK,
+                    fontFamily: "'Poppins',sans-serif",
+                    letterSpacing: "0.04em", textTransform: "uppercase",
+                    borderBottom: `2px solid ${COLORS.AQUA_BORDER}`,
+                  }}>
+                  <span style={{ fontSize: 9 }}>{isCollapsed ? "▶" : "▼"}</span>
+                  <span style={{ flex: 1 }}>{CAMPUS_LABELS[campusKey]}</span>
+                  <span style={{
+                    fontWeight: 600, color: COLORS.TEXT_MUTED,
+                    textTransform: "none", letterSpacing: 0,
+                  }}>
+                    {eventCount} event{eventCount === 1 ? "" : "s"}
+                  </span>
+                </button>
+                {!isCollapsed && [...groupedEntries[campusKey].entries()].map(([dateLabel, dayEntries]) => (
                   <div key={dateLabel} style={{ marginBottom: 10 }}>
                     {/* Day sub-header */}
                     <div style={{
@@ -383,7 +406,9 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
                   </div>
                 ))}
               </div>
-            ))
+              );
+            })}
+            </div>
           )}
         </div>
       </Widget>
