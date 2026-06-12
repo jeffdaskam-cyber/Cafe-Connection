@@ -7,6 +7,7 @@
 // GET /api/ingest-email-orders
 // Secured by CRON_SECRET (Vercel cron) or Firebase ID token (manual trigger).
 
+import { randomUUID } from "crypto";
 import admin from "firebase-admin";
 import {
   createHttpError,
@@ -162,13 +163,21 @@ async function uploadToStorage(fileName, buffer) {
   const destination = `event_orders/${fileName}`;
   const file = bucket.file(destination);
 
+  // Mint a Firebase download token so the file is reachable only via an
+  // unguessable, token-scoped URL — the same scheme the client upload path
+  // gets from getDownloadURL(). Do NOT makePublic(): a public ACL bypasses
+  // Storage security rules and exposes event-order PDFs to anyone with the URL.
+  const downloadToken = randomUUID();
   await file.save(buffer, {
-    metadata: { contentType: "application/pdf" },
+    metadata: {
+      contentType: "application/pdf",
+      metadata: { firebaseStorageDownloadTokens: downloadToken },
+    },
     resumable: false,
   });
 
-  await file.makePublic();
-  return `https://storage.googleapis.com/${bucket.name}/${destination}`;
+  const encodedPath = encodeURIComponent(destination);
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedPath}?alt=media&token=${downloadToken}`;
 }
 
 async function writeEventOrderDoc(fileName, downloadURL, size) {

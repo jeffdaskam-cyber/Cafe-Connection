@@ -80,7 +80,11 @@ const MONTH_SHORT_TO_NUM = {
 async function verifyAuth(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) throw createHttpError("Unauthorized.", 401);
-  return adminApp.auth().verifyIdToken(authHeader.slice(7));
+  const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+  if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
+    throw createHttpError("Forbidden.", 403);
+  }
+  return decoded;
 }
 
 // ── Cell helpers ─────────────────────────────────────────────────────────────

@@ -40,7 +40,11 @@ async function verifyAuth(req) {
   if (!authHeader?.startsWith("Bearer ")) {
     throw createHttpError("Missing or invalid Authorization header.", 401);
   }
-  return adminApp.auth().verifyIdToken(authHeader.slice(7));
+  const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+  if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
+    throw createHttpError("Forbidden.", 403);
+  }
+  return decoded;
 }
 
 

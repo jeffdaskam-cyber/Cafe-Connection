@@ -72,7 +72,13 @@ async function verifyAuth(req) {
     err.status = 401;
     throw err;
   }
-  return adminApp.auth().verifyIdToken(authHeader.slice(7));
+  const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+  if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
+    const err = new Error("Forbidden.");
+    err.status = 403;
+    throw err;
+  }
+  return decoded;
 }
 
 // ── Campus normalization ─────────────────────────────────────────────────────
