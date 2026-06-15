@@ -234,6 +234,15 @@ service cloud.firestore {
       allow create, update, delete: if isManagerOrAbove();
     }
 
+    // ── setup_report_entries ───────────────────────────────────────────────
+    // Native setup/reset report authoring (one document per setup/reset task)
+    // Read: any authenticated UCAR user
+    // Create/Update/Delete: manager, senior_leader, or administrator only
+    match /setup_report_entries/{entryId} {
+      allow read: if isAuthedUCAR();
+      allow create, update, delete: if isManagerOrAbove();
+    }
+
     // ── Catch-all: deny everything not explicitly matched ──────────────────
     match /{document=**} {
       allow read, write: if false;
