@@ -9,6 +9,9 @@ import { useState, useEffect, useRef } from "react";
 import { useWidget } from "../hooks/useWidget.js";
 import { fetchSetupReport } from "../firebase.js";
 import Widget from "./Widget.jsx";
+import SetupReportEntryModal from "./SetupReportEntryModal.jsx";
+import { useRole } from "../hooks/useRole.js";
+import { roleAtLeast } from "../utils/permissions.js";
 import { COLORS, RADIUS } from "../theme.js";
 import { launchEmailComposer } from "../utils/emailLauncher.js";
 
@@ -18,14 +21,33 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
+// Sunday 00:00:00 local of the week containing the given date / ISO string.
+// UCAR weeks run Sunday–Saturday; weekOf arrives as the Monday ISO string.
+function getWeekSunday(dateOrIso) {
+  const d = dateOrIso instanceof Date
+    ? new Date(dateOrIso)
+    : dateOrIso ? new Date(dateOrIso + "T12:00:00") : new Date();
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel: parentWeekLabel = "", readOnly = false }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchSetupReport(weekOf), [weekOf]
   );
 
+  const { role } = useRole();
+  const canEdit = roleAtLeast(role, "manager");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
   const blobRef = useRef(null);
+
+  // Native entry authoring (manager and above). Phase 2: create/edit/delete
+  // write to Firestore; the PDF display above still reads Google Sheets.
+  const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null); // null = create mode
 
   useEffect(() => {
     if (report?.pdf) {
@@ -198,6 +220,14 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
         emptyIcon="📋"
         emptyMessage="No Set Up Report found for this week."
         actions={[
+          ...(canEdit ? [{
+            icon: "＋",
+            label: "Add Task",
+            onClick: () => {
+              setEditingEntry(null);
+              setEntryModalOpen(true);
+            },
+          }] : []),
           ...(readOnly ? [] : [{
             icon: "📧",
             label: "Email",
@@ -229,6 +259,18 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
           </div>
         )}
       </Widget>
+
+      {/* ── Entry modal (create / edit / delete) ── */}
+      {entryModalOpen && (
+        <SetupReportEntryModal
+          isOpen={entryModalOpen}
+          onClose={() => setEntryModalOpen(false)}
+          weekOf={getWeekSunday(weekOf)}
+          existingEntry={editingEntry}
+          onSaved={() => setEntryModalOpen(false)}
+          onDeleted={() => setEntryModalOpen(false)}
+        />
+      )}
     </>
   );
 }
