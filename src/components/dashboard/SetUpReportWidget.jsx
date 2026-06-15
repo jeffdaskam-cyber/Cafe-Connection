@@ -7,7 +7,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Widget from "../Widget.jsx";
+import SetupReportEntryModal from "../SetupReportEntryModal.jsx";
 import { useWidget } from "../../hooks/useWidget.js";
+import { useRole } from "../../hooks/useRole.js";
+import { roleAtLeast } from "../../utils/permissions.js";
 import { fetchSetupReport } from "../../firebase.js";
 import { COLORS, RADIUS } from "../../theme.js";
 import { launchEmailComposer } from "../../utils/emailLauncher.js";
@@ -18,14 +21,30 @@ function base64ToBlobUrl(base64) {
   return URL.createObjectURL(blob);
 }
 
+// Sunday 00:00:00 local of the current week (UCAR weeks run Sunday–Saturday).
+function getCurrentWeekSunday() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export default function SetUpReportWidget({ config: _config = {}, readOnly = false }) {
   const { data: report, loading, error, reload } = useWidget(
     () => fetchSetupReport(), []
   );
 
+  const { role } = useRole();
+  const canEdit = roleAtLeast(role, "manager");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [blobUrl, setBlobUrl] = useState(null);
   const blobRef = useRef(null);
+
+  // Native entry authoring (manager and above). Phase 2: create/edit/delete
+  // write to Firestore; the PDF display above still reads Google Sheets.
+  const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null); // null = create mode
 
   useEffect(() => {
     if (report?.pdf) {
@@ -183,6 +202,14 @@ export default function SetUpReportWidget({ config: _config = {}, readOnly = fal
         error={error}
         onRetry={reload}
         actions={[
+          ...(canEdit ? [{
+            icon: "＋",
+            label: "Add Task",
+            onClick: () => {
+              setEditingEntry(null);
+              setEntryModalOpen(true);
+            },
+          }] : []),
           ...(readOnly ? [] : [{
             icon: "📧",
             label: "Email",
@@ -220,6 +247,18 @@ export default function SetUpReportWidget({ config: _config = {}, readOnly = fal
           </div>
         )}
       </Widget>
+
+      {/* ── Entry modal (create / edit / delete) ── */}
+      {entryModalOpen && (
+        <SetupReportEntryModal
+          isOpen={entryModalOpen}
+          onClose={() => setEntryModalOpen(false)}
+          weekOf={getCurrentWeekSunday()}
+          existingEntry={editingEntry}
+          onSaved={() => setEntryModalOpen(false)}
+          onDeleted={() => setEntryModalOpen(false)}
+        />
+      )}
     </>
   );
 }
