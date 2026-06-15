@@ -17,3 +17,4 @@ coverage/
 *.temp
 *.bak
 .vercel
+.claude/worktrees/
