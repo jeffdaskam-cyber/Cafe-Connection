@@ -5,15 +5,23 @@
  * full-screen modal with a landscape PDF preview, Print, and Open in Drive.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { collection, query, where, orderBy, getDocs, Timestamp } from "firebase/firestore";
 import { useWidget } from "../hooks/useWidget.js";
 import { fetchSetupReport } from "../firebase.js";
+import { db } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import SetupReportEntryModal from "./SetupReportEntryModal.jsx";
+import SetupReportEntriesList from "./SetupReportEntriesList.jsx";
 import { useRole } from "../hooks/useRole.js";
 import { roleAtLeast } from "../utils/permissions.js";
 import { COLORS, RADIUS } from "../theme.js";
 import { launchEmailComposer } from "../utils/emailLauncher.js";
+
+// CUTOVER FLAG — set to true only when Jeff gives the go-ahead.
+// false  → display reads the Google Sheets PDF (unchanged behavior)
+// true   → display reads setup_report_entries from Firestore
+const USE_FIRESTORE_SETUP_REPORT = false;
 
 function base64ToBlobUrl(base64) {
   const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
@@ -45,9 +53,45 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
   const blobRef = useRef(null);
 
   // Native entry authoring (manager and above). Phase 2: create/edit/delete
-  // write to Firestore; the PDF display above still reads Google Sheets.
+  // write to Firestore. Phase 3: when the cutover flag is on, the display
+  // reads those entries instead of the Google Sheets PDF.
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null); // null = create mode
+
+  // Firestore-backed display (active only when USE_FIRESTORE_SETUP_REPORT)
+  const [currentWeekSunday, setCurrentWeekSunday] = useState(() => getWeekSunday(weekOf));
+  const [firestoreEntries, setFirestoreEntries] = useState([]);
+  const [firestoreLoading, setFirestoreLoading] = useState(false);
+  const [firestoreError, setFirestoreError] = useState(null);
+
+  // Follow the page-level week selector when it changes
+  useEffect(() => {
+    setCurrentWeekSunday(getWeekSunday(weekOf));
+  }, [weekOf]);
+
+  const fetchEntriesFromFirestore = useCallback(async (weekSunday) => {
+    setFirestoreLoading(true);
+    setFirestoreError(null);
+    try {
+      const weekTimestamp = Timestamp.fromDate(weekSunday);
+      const q = query(
+        collection(db, "setup_report_entries"),
+        where("weekOf", "==", weekTimestamp),
+        orderBy("date")
+      );
+      const snapshot = await getDocs(q);
+      setFirestoreEntries(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error("Error fetching setup report entries:", err);
+      setFirestoreError(err.message);
+    } finally {
+      setFirestoreLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (USE_FIRESTORE_SETUP_REPORT) fetchEntriesFromFirestore(currentWeekSunday);
+  }, [currentWeekSunday, fetchEntriesFromFirestore]);
 
   useEffect(() => {
     if (report?.pdf) {
@@ -75,6 +119,18 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
 
   const notFound = !loading && !error && !report;
   const label = report?.weekLabel ?? "Weekly set up report";
+
+  // Firestore-mode week label / navigation state
+  const isViewingCurrentWeek =
+    currentWeekSunday.getTime() === getWeekSunday(new Date()).getTime();
+  const firestoreWeekLabel = `Week of ${currentWeekSunday.toLocaleDateString("en-US", {
+    month: "long", day: "numeric", year: "numeric",
+  })}`;
+  const goToWeek = (deltaDays) => {
+    const next = new Date(currentWeekSunday);
+    next.setDate(next.getDate() + deltaDays);
+    setCurrentWeekSunday(next);
+  };
 
   const handlePrint = () => {
     const iframe = document.getElementById("setup-report-preview");
@@ -213,10 +269,10 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
         subtitle={label}
         icon="📋"
         accentColor={COLORS.AQUA}
-        loading={loading}
-        error={error}
+        loading={USE_FIRESTORE_SETUP_REPORT ? false : loading}
+        error={USE_FIRESTORE_SETUP_REPORT ? null : error}
         onRetry={reload}
-        empty={notFound}
+        empty={USE_FIRESTORE_SETUP_REPORT ? false : notFound}
         emptyIcon="📋"
         emptyMessage="No Set Up Report found for this week."
         actions={[
@@ -238,25 +294,84 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
               report?.downloadUrl || `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
             ),
           }]),
-          { label: "↻ Refresh", onClick: reload },
+          {
+            label: "↻ Refresh",
+            onClick: USE_FIRESTORE_SETUP_REPORT
+              ? () => fetchEntriesFromFirestore(currentWeekSunday)
+              : reload,
+          },
         ]}
       >
-        {report && (
-          <div style={{ padding: "16px 4px" }}>
-            <button
-              onClick={() => setModalOpen(true)}
-              style={{
-                background: "transparent", border: "none",
-                padding: 0, cursor: "pointer",
-                color: COLORS.AQUA, fontSize: 13,
-                fontWeight: 700, fontFamily: "'Poppins',sans-serif",
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
+        {USE_FIRESTORE_SETUP_REPORT ? (
+          <div style={{ padding: "8px 0 4px" }}>
+            {/* Week navigation */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              flexWrap: "wrap", marginBottom: 14,
+            }}>
+              <button
+                onClick={() => goToWeek(-7)}
+                style={{
+                  background: "transparent", border: `1px solid ${COLORS.BORDER}`,
+                  borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+                  color: COLORS.TEXT_MUTED, fontSize: 11, fontWeight: 600,
+                  fontFamily: "'Poppins',sans-serif",
+                }}>← Prev Week</button>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: COLORS.TEXT_SECONDARY,
+                fontFamily: "'Poppins',sans-serif", flex: 1, textAlign: "center",
+                minWidth: 120,
+              }}>{firestoreWeekLabel}</span>
+              <button
+                onClick={() => goToWeek(7)}
+                style={{
+                  background: "transparent", border: `1px solid ${COLORS.BORDER}`,
+                  borderRadius: 6, padding: "4px 10px", cursor: "pointer",
+                  color: COLORS.TEXT_MUTED, fontSize: 11, fontWeight: 600,
+                  fontFamily: "'Poppins',sans-serif",
+                }}>Next Week →</button>
+              {!isViewingCurrentWeek && (
+                <button
+                  onClick={() => setCurrentWeekSunday(getWeekSunday(new Date()))}
+                  style={{
+                    background: "transparent", border: "none",
+                    padding: "4px 6px", cursor: "pointer",
+                    color: COLORS.AQUA, fontSize: 11, fontWeight: 600,
+                    fontFamily: "'Poppins',sans-serif",
+                    textDecoration: "underline", textUnderlineOffset: 2,
+                  }}>This Week</button>
+              )}
+            </div>
+
+            <SetupReportEntriesList
+              entries={firestoreEntries}
+              loading={firestoreLoading}
+              error={firestoreError}
+              canEdit={canEdit}
+              onEditEntry={(entry) => {
+                setEditingEntry(entry);
+                setEntryModalOpen(true);
               }}
-            >
-              View Set Up Report &rsaquo; {label}
-            </button>
+            />
           </div>
+        ) : (
+          report && (
+            <div style={{ padding: "16px 4px" }}>
+              <button
+                onClick={() => setModalOpen(true)}
+                style={{
+                  background: "transparent", border: "none",
+                  padding: 0, cursor: "pointer",
+                  color: COLORS.AQUA, fontSize: 13,
+                  fontWeight: 700, fontFamily: "'Poppins',sans-serif",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
+                }}
+              >
+                View Set Up Report &rsaquo; {label}
+              </button>
+            </div>
+          )
         )}
       </Widget>
 
@@ -265,10 +380,16 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
         <SetupReportEntryModal
           isOpen={entryModalOpen}
           onClose={() => setEntryModalOpen(false)}
-          weekOf={getWeekSunday(weekOf)}
+          weekOf={currentWeekSunday}
           existingEntry={editingEntry}
-          onSaved={() => setEntryModalOpen(false)}
-          onDeleted={() => setEntryModalOpen(false)}
+          onSaved={() => {
+            setEntryModalOpen(false);
+            if (USE_FIRESTORE_SETUP_REPORT) fetchEntriesFromFirestore(currentWeekSunday);
+          }}
+          onDeleted={() => {
+            setEntryModalOpen(false);
+            if (USE_FIRESTORE_SETUP_REPORT) fetchEntriesFromFirestore(currentWeekSunday);
+          }}
         />
       )}
     </>
