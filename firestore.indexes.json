@@ -38,6 +38,14 @@
         { "fieldPath": "date", "order": "ASCENDING" },
         { "fieldPath": "startTime", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "setup_report_entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "weekOf", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
