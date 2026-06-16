@@ -17,6 +17,7 @@ import { db } from "../firebase.js";
 import Widget from "./Widget.jsx";
 import SetupReportEntryModal from "./SetupReportEntryModal.jsx";
 import SetupReportEntriesList from "./SetupReportEntriesList.jsx";
+import SetupReportPreviewModal from "./SetupReportPreviewModal.jsx";
 import { useRole } from "../hooks/useRole.js";
 import { roleAtLeast } from "../utils/permissions.js";
 import { COLORS } from "../theme.js";
@@ -40,6 +41,7 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
   // Native entry authoring (manager and above)
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null); // null = create mode
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   // Firestore-backed display
   const [currentWeekSunday, setCurrentWeekSunday] = useState(() => getWeekSunday(weekOf));
@@ -94,6 +96,11 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
         icon="📋"
         accentColor={COLORS.AQUA}
         actions={[
+          {
+            icon: "👁",
+            label: "Preview",
+            onClick: () => setPreviewOpen(true),
+          },
           ...(canEdit ? [{
             icon: "＋",
             label: "Add Task",
@@ -169,6 +176,14 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
           />
         </div>
       </Widget>
+
+      {/* ── Preview modal (full-screen printable report) ── */}
+      <SetupReportPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        entries={firestoreEntries}
+        weekLabel={firestoreWeekLabel}
+      />
 
       {/* ── Entry modal (create / edit / delete) ── */}
       {entryModalOpen && (
