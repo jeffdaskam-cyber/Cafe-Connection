@@ -183,7 +183,7 @@ export default function SetupReportEntryModal({
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [showEventDetails, setShowEventDetails] = useState(false);
+  const [showEventDetails, setShowEventDetails] = useState(true);
 
   // Event picker — events from the Event Report for this same week.
   const [eventOptions, setEventOptions] = useState([]);
@@ -481,6 +481,114 @@ export default function SetupReportEntryModal({
 
         {/* Body */}
         <div style={{ padding: 24, overflowY: "auto" }}>
+          {/* Event Details — collapsible, expanded by default */}
+          <div style={{
+            marginBottom: 14, paddingBottom: 14,
+            borderBottom: `1px solid ${COLORS.BORDER}`,
+          }}>
+            <button
+              type="button"
+              onClick={() => setShowEventDetails((s) => !s)}
+              aria-expanded={showEventDetails}
+              style={{
+                background: "transparent", border: "none", padding: 0,
+                cursor: "pointer", fontSize: 12, fontWeight: 700,
+                color: COLORS.AQUA, fontFamily: FONT_FAMILY,
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              {showEventDetails ? "Hide Event Details ▴" : "Show Event Details ▾"}
+            </button>
+
+            {showEventDetails && (
+              <div style={{ marginTop: 14 }}>
+                {/* Event picker — events from the Event Report for this week */}
+                <Field label="Event">
+                  {eventOptionsLoading ? (
+                    <p style={{ fontSize: 13, color: COLORS.TEXT_MUTED, fontFamily: FONT_FAMILY, margin: 0 }}>
+                      Loading events…
+                    </p>
+                  ) : (
+                    <select
+                      value={selectedEventId}
+                      onChange={(e) => handleEventSelect(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="">— Select an event —</option>
+                      {eventOptions.map((ev) => (
+                        <option key={ev.id} value={ev.id}>{formatEventOption(ev)}</option>
+                      ))}
+                      <option value="new">+ New Event (manual entry)</option>
+                    </select>
+                  )}
+                </Field>
+
+                {/* Event fields — read-only when sourced from the Event Report, editable for manual entry */}
+                {selectedEventId !== "" && (
+                  <>
+                    <Field label="Event Name">
+                      <input
+                        type="text"
+                        value={form.eventName}
+                        onChange={set("eventName")}
+                        readOnly={selectedEventId !== "new"}
+                        style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
+                      />
+                    </Field>
+
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <Field label="# of Attendees">
+                          <input
+                            type="number"
+                            min={0}
+                            value={form.attendeeCount}
+                            onChange={set("attendeeCount")}
+                            readOnly={selectedEventId !== "new"}
+                            style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
+                          />
+                        </Field>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Field label="Event Date">
+                          <input
+                            type="date"
+                            value={form.eventDate}
+                            onChange={set("eventDate")}
+                            readOnly={selectedEventId !== "new"}
+                            style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
+                          />
+                        </Field>
+                      </div>
+                    </div>
+
+                    <Field label="Event Start Time">
+                      {selectedEventId !== "new" ? (
+                        <input
+                          type="text"
+                          value={formatTime12hr(form.eventStartTime)}
+                          readOnly
+                          style={{ ...inputStyle, ...readOnlyStyle }}
+                        />
+                      ) : (
+                        <select
+                          value={form.eventStartTime}
+                          onChange={set("eventStartTime")}
+                          style={inputStyle}
+                        >
+                          <option value="">—</option>
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <Field label="Campus" required error={errors.campus}>
             <select
               value={form.campus}
@@ -591,114 +699,6 @@ export default function SetupReportEntryModal({
               />
               Diagram Available
             </label>
-          </div>
-
-          {/* Event Details — collapsible, collapsed by default */}
-          <div style={{
-            borderTop: `1px solid ${COLORS.BORDER}`,
-            marginTop: 4, paddingTop: 14,
-          }}>
-            <button
-              type="button"
-              onClick={() => setShowEventDetails((s) => !s)}
-              aria-expanded={showEventDetails}
-              style={{
-                background: "transparent", border: "none", padding: 0,
-                cursor: "pointer", fontSize: 12, fontWeight: 700,
-                color: COLORS.AQUA, fontFamily: FONT_FAMILY,
-                display: "flex", alignItems: "center", gap: 6,
-              }}
-            >
-              {showEventDetails ? "Hide Event Details ▴" : "Show Event Details ▾"}
-            </button>
-
-            {showEventDetails && (
-              <div style={{ marginTop: 14 }}>
-                {/* Event picker — events from the Event Report for this week */}
-                <Field label="Event">
-                  {eventOptionsLoading ? (
-                    <p style={{ fontSize: 13, color: COLORS.TEXT_MUTED, fontFamily: FONT_FAMILY, margin: 0 }}>
-                      Loading events…
-                    </p>
-                  ) : (
-                    <select
-                      value={selectedEventId}
-                      onChange={(e) => handleEventSelect(e.target.value)}
-                      style={inputStyle}
-                    >
-                      <option value="">— Select an event —</option>
-                      {eventOptions.map((ev) => (
-                        <option key={ev.id} value={ev.id}>{formatEventOption(ev)}</option>
-                      ))}
-                      <option value="new">+ New Event (manual entry)</option>
-                    </select>
-                  )}
-                </Field>
-
-                {/* Event fields — read-only when sourced from the Event Report, editable for manual entry */}
-                {selectedEventId !== "" && (
-                  <>
-                    <Field label="Event Name">
-                      <input
-                        type="text"
-                        value={form.eventName}
-                        onChange={set("eventName")}
-                        readOnly={selectedEventId !== "new"}
-                        style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
-                      />
-                    </Field>
-
-                    <div style={{ display: "flex", gap: 12 }}>
-                      <div style={{ flex: 1 }}>
-                        <Field label="# of Attendees">
-                          <input
-                            type="number"
-                            min={0}
-                            value={form.attendeeCount}
-                            onChange={set("attendeeCount")}
-                            readOnly={selectedEventId !== "new"}
-                            style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
-                          />
-                        </Field>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <Field label="Event Date">
-                          <input
-                            type="date"
-                            value={form.eventDate}
-                            onChange={set("eventDate")}
-                            readOnly={selectedEventId !== "new"}
-                            style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
-                          />
-                        </Field>
-                      </div>
-                    </div>
-
-                    <Field label="Event Start Time">
-                      {selectedEventId !== "new" ? (
-                        <input
-                          type="text"
-                          value={formatTime12hr(form.eventStartTime)}
-                          readOnly
-                          style={{ ...inputStyle, ...readOnlyStyle }}
-                        />
-                      ) : (
-                        <select
-                          value={form.eventStartTime}
-                          onChange={set("eventStartTime")}
-                          style={inputStyle}
-                        >
-                          <option value="">—</option>
-                          {TIME_OPTIONS.map((t) => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </select>
-                      )}
-                    </Field>
-                  </>
-                )}
-              </div>
-            )}
           </div>
 
           {submitError && (
