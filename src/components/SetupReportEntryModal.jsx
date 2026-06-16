@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, Timestamp,
+  query, where, orderBy, getDocs,
 } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -44,6 +45,28 @@ const TIME_OPTIONS = (() => {
   }
   return opts;
 })();
+
+// "HH:MM" (24h) → "H:MM AM/PM" for read-only display of a sourced start time
+function formatTime12hr(hhmm) {
+  if (!hhmm) return "";
+  const [h, m] = hhmm.split(":").map(Number);
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const ampm = h < 12 ? "AM" : "PM";
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+
+const CAMPUS_LABELS = { mesa: "Mesa", foothills: "Foothills", center_green: "Center Green" };
+
+// Label for an Event Report entry in the picker dropdown, e.g. "Wed, Jun 17 6:00 PM — Mixer (Mesa)"
+function formatEventOption(ev) {
+  const campusLabel = CAMPUS_LABELS[ev.campus] || ev.campus || "";
+  const dateStr = ev.date?.toDate
+    ? ev.date.toDate().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    : "";
+  const timeStr = ev.startTime ? formatTime12hr(ev.startTime) : "";
+  const when = `${dateStr}${timeStr ? " " + timeStr : ""}`.trim();
+  return `${when ? when + " — " : ""}${ev.eventName || "(untitled)"}${campusLabel ? ` (${campusLabel})` : ""}`;
+}
 
 // Local "YYYY-MM-DD" (toISOString would shift across the UTC boundary)
 function toIsoLocal(date) {
@@ -113,6 +136,13 @@ const inputStyle = {
 
 const errorInputStyle = { borderColor: COLORS.ERROR };
 
+// Applied to event fields that are auto-filled from a chosen Event Report entry.
+const readOnlyStyle = {
+  background: COLORS.BG_SURFACE_HOVER,
+  color: COLORS.TEXT_MUTED,
+  cursor: "not-allowed",
+};
+
 function FieldError({ message }) {
   if (!message) return null;
   return (
@@ -155,6 +185,12 @@ export default function SetupReportEntryModal({
   const [submitError, setSubmitError] = useState("");
   const [showEventDetails, setShowEventDetails] = useState(false);
 
+  // Event picker — events from the Event Report for this same week.
+  const [eventOptions, setEventOptions] = useState([]);
+  const [eventOptionsLoading, setEventOptionsLoading] = useState(false);
+  // '' = nothing chosen, 'new' = manual entry, any other string = an event_report_entries doc ID
+  const [selectedEventId, setSelectedEventId] = useState("");
+
   // Week bounds (Sunday through Saturday inclusive)
   const weekStart = new Date(weekOf);
   weekStart.setHours(0, 0, 0, 0);
@@ -176,7 +212,42 @@ export default function SetupReportEntryModal({
         !!(existingEntry.eventName || existingEntry.attendeeCount != null ||
            existingEntry.eventDate || existingEntry.eventStartTime)
     );
+    // A saved event can't be reverse-matched to its source doc, so edit mode
+    // with saved event data defaults to manual entry (fields pre-filled, editable).
+    setSelectedEventId(existingEntry && existingEntry.eventName ? "new" : "");
   }, [isOpen, existingEntry]);
+
+  // Load this week's Event Report entries to offer as picker options.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+
+    async function loadEventOptions() {
+      setEventOptionsLoading(true);
+      try {
+        const ws = new Date(weekOf);
+        ws.setHours(0, 0, 0, 0);
+        const q = query(
+          collection(db, "event_report_entries"),
+          where("weekOf", "==", Timestamp.fromDate(ws)),
+          orderBy("date"),
+          orderBy("startTime"),
+        );
+        const snapshot = await getDocs(q);
+        if (!cancelled) {
+          setEventOptions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+        }
+      } catch (err) {
+        console.error("Failed to load event options:", err);
+        if (!cancelled) setEventOptions([]);
+      } finally {
+        if (!cancelled) setEventOptionsLoading(false);
+      }
+    }
+
+    loadEventOptions();
+    return () => { cancelled = true; };
+  }, [isOpen, weekOf]);
 
   // Close on Escape
   useEffect(() => {
@@ -205,6 +276,31 @@ export default function SetupReportEntryModal({
     }));
     setErrors((prev) => ({ ...prev, action: null, setupLocation: null, resetLocation: null }));
   };
+
+  // Event picker selection → drive the event form fields.
+  function handleEventSelect(value) {
+    setSelectedEventId(value);
+
+    if (value === "") {
+      // Clear all event fields
+      setForm((f) => ({ ...f, eventName: "", attendeeCount: "", eventDate: "", eventStartTime: "" }));
+      return;
+    }
+    if (value === "new") {
+      // Manual entry — keep whatever's there for the user to edit
+      return;
+    }
+    // A real Event Report entry was chosen — auto-fill from it
+    const ev = eventOptions.find((e) => e.id === value);
+    if (!ev) return;
+    setForm((f) => ({
+      ...f,
+      eventName: ev.eventName || "",
+      attendeeCount: ev.attendeeCount != null ? String(ev.attendeeCount) : "",
+      eventDate: ev.date?.toDate ? toIsoLocal(ev.date.toDate()) : "",
+      eventStartTime: ev.startTime || "",   // stored as "HH:MM"
+    }));
+  }
 
   const showSetupLocation = form.action === "setup" || form.action === "both";
   const showResetLocation = form.action === "reset" || form.action === "both";
@@ -518,51 +614,89 @@ export default function SetupReportEntryModal({
 
             {showEventDetails && (
               <div style={{ marginTop: 14 }}>
-                <Field label="Event Name">
-                  <input
-                    type="text"
-                    value={form.eventName}
-                    onChange={set("eventName")}
-                    style={inputStyle}
-                  />
+                {/* Event picker — events from the Event Report for this week */}
+                <Field label="Event">
+                  {eventOptionsLoading ? (
+                    <p style={{ fontSize: 13, color: COLORS.TEXT_MUTED, fontFamily: FONT_FAMILY, margin: 0 }}>
+                      Loading events…
+                    </p>
+                  ) : (
+                    <select
+                      value={selectedEventId}
+                      onChange={(e) => handleEventSelect(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="">— Select an event —</option>
+                      {eventOptions.map((ev) => (
+                        <option key={ev.id} value={ev.id}>{formatEventOption(ev)}</option>
+                      ))}
+                      <option value="new">+ New Event (manual entry)</option>
+                    </select>
+                  )}
                 </Field>
 
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <Field label="# of Attendees">
+                {/* Event fields — read-only when sourced from the Event Report, editable for manual entry */}
+                {selectedEventId !== "" && (
+                  <>
+                    <Field label="Event Name">
                       <input
-                        type="number"
-                        min={0}
-                        value={form.attendeeCount}
-                        onChange={set("attendeeCount")}
-                        style={inputStyle}
+                        type="text"
+                        value={form.eventName}
+                        onChange={set("eventName")}
+                        readOnly={selectedEventId !== "new"}
+                        style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
                       />
                     </Field>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Field label="Event Date">
-                      <input
-                        type="date"
-                        value={form.eventDate}
-                        onChange={set("eventDate")}
-                        style={inputStyle}
-                      />
-                    </Field>
-                  </div>
-                </div>
 
-                <Field label="Event Start Time">
-                  <select
-                    value={form.eventStartTime}
-                    onChange={set("eventStartTime")}
-                    style={inputStyle}
-                  >
-                    <option value="">—</option>
-                    {TIME_OPTIONS.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
-                </Field>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <Field label="# of Attendees">
+                          <input
+                            type="number"
+                            min={0}
+                            value={form.attendeeCount}
+                            onChange={set("attendeeCount")}
+                            readOnly={selectedEventId !== "new"}
+                            style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
+                          />
+                        </Field>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <Field label="Event Date">
+                          <input
+                            type="date"
+                            value={form.eventDate}
+                            onChange={set("eventDate")}
+                            readOnly={selectedEventId !== "new"}
+                            style={{ ...inputStyle, ...(selectedEventId !== "new" ? readOnlyStyle : {}) }}
+                          />
+                        </Field>
+                      </div>
+                    </div>
+
+                    <Field label="Event Start Time">
+                      {selectedEventId !== "new" ? (
+                        <input
+                          type="text"
+                          value={formatTime12hr(form.eventStartTime)}
+                          readOnly
+                          style={{ ...inputStyle, ...readOnlyStyle }}
+                        />
+                      ) : (
+                        <select
+                          value={form.eventStartTime}
+                          onChange={set("eventStartTime")}
+                          style={inputStyle}
+                        >
+                          <option value="">—</option>
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </Field>
+                  </>
+                )}
               </div>
             )}
           </div>
