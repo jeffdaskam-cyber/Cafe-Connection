@@ -163,42 +163,183 @@ export default function EventReportWidget({ weekOf = null, campus = "", weekLabe
     ? `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
     : `${window.location.origin}?tab=weekly-ops`;
 
-  // Capture the preview content and save it as a letter-landscape PDF,
-  // ready to attach to an email.
+  // Render the report as a print-friendly, letter-landscape PDF, ready to
+  // attach to an email.
+  //
+  // Each event card (and each campus header) is captured as its own image and
+  // placed with a running vertical cursor, so a card never gets sliced across a
+  // page boundary. The off-screen export DOM is built at exactly CONTENT_WIDTH
+  // pixels (= the PDF content width in points), so the px font sizes below map
+  // 1:1 to printed points — large enough to read in print, independent of the
+  // compact on-screen widget styling.
   const handleDownloadPdf = async () => {
-    const el = document.getElementById("event-report-preview-content");
-    if (!el || downloadingPdf) return;
+    if (downloadingPdf || firestoreEntries.length === 0) return;
     setDownloadingPdf(true);
+
+    // Letter landscape: 792 × 612 pt, 36pt margins → 720pt content width.
+    const MARGIN = 36;
+    const PAGE_W = 792;
+    const PAGE_H = 612;
+    const CONTENT_WIDTH = PAGE_W - MARGIN * 2; // 720
+    const USABLE_BOTTOM = PAGE_H - MARGIN;     // 576
+    const GAP = 14; // vertical gap between blocks, in points
+
+    const esc = (s) =>
+      String(s ?? "").replace(/[&<>"]/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    const microLabel = (text) =>
+      `<div style="font-size:8.5px;letter-spacing:0.1em;text-transform:uppercase;` +
+      `color:#8693A8;font-weight:700;margin-bottom:4px;">${esc(text)}</div>`;
+
+    const chip = (bg, color, text) =>
+      `<span style="display:inline-block;padding:5px 12px;border-radius:999px;` +
+      `font-size:9px;font-weight:700;background:${bg};color:${color};">${esc(text)}</span>`;
+
+    const cardHtml = (entry, accent, campusKey) => {
+      const tc = eventTypeChipColors(entry.eventType);
+      const chips = [
+        isMultiDay(entry) ? chip("rgba(1,24,55,0.06)", "#4A5870", "Multi-day") : "",
+        entry.eventType ? chip(tc.background, tc.color, entry.eventType) : "",
+      ].join("");
+      const attendance = entry.attendeeCount != null
+        ? `<div style="font-size:17px;font-weight:700;color:#011837;` +
+          `font-variant-numeric:tabular-nums;line-height:1;">${esc(entry.attendeeCount)}</div>` +
+          `<div style="font-size:9px;color:#8693A8;margin-top:3px;">expected</div>`
+        : `<div style="font-size:11.5px;color:#B3BCC9;">—</div>`;
+      const catering = entry.catering
+        ? `<div style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;` +
+          `font-weight:600;color:#00818F;"><span style="width:8px;height:8px;border-radius:999px;` +
+          `background:#00A2B4;"></span>Yes</div>`
+        : `<div style="font-size:11.5px;color:#B3BCC9;">—</div>`;
+      const phone = entry.contactPhone
+        ? `<div style="font-size:11px;color:#4A5870;margin-top:2px;` +
+          `font-variant-numeric:tabular-nums;">${esc(entry.contactPhone)}</div>`
+        : "";
+      return (
+        `<div data-block="card" data-campus="${campusKey}" style="box-sizing:border-box;` +
+        `width:${CONTENT_WIDTH}px;border:1px solid rgba(1,24,55,0.10);` +
+        `border-left:5px solid ${accent};border-radius:12px;padding:16px 20px;background:#FFFFFF;">` +
+          `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">` +
+            `<div><div style="font-size:15px;font-weight:700;color:#011837;">${esc(entry.eventName)}</div>` +
+            `<div style="font-size:11.5px;color:#4A5870;margin-top:4px;">${esc(entry.location || "—")}</div></div>` +
+            `<div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">${chips}</div>` +
+          `</div>` +
+          `<div style="margin-top:14px;display:grid;grid-template-columns:1.6fr 1fr 1fr 1.4fr;gap:14px;">` +
+            `<div>${microLabel("When")}` +
+              `<div style="font-size:11.5px;font-weight:600;color:#011837;">${esc(formatEntryDateLabel(entry))}</div>` +
+              `<div style="font-size:11px;color:#4A5870;margin-top:2px;">${esc(formatTime12(entry.startTime))} – ${esc(formatTime12(entry.endTime))}</div></div>` +
+            `<div>${microLabel("Attendance")}${attendance}</div>` +
+            `<div>${microLabel("Catering")}${catering}</div>` +
+            `<div>${microLabel("Contact")}` +
+              `<div style="font-size:11.5px;font-weight:600;color:#011837;">${esc(entry.contactName || "—")}</div>${phone}</div>` +
+          `</div>` +
+          `<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(1,24,55,0.08);` +
+          `display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">` +
+            `<div>${microLabel("Security")}<div style="font-size:11.5px;color:#011837;font-weight:500;line-height:1.45;">${esc(entry.security || "—")}</div></div>` +
+            `<div>${microLabel("Waste")}<div style="font-size:11.5px;color:#011837;font-weight:500;line-height:1.45;">${esc(entry.wasteNeeds || "—")}</div></div>` +
+            `<div>${microLabel("Access")}<div style="font-size:11.5px;color:#011837;font-weight:500;line-height:1.45;">${esc(entryAccess(entry) || "—")}</div></div>` +
+          `</div>` +
+          `<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(1,24,55,0.08);">` +
+            `${microLabel("Additional Details")}<div style="font-size:11.5px;color:#4A5870;line-height:1.55;">${esc(entry.notes || "—")}</div>` +
+          `</div>` +
+        `</div>`
+      );
+    };
+
+    const headerHtml = (campusKey) =>
+      `<div data-block="header" data-campus="${campusKey}" style="box-sizing:border-box;` +
+      `width:${CONTENT_WIDTH}px;display:flex;align-items:center;gap:10px;">` +
+        `<span style="width:12px;height:12px;border-radius:3px;background:${CAMPUS_ACCENTS[campusKey]};flex-shrink:0;"></span>` +
+        `<span style="font-size:11px;font-weight:700;color:#011837;letter-spacing:0.14em;text-transform:uppercase;">${esc(CAMPUS_LABELS[campusKey])}</span>` +
+      `</div>`;
+
+    const titleHtml =
+      `<div data-block="title" style="box-sizing:border-box;width:${CONTENT_WIDTH}px;">` +
+        `<div style="font-size:20px;font-weight:700;color:#011837;">Event Report</div>` +
+        `<div style="font-size:11px;color:#8693A8;margin-top:3px;">${esc(firestoreWeekLabel)}</div>` +
+      `</div>`;
+
+    const campuses = CAMPUS_ORDER.filter((c) => groupedEntries[c]?.size);
+    const sectionsHtml = campuses.map((campusKey) => {
+      const cards = [...groupedEntries[campusKey].values()].flat()
+        .map((entry) => cardHtml(entry, CAMPUS_ACCENTS[campusKey], campusKey)).join("");
+      return headerHtml(campusKey) + cards;
+    }).join("");
+
+    const container = document.createElement("div");
+    container.style.cssText =
+      `position:fixed;left:-10000px;top:0;width:${CONTENT_WIDTH}px;background:#FFFFFF;` +
+      `font-family:'Poppins',Helvetica,sans-serif;`;
+    container.innerHTML = titleHtml + sectionsHtml;
+    document.body.appendChild(container);
+
     try {
       // Loaded on demand so the PDF libraries stay out of the initial bundle
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
         import("jspdf"),
       ]);
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#FFFFFF" });
-      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
-      const margin = 36;
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const imgW = pageW - margin * 2;
-      const imgH = (canvas.height * imgW) / canvas.width;
-      const imgData = canvas.toDataURL("image/png");
 
-      let heightLeft = imgH;
-      let position = margin;
-      pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
-      heightLeft -= pageH - margin * 2;
-      while (heightLeft > 0) {
-        pdf.addPage();
-        position = margin - (imgH - heightLeft);
-        pdf.addImage(imgData, "PNG", margin, position, imgW, imgH);
-        heightLeft -= pageH - margin * 2;
+      // Capture each block (title, campus header, event card) as its own image.
+      const nodes = [...container.querySelectorAll(":scope > [data-block]")];
+      const blocks = [];
+      for (const node of nodes) {
+        const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#FFFFFF" });
+        const imgH = (canvas.height * CONTENT_WIDTH) / canvas.width;
+        blocks.push({
+          type: node.dataset.block,
+          campus: node.dataset.campus || null,
+          dataUrl: canvas.toDataURL("image/jpeg", 0.85),
+          imgH,
+        });
+      }
+
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+      const headerByCampus = {};
+      let cursorY = MARGIN;
+      let firstOnPage = true;
+      let pageHeaderCampus = null; // campus whose header is already on the current page
+
+      const place = (block) => {
+        pdf.addImage(block.dataUrl, "JPEG", MARGIN, cursorY, CONTENT_WIDTH, block.imgH);
+        cursorY += block.imgH + GAP;
+        firstOnPage = false;
+      };
+
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        if (b.type === "header") headerByCampus[b.campus] = b;
+
+        // A continuing card needs its campus header repeated at the top of a new page.
+        let repeatHeader = b.type === "card" && pageHeaderCampus !== b.campus && headerByCampus[b.campus];
+
+        // Keep a header with its first card; account for a repeated header too.
+        let needed = b.imgH;
+        if (b.type === "header" && blocks[i + 1]?.type === "card") needed += GAP + blocks[i + 1].imgH;
+        if (repeatHeader) needed += headerByCampus[b.campus].imgH + GAP;
+
+        if (!firstOnPage && cursorY + needed > USABLE_BOTTOM) {
+          pdf.addPage();
+          cursorY = MARGIN;
+          firstOnPage = true;
+          pageHeaderCampus = null;
+          repeatHeader = b.type === "card" && !!headerByCampus[b.campus];
+        }
+
+        if (repeatHeader) {
+          place(headerByCampus[b.campus]);
+          pageHeaderCampus = b.campus;
+        }
+        if (b.type === "header") pageHeaderCampus = b.campus;
+        place(b);
       }
 
       pdf.save(`Event Report — ${firestoreWeekLabel}.pdf`);
     } catch (err) {
       console.error("Error generating event report PDF:", err);
     } finally {
+      container.remove();
       setDownloadingPdf(false);
     }
   };
