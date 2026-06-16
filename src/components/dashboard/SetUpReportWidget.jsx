@@ -264,11 +264,14 @@ export default function SetUpReportWidget({ config: _config = {}, readOnly = fal
           ...(readOnly ? [] : [{
             icon: "📧",
             label: "Email",
+            // Phase 4: email is decoupled from Google Sheets — it links to the
+            // app's weekly-ops view rather than the Sheets PDF, and no longer
+            // reads the Sheets `report` object.
             onClick: () => launchEmailComposer(
               "Set Up Report",
               "",
-              label,
-              report?.downloadUrl || ""
+              firestoreWeekLabel,
+              `${window.location.origin}?tab=weekly-ops`
             ),
           }]),
           {

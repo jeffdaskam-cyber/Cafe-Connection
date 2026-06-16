@@ -287,11 +287,14 @@ export default function SetUpReportDrive({ weekOf = null, campus = "", weekLabel
           ...(readOnly ? [] : [{
             icon: "📧",
             label: "Email",
+            // Phase 4: email is decoupled from Google Sheets — it links to the
+            // app's weekly-ops view of the week rather than the Sheets PDF, and
+            // no longer reads the Sheets `report` object.
             onClick: () => launchEmailComposer(
               "Set Up Report",
               campus,
-              parentWeekLabel || label,
-              report?.downloadUrl || `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
+              parentWeekLabel || firestoreWeekLabel,
+              `${window.location.origin}?tab=weekly-ops&week=${encodeURIComponent(weekOf)}`
             ),
           }]),
           {
