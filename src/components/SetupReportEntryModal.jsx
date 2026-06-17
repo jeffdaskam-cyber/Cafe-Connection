@@ -76,11 +76,6 @@ function toIsoLocal(date) {
   return `${y}-${m}-${d}`;
 }
 
-// Local "YYYY-MM-DDTHH:MM" for <input type="datetime-local"> values
-function toDatetimeLocal(date) {
-  return `${toIsoLocal(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
 function emptyForm() {
   return {
     campus: "",
@@ -88,8 +83,10 @@ function emptyForm() {
     action: "",
     setupLocation: "",
     resetLocation: "",
-    availableAt: "",
-    deadlineAt: "",
+    availableAtDate: "",
+    availableAtTime: "",
+    deadlineAtDate: "",
+    deadlineAtTime: "",
     description: "",
     diagram: false,
     eventName: "",
@@ -106,8 +103,14 @@ function formFromEntry(entry) {
     action: entry.action ?? "",
     setupLocation: entry.setupLocation ?? "",
     resetLocation: entry.resetLocation ?? "",
-    availableAt: entry.availableAt?.toDate ? toDatetimeLocal(entry.availableAt.toDate()) : "",
-    deadlineAt: entry.deadlineAt?.toDate ? toDatetimeLocal(entry.deadlineAt.toDate()) : "",
+    availableAtDate: entry.availableAt?.toDate ? toIsoLocal(entry.availableAt.toDate()) : "",
+    availableAtTime: entry.availableAt?.toDate
+      ? `${String(entry.availableAt.toDate().getHours()).padStart(2, "0")}:${String(entry.availableAt.toDate().getMinutes()).padStart(2, "0")}`
+      : "",
+    deadlineAtDate: entry.deadlineAt?.toDate ? toIsoLocal(entry.deadlineAt.toDate()) : "",
+    deadlineAtTime: entry.deadlineAt?.toDate
+      ? `${String(entry.deadlineAt.toDate().getHours()).padStart(2, "0")}:${String(entry.deadlineAt.toDate().getMinutes()).padStart(2, "0")}`
+      : "",
     description: entry.description ?? "",
     diagram: !!entry.diagram,
     eventName: entry.eventName ?? "",
@@ -319,10 +322,14 @@ export default function SetupReportEntryModal({
     if (showResetLocation && !form.resetLocation.trim()) {
       next.resetLocation = "Reset location is required.";
     }
-    if (!form.availableAt) next.availableAt = "Set an available date/time.";
-    if (!form.deadlineAt) next.deadlineAt = "Set a deadline date/time.";
-    else if (form.availableAt && form.deadlineAt <= form.availableAt) {
-      next.deadlineAt = "Deadline must be after the available time.";
+    if (!form.availableAtDate || !form.availableAtTime) next.availableAt = "Set an available date/time.";
+    if (!form.deadlineAtDate || !form.deadlineAtTime) next.deadlineAt = "Set a deadline date/time.";
+    else {
+      const availStr = `${form.availableAtDate}T${form.availableAtTime}`;
+      const deadStr = `${form.deadlineAtDate}T${form.deadlineAtTime}`;
+      if (availStr && deadStr && deadStr <= availStr) {
+        next.deadlineAt = "Deadline must be after the available time.";
+      }
     }
     if (!form.description.trim()) next.description = "Description is required.";
     setErrors(next);
@@ -338,8 +345,8 @@ export default function SetupReportEntryModal({
       action: form.action,
       setupLocation: form.action !== "reset" ? form.setupLocation.trim() : null,
       resetLocation: form.action !== "setup" ? form.resetLocation.trim() : null,
-      availableAt: Timestamp.fromDate(new Date(form.availableAt)),
-      deadlineAt: Timestamp.fromDate(new Date(form.deadlineAt)),
+      availableAt: Timestamp.fromDate(new Date(`${form.availableAtDate}T${form.availableAtTime}`)),
+      deadlineAt: Timestamp.fromDate(new Date(`${form.deadlineAtDate}T${form.deadlineAtTime}`)),
       description: form.description.trim(),
       diagram: !!form.diagram,
       eventName: form.eventName.trim() || null,
@@ -654,24 +661,46 @@ export default function SetupReportEntryModal({
           <div style={{ display: "flex", gap: 12 }}>
             <div style={{ flex: 1 }}>
               <Field label="Available Date/Time" required error={errors.availableAt}>
-                <input
-                  type="datetime-local"
-                  step={900}
-                  value={form.availableAt}
-                  onChange={set("availableAt")}
-                  style={{ ...inputStyle, ...(errors.availableAt ? errorInputStyle : {}) }}
-                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    type="date"
+                    value={form.availableAtDate}
+                    onChange={set("availableAtDate")}
+                    style={{ ...inputStyle, flex: 1, ...(errors.availableAt ? errorInputStyle : {}) }}
+                  />
+                  <select
+                    value={form.availableAtTime}
+                    onChange={set("availableAtTime")}
+                    style={{ ...inputStyle, flex: 1, ...(errors.availableAt ? errorInputStyle : {}) }}
+                  >
+                    <option value="">Time</option>
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
               </Field>
             </div>
             <div style={{ flex: 1 }}>
               <Field label="Deadline Date/Time" required error={errors.deadlineAt}>
-                <input
-                  type="datetime-local"
-                  step={900}
-                  value={form.deadlineAt}
-                  onChange={set("deadlineAt")}
-                  style={{ ...inputStyle, ...(errors.deadlineAt ? errorInputStyle : {}) }}
-                />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    type="date"
+                    value={form.deadlineAtDate}
+                    onChange={set("deadlineAtDate")}
+                    style={{ ...inputStyle, flex: 1, ...(errors.deadlineAt ? errorInputStyle : {}) }}
+                  />
+                  <select
+                    value={form.deadlineAtTime}
+                    onChange={set("deadlineAtTime")}
+                    style={{ ...inputStyle, flex: 1, ...(errors.deadlineAt ? errorInputStyle : {}) }}
+                  >
+                    <option value="">Time</option>
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
               </Field>
             </div>
           </div>
