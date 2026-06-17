@@ -656,6 +656,7 @@ export default function SetupReportEntryModal({
               <Field label="Available Date/Time" required error={errors.availableAt}>
                 <input
                   type="datetime-local"
+                  step={900}
                   value={form.availableAt}
                   onChange={set("availableAt")}
                   style={{ ...inputStyle, ...(errors.availableAt ? errorInputStyle : {}) }}
@@ -666,6 +667,7 @@ export default function SetupReportEntryModal({
               <Field label="Deadline Date/Time" required error={errors.deadlineAt}>
                 <input
                   type="datetime-local"
+                  step={900}
                   value={form.deadlineAt}
                   onChange={set("deadlineAt")}
                   style={{ ...inputStyle, ...(errors.deadlineAt ? errorInputStyle : {}) }}
