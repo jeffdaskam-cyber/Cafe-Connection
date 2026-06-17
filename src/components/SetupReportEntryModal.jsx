@@ -285,8 +285,7 @@ export default function SetupReportEntryModal({
     setSelectedEventId(value);
 
     if (value === "") {
-      // Clear all event fields
-      setForm((f) => ({ ...f, eventName: "", attendeeCount: "", eventDate: "", eventStartTime: "" }));
+      setForm((f) => ({ ...f, campus: "", date: "", eventName: "", attendeeCount: "", eventDate: "", eventStartTime: "" }));
       return;
     }
     if (value === "new") {
@@ -298,6 +297,8 @@ export default function SetupReportEntryModal({
     if (!ev) return;
     setForm((f) => ({
       ...f,
+      campus: ev.campus || f.campus,
+      date: ev.date?.toDate ? toIsoLocal(ev.date.toDate()) : f.date,
       eventName: ev.eventName || "",
       attendeeCount: ev.attendeeCount != null ? String(ev.attendeeCount) : "",
       eventDate: ev.date?.toDate ? toIsoLocal(ev.date.toDate()) : "",
@@ -310,11 +311,6 @@ export default function SetupReportEntryModal({
 
   function validate() {
     const next = {};
-    if (!form.campus) next.campus = "Select a campus.";
-    if (!form.date) next.date = "Select a date.";
-    else if (form.date < minDate || form.date > maxDate) {
-      next.date = "Date must fall within the viewed week.";
-    }
     if (!form.action) next.action = "Select an action.";
     if (showSetupLocation && !form.setupLocation.trim()) {
       next.setupLocation = "Setup location is required.";
@@ -595,30 +591,6 @@ export default function SetupReportEntryModal({
               </div>
             )}
           </div>
-
-          <Field label="Campus" required error={errors.campus}>
-            <select
-              value={form.campus}
-              onChange={set("campus")}
-              style={{ ...inputStyle, ...(errors.campus ? errorInputStyle : {}) }}
-            >
-              <option value="">Select campus…</option>
-              {CAMPUS_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Date" required error={errors.date}>
-            <input
-              type="date"
-              value={form.date}
-              min={minDate}
-              max={maxDate}
-              onChange={set("date")}
-              style={{ ...inputStyle, ...(errors.date ? errorInputStyle : {}) }}
-            />
-          </Field>
 
           <Field label="Action" required error={errors.action}>
             <select
