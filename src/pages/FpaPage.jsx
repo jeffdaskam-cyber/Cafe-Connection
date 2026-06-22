@@ -472,6 +472,26 @@ function SupportLevelChart({ data, fytdTotal = 0, stlyTotal = null, loading }) {
             fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
             textTransform: "uppercase", color: COLORS.TEXT_MUTED,
             fontFamily: "'Poppins',sans-serif",
+          }}>STLY Total</span>
+          <span style={{
+            fontSize: 13, fontWeight: 700, color: COLORS.ORANGE,
+            fontFamily: "'Poppins',sans-serif", marginTop: 1,
+          }}>{fmtCurrency(stlyTotal)}</span>
+        </div>
+      )}
+      {yoyDelta !== null && (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "flex-end",
+          background: `${COLORS.ORANGE}14`,
+          border: `1px solid ${COLORS.ORANGE}28`,
+          borderRadius: 8,
+          padding: "4px 10px",
+          lineHeight: 1.1,
+        }}>
+          <span style={{
+            fontSize: 9, fontWeight: 600, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: COLORS.TEXT_MUTED,
+            fontFamily: "'Poppins',sans-serif",
           }}>YoY Δ</span>
           <span style={{
             fontSize: 13, fontWeight: 700, color: COLORS.ORANGE,
