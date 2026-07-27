@@ -101,23 +101,59 @@ no deep links) versus adding a router. Recommendation is step state plus
 `@firebase/rules-unit-testing` is not installed. Phase 1 adds it alongside the
 existing `node --test` runner; the emulator suite from Phase 0 is the host.
 
+### 6. The proposed schema in §2.1 is materially incomplete
+
+The AppSheet source was located and reconciled — see
+[`DATA_MODEL.md`](./DATA_MODEL.md) for the full 42-column mapping. Summary of
+what changed versus the plan:
+
+- **~14 real fields have no home in §2.1**, most conspicuously `Event Name`.
+- **Security / Custodial / Access-Doors / Sustainability are free text**, not
+  booleans. Modeled as `*Notes` string + derived `needs*` boolean.
+- **`Request Status` and `Status` are orthogonal axes**, not one enum.
+  Modeled as `requestStatus` + `lifecycleStatus`.
+- **`Project ID` is multi-valued** (`projectIds[]`), with split-payment cases
+  that Phase 4's revenue rollup must decide how to attribute.
+- **Buildings carry no campus**, which Phase 4's `event_revenue` write requires.
+  The seed script adds the mapping.
+- The Rooms source column is `Fixed`; the plan's field is `isFlexible` —
+  inverted, so seeded as `isFixed`.
+- Child tables (Daily Schedule, Meal Selections, Event Rooms) match the plan
+  closely, except `Coffee Break` is a real meal period missing from the enum.
+
 ---
 
 ## Open items for Jeff (not code)
 
-Carried from §10 of the plan, plus what Phase 0 surfaced:
+Carried from §10 of the plan, plus what Phase 0 surfaced.
+
+**Resolved 2026-07-27:**
+
+- ~~Literal 42-column AppSheet Events list~~ — located in Drive
+  ("UCAR Summit Data Sheet") and reconciled in `DATA_MODEL.md`. Rooms (44),
+  Buildings (9), and the 10 historical events came with it, so the Phase 1 seed
+  and migration inputs are all in hand.
+- ~~Historical migration vs archive-only~~ — **migrate all 10** as
+  `lifecycleStatus: 'closed'` with `migratedFromAppSheet: true`; unresolvable
+  room references keep their raw value plus `needsReview: true`.
+- ~~Free-text vs boolean service fields~~ — **both**: verbatim text plus a
+  derived boolean.
+- ~~One status enum vs two~~ — **two axes**.
+
+**Still open:**
 
 1. **Gmail `gmail.send` re-consent** for the service mailbox — start now, it
    blocks Phase 5 notifications. (Repo state is consistent with read-only: the
    only Gmail env vars are `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` /
    `GMAIL_REFRESH_TOKEN`, used by `api/ingest-email-orders.mjs`, which reads.)
-2. **Historical AppSheet events** — migrate ~10 rows as `status: 'closed'` with
-   `migratedFromAppSheet: true`, or leave in AppSheet as archive-only?
-3. **The literal 42-column AppSheet Events list** — still needed to lock the
-   §2.1 field mapping before Phase 1 collections are finalized. Phase 1 can
-   proceed on the plan's proposed field groups, but renames later cost more than
-   getting the list now.
-4. **Catering ops inbox address** for the "created" notification copy.
+2. **Full picklist values** for AppSheet's `Request Status` and `Status`
+   columns. Only `Confirmed` / `Open` / `Closed` appear in the 10 sample rows;
+   the enums in `DATA_MODEL.md` §3 are otherwise inferred. Adding a value later
+   is cheap, renaming one is not.
+3. **Catering ops inbox address** for the "created" notification copy.
+4. **Split-payment revenue attribution** (Phase 4) — for events with multiple
+   `projectIds`, split revenue proportionally, attribute to a primary project,
+   or write one combined `event_revenue` entry?
 5. **Dev Firebase project** — Phase 0 uses local emulators, which covers
    development and testing. A shared Vercel preview that exercises real
    Firestore (useful for Phase 2–3 UAT rehearsal) needs a second Firebase
