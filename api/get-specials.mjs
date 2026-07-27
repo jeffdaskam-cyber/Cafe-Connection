@@ -59,10 +59,10 @@ async function verifyAuth(req) {
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // ─── Campus → filename suffix ─────────────────────────────────────────────────
+// Center Green is intentionally absent — that campus does not publish specials.
 const CAMPUS_SUFFIX = {
-  "Mesa Lab":     "_ML",
-  "Foothills":    "_FL",
-  "Center Green": "_CG",
+  "Mesa Lab":  "_ML",
+  "Foothills": "_FL",
 };
 
 // ─── Google OAuth2 token via service account ─────────────────────────────────

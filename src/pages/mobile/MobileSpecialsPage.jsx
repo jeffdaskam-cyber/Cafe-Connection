@@ -7,12 +7,11 @@
 
 import { useState, useEffect } from "react";
 import { fetchSpecials } from "../../firebase.js";
+import { SPECIALS_CAMPUSES } from "../../components/CampusSelector.jsx";
 import { COLORS } from "../../theme.js";
 
-const CAMPUSES = ["Center Green", "Foothills", "Mesa Lab"];
-
 export default function MobileSpecialsPage() {
-  const [campus,  setCampus]  = useState("Center Green");
+  const [campus,  setCampus]  = useState(SPECIALS_CAMPUSES[0]);
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
@@ -40,7 +39,7 @@ export default function MobileSpecialsPage() {
         onChange={(e) => setCampus(e.target.value)}
         style={selectStyle}
       >
-        {CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+        {SPECIALS_CAMPUSES.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
 
       {loading && <p style={mutedStyle}>Loading...</p>}
