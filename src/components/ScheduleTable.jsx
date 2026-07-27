@@ -11,6 +11,23 @@ const SCHED_SUBHEAD_ALT = COLORS.MOBILE_SUBHEAD_ALT;
 // Only these labels create top-level sections.
 const ALLOWED_HEADERS = ["CG2", "Banquets", "Center Green", "Foothills", "Mesa Lab"];
 
+// Café Thru Line rows carry long free-text notes instead of shift times, so they
+// wrap onto multiple lines inside a capped-width cell rather than running off
+// the side of the table.
+const THRU_LINE_MAX_WIDTH = 240;
+
+// ── Detect a "Café Thru Line" staff row (accent- and case-insensitive) ────────
+export function isThruLineRow(name) {
+  if (!name) return false;
+  return String(name)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")  // drop accents so "Café" matches "Cafe"
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .startsWith("cafe thru line");
+}
+
 // ── Color classifier ───────────────────────────────────────────────────────────
 export function classifyColor(rgb) {
   if (!rgb) return null;
@@ -164,15 +181,24 @@ export default function ScheduleTable({ rows, colorMap }) {
   });
 
   // ── Cell renderer (shared by both section types) ─────────────────────────────
-  function renderCell(cellData, isMerged, ri, ri2, ci, info) {
+  function renderCell(cellData, isMerged, ri, ri2, ci, info, wrap = false) {
     const primary   = isMerged ? (cellData?.primary   || "") : (cellData || "").toString().trim();
     const secondary = isMerged ? (cellData?.secondary || "") : "";
     const cellRgb   = colorMap[`${ri},${ci}`] || (isMerged && ri2 ? colorMap[`${ri2},${ci}`] : null);
     const cellInfo  = info || classifyColor(cellRgb);
     const hasContent = primary || secondary;
 
+    // Long note cells wrap inside a capped-width block; everything else stays
+    // on a single line so shift times don't break mid-value.
+    const wrapText = wrap
+      ? { whiteSpace: "normal", overflowWrap: "anywhere", textAlign: "left" }
+      : { whiteSpace: "nowrap" };
+
     return hasContent ? (
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center" }}>
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 2, alignItems: "center",
+        ...(wrap ? { maxWidth: THRU_LINE_MAX_WIDTH, margin: "0 auto" } : null),
+      }}>
         {primary && (
           <span style={{
             display: "inline-block",
@@ -181,7 +207,8 @@ export default function ScheduleTable({ rows, colorMap }) {
             border: cellInfo ? `1px solid ${cellInfo.border}44` : "none",
             color: cellInfo ? cellInfo.text : COLORS.TEXT_SECONDARY,
             fontWeight: cellInfo ? 700 : 500,
-            fontSize: 10, whiteSpace: "nowrap",
+            fontSize: 10, lineHeight: wrap ? 1.45 : undefined,
+            ...wrapText,
           }}>
             {primary}
             {cellInfo?.label && !["header","subheader"].includes(cellInfo.label) && (
@@ -192,7 +219,9 @@ export default function ScheduleTable({ rows, colorMap }) {
         {secondary && (
           <span style={{
             color: COLORS.TEXT_MUTED, fontSize: 9,
-            fontStyle: "italic", whiteSpace: "nowrap",
+            fontStyle: "italic",
+            lineHeight: wrap ? 1.45 : undefined,
+            ...wrapText,
           }}>
             {secondary}
           </span>
@@ -235,6 +264,7 @@ export default function ScheduleTable({ rows, colorMap }) {
           <tbody>
             {mergedRows.map(({ cells, ri, ri2, isMerged }, rowIdx) => {
               const nameCell = (cells[0] || "").toString().trim();
+              const wrapCells = isThruLineRow(nameCell);
 
               return (
                 <tr key={rowIdx} style={{
@@ -258,9 +288,10 @@ export default function ScheduleTable({ rows, colorMap }) {
                       <td key={ci} style={{
                         padding: "6px 10px", textAlign: "center",
                         background: classifyColor(cellRgb)?.bg || "transparent",
-                        verticalAlign: "middle",
+                        verticalAlign: wrapCells ? "top" : "middle",
+                        ...(wrapCells ? { maxWidth: THRU_LINE_MAX_WIDTH } : null),
                       }}>
-                        {renderCell(cellData, isMerged, ri, ri2, cellIdx, null)}
+                        {renderCell(cellData, isMerged, ri, ri2, cellIdx, null, wrapCells)}
                       </td>
                     );
                   })}
