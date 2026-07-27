@@ -1,6 +1,7 @@
 {
   "projects": {
-    "default": "your-firebase-project-id"
+    "default": "your-firebase-project-id",
+    "sandbox": "demo-cafe-connection"
   },
   "targets": {},
   "etags": {}

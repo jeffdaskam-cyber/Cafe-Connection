@@ -4,10 +4,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:sandbox": "vite --mode sandbox",
     "build": "vite build",
+    "build:sandbox": "vite build --mode sandbox",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --test"
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "emulators": "firebase emulators:start --project demo-cafe-connection",
+    "emulators:exec": "firebase emulators:exec --project demo-cafe-connection"
   },
   "dependencies": {
     "docx": "^8.5.0",
@@ -32,6 +36,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.0",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "firebase-tools": "^13.35.1",
     "globals": "^17.5.0",
     "knip": "^6.15.0",
     "vite": "^5.2.0"
