@@ -13,24 +13,37 @@
 import { useWidget } from "../hooks/useWidget.js";
 import { fetchSpecials } from "../firebase.js";
 import Widget from "./Widget.jsx";
+import { SPECIALS_CAMPUSES } from "./CampusSelector.jsx";
 import { COLORS } from "../theme.js";
 
 export default function CafeSpecials({ weekOf, campus }) {
   const accent = COLORS.AQUA;
+
+  // Some campuses (Center Green) don't publish specials — skip the fetch entirely.
+  const hasSpecials = SPECIALS_CAMPUSES.includes(campus);
 
   const {
     data:    specialsData,
     loading,
     error,
     reload,
-  } = useWidget(() => fetchSpecials(weekOf, campus), [weekOf, campus]);
+  } = useWidget(
+    () => (hasSpecials ? fetchSpecials(weekOf, campus) : Promise.resolve(null)),
+    [weekOf, campus, hasSpecials]
+  );
 
-  const body = (specialsData?.body ?? "").replace(/\*[^*]*Menu Items May Be Substituted[\s\S]*$/, "").trim();
+  const body = !hasSpecials
+    ? ""
+    : (specialsData?.body ?? "").replace(/\*[^*]*Menu Items May Be Substituted[\s\S]*$/, "").trim();
 
   return (
     <Widget
       title={`${campus} Specials`}
-      subtitle={specialsData?.weekLabel ?? "Weekly menu specials"}
+      subtitle={
+        !hasSpecials
+          ? "Not offered at this campus"
+          : specialsData?.weekLabel ?? "Weekly menu specials"
+      }
       icon="🍽️"
       accentColor={accent}
       loading={loading}
@@ -38,9 +51,13 @@ export default function CafeSpecials({ weekOf, campus }) {
       onRetry={reload}
       empty={!loading && !error && !body}
       emptyIcon="🍽️"
-      emptyMessage="No specials found for this week."
+      emptyMessage={
+        hasSpecials
+          ? "No specials found for this week."
+          : `${campus} does not offer weekly specials.`
+      }
       expandable
-      actions={[{ label: "↻ Refresh", onClick: reload }]}
+      actions={hasSpecials ? [{ label: "↻ Refresh", onClick: reload }] : []}
     >
       {body && (
         <div style={{

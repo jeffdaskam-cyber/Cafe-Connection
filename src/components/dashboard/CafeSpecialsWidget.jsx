@@ -11,7 +11,7 @@
 
 import { useState } from "react";
 import Widget from "../Widget.jsx";
-import { CAMPUSES } from "../CampusSelector.jsx";
+import { SPECIALS_CAMPUSES } from "../CampusSelector.jsx";
 import { useWidget } from "../../hooks/useWidget.js";
 import { fetchSpecials } from "../../firebase.js";
 import { COLORS } from "../../theme.js";
@@ -26,7 +26,7 @@ function currentMonday() {
 function CampusPills({ value, onChange }) {
   return (
     <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
-      {CAMPUSES.map(c => {
+      {SPECIALS_CAMPUSES.map(c => {
         const active = c === value;
         const color  = COLORS.AQUA;
         return (
@@ -55,7 +55,11 @@ function CampusPills({ value, onChange }) {
 }
 
 export default function CafeSpecialsWidget({ config = {} }) {
-  const [activeCampus, setActiveCampus] = useState(config.campus ?? "Mesa Lab");
+  // A user's saved campus may be one that has no specials (e.g. Center Green) —
+  // fall back to the first campus that does.
+  const [activeCampus, setActiveCampus] = useState(
+    SPECIALS_CAMPUSES.includes(config.campus) ? config.campus : SPECIALS_CAMPUSES[0]
+  );
   const accentColor = COLORS.AQUA;
   const weekOf      = currentMonday();
 
