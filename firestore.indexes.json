@@ -46,6 +46,55 @@
         { "fieldPath": "weekOf", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "catering_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requestStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "catering_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING" },
+        { "fieldPath": "requestStatus", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "catering_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "lifecycleStatus", "order": "ASCENDING" },
+        { "fieldPath": "startDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "catering_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requestStatus", "order": "ASCENDING" },
+        { "fieldPath": "lastNotifiedStatus", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "catering_schedule_days",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "date", "order": "ASCENDING" },
+        { "fieldPath": "startTime", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "catering_meal_selections",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "mealPeriod", "order": "ASCENDING" },
+        { "fieldPath": "time", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -6,9 +6,30 @@ export const ROLES = ["user", "manager", "senior_leader", "administrator"];
 
 const ROLE_ORDER = ROLES;
 
-// Returns true if the user's role meets or exceeds the required minimum role
+// ── Catering Companion: the `requester` role ─────────────────────────────────
+// Any @ucar.edu user who reaches /catering without an existing staff role.
+//
+// A SIBLING of the staff ladder, not a rung on it. It must never satisfy
+// roleAtLeast() for any staff role and must never appear in PAGE_ACCESS or
+// WIDGET_ACCESS, so a future permissions refactor cannot accidentally grant a
+// requester staff visibility. Kept out of ROLES for that reason — use
+// ALL_ROLES when you need every valid role value (e.g. validating a role doc).
+export const REQUESTER_ROLE = "requester";
+
+export const ALL_ROLES = [...ROLES, REQUESTER_ROLE];
+
+export function isRequesterRole(userRole) {
+  return userRole === REQUESTER_ROLE;
+}
+
+// Returns true if the user's role meets or exceeds the required minimum role.
+// Requesters are off the ladder entirely and always fail this check.
 export function roleAtLeast(userRole, minRole) {
-  return ROLE_ORDER.indexOf(userRole) >= ROLE_ORDER.indexOf(minRole);
+  if (isRequesterRole(userRole)) return false;
+  const userIndex = ROLE_ORDER.indexOf(userRole);
+  const minIndex  = ROLE_ORDER.indexOf(minRole);
+  if (userIndex === -1 || minIndex === -1) return false;
+  return userIndex >= minIndex;
 }
 
 // Page-level access map
@@ -21,9 +42,16 @@ const PAGE_ACCESS = {
   fpa:           ["senior_leader", "administrator"],
   reports:       ["manager", "administrator"],
   admin:         ["administrator"],
+  // Catering Companion staff console (Phase 3). Mirrors the isManagerOrAbove()
+  // helper in firestore.rules. Deliberately excludes `requester` — requesters
+  // use the separate /catering entry point, never the staff shell.
+  catering:      ["manager", "senior_leader", "administrator"],
 };
 
 export function canAccessPage(userRole, page) {
+  // Requesters have no access to any Cafe Connection staff page. Explicit
+  // rather than relying on their absence from every PAGE_ACCESS list.
+  if (isRequesterRole(userRole)) return false;
   return PAGE_ACCESS[page]?.includes(userRole) ?? false;
 }
 
@@ -177,6 +205,8 @@ export const DASHBOARD_WIDGET_KEY = {
 
 // Returns "full" | "read_only" | "hidden"
 export function widgetAccess(userRole, widgetKey) {
+  // Requesters never see a Cafe Connection staff widget.
+  if (isRequesterRole(userRole)) return "hidden";
   return WIDGET_ACCESS[widgetKey]?.[userRole] ?? "hidden";
 }
 

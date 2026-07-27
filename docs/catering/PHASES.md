@@ -8,8 +8,8 @@ Sandbox setup and isolation are documented in [`SANDBOX.md`](./SANDBOX.md).
 
 | Phase | Scope | Status |
 |---|---|---|
-| **0 — Environment** | Emulator sandbox, feature flag, `/catering` entry point, preview deploy | ✅ Complete — awaiting sign-off |
-| **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ⏸ Not started |
+| **0 — Environment** | Emulator sandbox, feature flag, `/catering` entry point, preview deploy | ✅ Complete |
+| **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ✅ Complete — awaiting sign-off |
 | **2 — Requester intake** | `/catering` multi-step form, "my requests" | ⏸ Not started |
 | **3 — Staff console** | Catering tab, queue, confirm / assign / close | ⏸ Not started |
 | **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ⏸ Not started |
@@ -38,6 +38,42 @@ Sandbox setup and isolation are documented in [`SANDBOX.md`](./SANDBOX.md).
 **Deviation from the plan:** the plan names the branch `feature/catering-companion`;
 this work is on `claude/catering-companion-app-build-kr9ib1` per the session's
 branch assignment. Isolation is otherwise identical.
+
+---
+
+## Phase 1 — what was built
+
+| Area | Change |
+|---|---|
+| Schema | `src/catering/schema.js` — collection names, both status enums, payment methods, meal periods, building→campus map, service-field pairs, and the requester-editable allowlist. Single source of truth shared by client, scripts, and tests. |
+| Roles | `permissions.js` gains `REQUESTER_ROLE` / `ALL_ROLES` / `isRequesterRole()`. `requester` is a sibling of the staff ladder: `roleAtLeast()` always returns false for it, and `canAccessPage()` / `widgetAccess()` deny it explicitly rather than by omission. `useRole.js` validates against `ALL_ROLES` so a requester is no longer silently downgraded to `user`. |
+| Rules | `catering_events` + three subcollections, `rooms`, `buildings`. Requester edits are limited to an explicit field allowlist and blocked once `requestStatus` leaves draft/submitted. Revenue fields are unwritable from any client. Room assignment is staff-only. `user_roles` gains a narrow self-provisioning path pinned to the literal role `'requester'`. |
+| Indexes | Seven composite/collection-group indexes covering the staff queue, "my requests", the daily schedule view, the cron sweep, and cross-event meal lookups. |
+| Scripts | `seedCateringReferenceData.mjs`, `migrateCateringEvents.mjs`, and shared libs (`cateringTransforms.mjs`, `csv.mjs`, `cateringAdmin.mjs`). Both refuse to write to a live project unless explicitly opted in. |
+| Tests | 61 total. 35 pure transform/CSV/routing tests under `npm test`; 26 rules tests under `npm run test:rules`. |
+
+**Acceptance criteria — Phase 1**
+
+- ✅ Rules unit tests pass (26/26): a requester cannot read others' events,
+  cannot write revenue fields, cannot advance status, cannot assign rooms, and
+  cannot self-provision as staff.
+- ✅ Seeded counts match the source: **44 rooms, 9 buildings**.
+- ✅ Migrated event count matches the source: **10 events** (5 flagged
+  `needsReview`, 1 orphan meal selection skipped — see
+  [`SEED_AND_MIGRATION.md`](./SEED_AND_MIGRATION.md) §4).
+- ✅ Firestore rules runtime confirmed working in the container (the open risk
+  carried over from Phase 0).
+
+**Note on source data.** `data/catering/*.csv` is git-ignored — the Events
+export carries staff names, emails, and phone numbers, and this is a public
+repository. Committed `*.example.csv` files document the format with synthetic
+data.
+
+**Deliberately not fixed:** the pre-existing `userRole()` helper in
+`firestore.rules` still reads from `/users` and so always returns `''`. The
+catering rules use their own `user_roles`-based helpers and are unaffected.
+Correcting `userRole()` changes live production permissions on `event_revenue`
+and should be a separate, deliberate change.
 
 ---
 

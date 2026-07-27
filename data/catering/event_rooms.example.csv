@@ -1,0 +1,2 @@
+Event Room ID,Event ID,Building ID,Room ID,Setup,Room Start Time,Room End Time,Expected Headcount,Is Primary Room,Room Notes
+room0001,evt00001,XX1,XX1-1000-Auditorium,Theater,08:00:00,17:00:00,100,Yes,

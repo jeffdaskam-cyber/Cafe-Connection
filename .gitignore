@@ -19,6 +19,13 @@ coverage/
 .vercel
 .claude/worktrees/
 
+# Catering: AppSheet export CSVs.
+# Contains staff names, emails, and phone numbers — this is a public
+# repository. Committed *.example.csv files document the expected format.
+# See docs/catering/SEED_AND_MIGRATION.md.
+data/catering/*.csv
+!data/catering/*.example.csv
+
 # Firebase emulator suite (sandbox)
 .emulator-data/
 firebase-debug.log
