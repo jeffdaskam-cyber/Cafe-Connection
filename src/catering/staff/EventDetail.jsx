@@ -15,8 +15,8 @@ import { COLORS, FONT, RADIUS } from "../../theme.js";
 import { LIFECYCLE_STATUS, PAYMENT_METHOD, REQUEST_STATUS } from "../schema.js";
 import {
   deleteRoomBooking, fetchEventRooms, fetchEventScheduleDays,
-  resolveReviewFlag, rollUpEventRevenue, setLifecycleStatus, setRequestStatus,
-  updateEventFields, updateRoomBooking,
+  generateRecap, notifyForEvent, resolveReviewFlag, rollUpEventRevenue,
+  setLifecycleStatus, setRequestStatus, updateEventFields, updateRoomBooking,
 } from "../staffData.js";
 import {
   Banner, Button, Card, Field, Input, SectionTitle, Select, StatusBadge, Textarea,
@@ -33,6 +33,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [rollup, setRollup] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const [recap, setRecap] = useState(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
 
@@ -61,12 +63,37 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
     }
   }
 
-  async function run(label, fn, { reconcile = false } = {}) {
+  /**
+   * Fire the side effects a status change implies: the recap first (so the
+   * closing email can link to it), then the notification.
+   *
+   * Like the rollup, these never fail the status change that triggered them —
+   * the nightly reconciliation sweep re-runs anything that did not land.
+   */
+  async function reconcileSideEffects({ withRecap = false } = {}) {
+    if (withRecap) {
+      try {
+        setRecap(await generateRecap(event.id));
+      } catch (err) {
+        console.error("[catering/staff] recap generation failed:", err);
+        setRecap({ action: "failed", reason: err.message });
+      }
+    }
+    try {
+      setNotice(await notifyForEvent(event.id));
+    } catch (err) {
+      console.error("[catering/staff] notification failed:", err);
+      setNotice({ action: "failed", reason: err.message });
+    }
+  }
+
+  async function run(label, fn, { reconcile = false, notify = false, recap: wantRecap = false } = {}) {
     setBusy(label);
     setError("");
     try {
       await fn();
       if (reconcile) await reconcileRevenue();
+      if (notify) await reconcileSideEffects({ withRecap: wantRecap });
     } catch (err) {
       console.error(`[catering/staff] ${label} failed:`, err);
       setError(
@@ -142,6 +169,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
       {error && <Banner tone="error" title="Action failed">{error}</Banner>}
 
       {rollup && <RevenueRollupBanner rollup={rollup} />}
+      {recap && <RecapBanner recap={recap} />}
+      {notice && <NotificationBanner notice={notice} />}
 
       {event.needsReview && (
         <Banner tone="warning" title="Migrated record needs review">
@@ -183,14 +212,16 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
           {!isConfirmed && event.requestStatus !== REQUEST_STATUS.CANCELLED && (
             <Button disabled={Boolean(busy)}
               onClick={() => run("confirm",
-                () => setRequestStatus(event, REQUEST_STATUS.CONFIRMED, user), { reconcile: true })}>
+                () => setRequestStatus(event, REQUEST_STATUS.CONFIRMED, user),
+                { reconcile: true, notify: true })}>
               {busy === "confirm" ? "Confirming…" : "Confirm request"}
             </Button>
           )}
           {isConfirmed && !isClosed && (
             <Button disabled={Boolean(busy)}
               onClick={() => run("close",
-                () => setLifecycleStatus(event, LIFECYCLE_STATUS.CLOSED, user), { reconcile: true })}>
+                () => setLifecycleStatus(event, LIFECYCLE_STATUS.CLOSED, user),
+                { reconcile: true, notify: true, recap: true })}>
               {busy === "close" ? "Closing…" : "Close event"}
             </Button>
           )}
@@ -504,6 +535,56 @@ function formatRevenue(event) {
   if (parts.length === 0) return "";
   if (event.revenueRolledUpAt) parts.push("· rolled up");
   return parts.join(" · ");
+}
+
+function NotificationBanner({ notice }) {
+  if (notice.action === "sent") {
+    return (
+      <Banner tone="success" title="Notification sent">
+        “{notice.subject}” sent to {notice.to.join(", ")}
+        {notice.cc?.length ? ` (cc ${notice.cc.join(", ")})` : ""}.
+      </Banner>
+    );
+  }
+  if (notice.action === "logged") {
+    return (
+      <Banner tone="warning" title="Notification not sent — email is off">
+        The {notice.type} message was composed for {notice.to.join(", ")} and
+        logged, but not delivered: the service mailbox does not yet hold the
+        <code> gmail.send </code> scope. It will send once that is granted and
+        <code> CATERING_EMAIL_ENABLED </code> is set.
+      </Banner>
+    );
+  }
+  if (notice.action === "failed") {
+    return (
+      <Banner tone="warning" title="Notification didn't run">
+        {notice.reason} The status change was saved; the nightly sweep will retry.
+      </Banner>
+    );
+  }
+  return null;
+}
+
+function RecapBanner({ recap }) {
+  if (recap.action === "generated") {
+    return (
+      <Banner tone="success" title="Recap generated">
+        <a href={recap.recapUrl} target="_blank" rel="noreferrer"
+          style={{ color: COLORS.AQUA_DARK, fontWeight: FONT.WEIGHT_BOLD }}>
+          Open the event recap PDF
+        </a>
+      </Banner>
+    );
+  }
+  if (recap.action === "failed") {
+    return (
+      <Banner tone="warning" title="Recap didn't generate">
+        {recap.reason} The event is still closed; the nightly sweep will retry.
+      </Banner>
+    );
+  }
+  return null;
 }
 
 function RevenueRollupBanner({ rollup }) {

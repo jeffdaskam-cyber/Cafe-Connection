@@ -18,67 +18,21 @@
 
 import admin from "firebase-admin";
 
-import {
-  createHttpError, getAdminApp, requireEnv, respondWithError, respondWithInternalError,
-} from "./_lib/serverless.mjs";
+import { respondWithError, respondWithInternalError } from "./_lib/serverless.mjs";
+import { initCateringAdmin, verifyStaffOrCron } from "./_lib/cateringAdminApp.mjs";
 import { buildRevenueDoc, revenueDocId, shouldRemoveRevenue } from "./_lib/cateringRevenue.mjs";
 
 const SCOPE = "catering-revenue-rollup";
-const STAFF_ROLES = ["manager", "senior_leader", "administrator"];
 
-// Sandbox: with FIRESTORE_EMULATOR_HOST set, the Admin SDK talks to the local
-// emulator and needs no service-account credentials. See docs/catering/SANDBOX.md.
-const USE_EMULATOR = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
-
-if (!USE_EMULATOR) {
-  requireEnv(SCOPE, process.env, [
-    "FIREBASE_ADMIN_PROJECT_ID",
-    "FIREBASE_ADMIN_CLIENT_EMAIL",
-    "FIREBASE_ADMIN_PRIVATE_KEY",
-  ]);
-}
-
-const adminApp = USE_EMULATOR
-  ? (() => {
-      try { return admin.app(); } catch {
-        return admin.initializeApp({
-          projectId: process.env.GCLOUD_PROJECT || "demo-cafe-connection",
-        });
-      }
-    })()
-  : getAdminApp(admin, process.env, SCOPE);
-
+// Uses the shared bootstrap so every catering endpoint initializes the Admin
+// SDK identically. firebase-admin keeps one default app per process, so the
+// first endpoint to load defines it for all of them — a local variant here
+// would silently deprive the recap endpoint of its storage bucket.
+const adminApp = initCateringAdmin(SCOPE, { storageBucketEnvVar: "FIREBASE_STORAGE_BUCKET" });
 const db = adminApp.firestore();
 
 // Firestore document IDs are opaque but must not contain slashes.
 const EVENT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
-
-async function verifyStaff(req) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    throw createHttpError("Unauthorized.", 401);
-  }
-
-  let decoded;
-  try {
-    decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
-  } catch {
-    throw createHttpError("Invalid token.", 401);
-  }
-
-  if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
-    throw createHttpError("Forbidden.", 403);
-  }
-
-  // Roles live in user_roles, not users — see docs/catering/PHASES.md.
-  const roleSnap = await db.collection("user_roles").doc(decoded.uid).get();
-  const role = roleSnap.exists ? roleSnap.data().role : null;
-  if (!STAFF_ROLES.includes(role)) {
-    throw createHttpError("Forbidden — manager access required.", 403);
-  }
-
-  return { uid: decoded.uid, email: decoded.email, role };
-}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -87,7 +41,8 @@ export default async function handler(req, res) {
 
   let caller;
   try {
-    caller = await verifyStaff(req);
+    // Accepts a manager ID token or CRON_SECRET — the nightly sweep calls this.
+    caller = await verifyStaffOrCron(adminApp, db, req);
   } catch (err) {
     return respondWithError(res, err, 401);
   }
@@ -127,7 +82,7 @@ export default async function handler(req, res) {
       {
         ...built.data,
         updated_at: admin.firestore.FieldValue.serverTimestamp(),
-        updated_by: caller.uid,
+        updated_by: caller.uid ?? "cron",
       },
       { merge: true }
     );

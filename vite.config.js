@@ -95,6 +95,10 @@ export default defineConfig(({ mode }) => {
     // keys, which rejects every token the Auth emulator issues.
     process.env.FIREBASE_AUTH_EMULATOR_HOST ??= `${host}:${authPort}`;
     process.env.GCLOUD_PROJECT ??= env.VITE_FIREBASE_PROJECT_ID || "demo-cafe-connection";
+    const storagePort = env.VITE_FIREBASE_EMULATOR_STORAGE_PORT || "9199";
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST ??= `${host}:${storagePort}`;
+    process.env.FIREBASE_STORAGE_BUCKET ??=
+      env.VITE_FIREBASE_STORAGE_BUCKET || "demo-cafe-connection.firebasestorage.app";
   }
 
   return {

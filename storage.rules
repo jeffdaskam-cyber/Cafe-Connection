@@ -34,6 +34,16 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
+    // ── Catering event recaps ────────────────────────────────────────────────
+    // Path: catering_recaps/{eventId}.pdf
+    // Written server-side only (Admin SDK bypasses these rules). The download
+    // URL stored on the event carries a token, so recipients of the closing
+    // email can open it; signed-in UCAR users can read directly.
+    match /catering_recaps/{fileName} {
+      allow read:  if isAuthedUCAR();
+      allow write: if false;
+    }
+
     // ── Event order PDFs (Weekly Ops › Event Orders panel) ───────────────────
     // Path: event_orders/{timestamp}_{filename}
     match /event_orders/{fileName} {

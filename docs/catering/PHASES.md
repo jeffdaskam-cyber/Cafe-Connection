@@ -12,8 +12,8 @@ Sandbox setup and isolation are documented in [`SANDBOX.md`](./SANDBOX.md).
 | **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ✅ Complete |
 | **2 — Requester intake** | `/catering` multi-step form, "my requests" | ✅ Complete |
 | **3 — Staff console** | Catering tab, queue, confirm / edit / close | ✅ Complete |
-| **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ✅ Complete — awaiting sign-off |
-| **5 — Automation + UAT** | Notifications, recap PDF, cron reconciliation, UAT sign-off | ⏸ Not started |
+| **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ✅ Complete |
+| **5 — Automation + UAT** | Notifications, recap PDF, cron reconciliation, UAT sign-off | ⚠️ Built — **UAT still to run** |
 
 ---
 
@@ -245,6 +245,66 @@ Corrected on 2026-07-28:
 `FIREBASE_AUTH_EMULATOR_HOST` had to be set for the Admin SDK to verify
 emulator-issued tokens; without it every call was a 401. Worth remembering for
 Phase 5's notification endpoints, which will hit the same wall.
+
+---
+
+## Phase 5 — what was built
+
+| Area | Change |
+|---|---|
+| Notifications | `api/catering-notify.mjs` + `_lib/cateringNotify.mjs`. All four plan types (created / updated / confirmed / closed), recipient rules, plain-text templates, and Gmail RFC-2822 encoding. |
+| Recap PDF | `api/catering-recap.mjs` + `_lib/cateringRecap.mjs`. Built only from the event's own stored fields, rendered with `jspdf`, stored at a deterministic path, URL saved on the event. |
+| Cron reconciliation | `api/catering-cron-reconcile.mjs` + `_lib/cateringReconcile.mjs`, wired to a nightly Vercel cron (08:00 UTC). Sweeps for un-notified states, missing revenue rows, and missing recaps. |
+| Console | Confirm and close now fire the notification (and, on close, the recap) alongside the revenue rollup, each reporting what happened. |
+| Config | `storage.rules` gains `catering_recaps/`; `.env.example` documents the five new vars; `vercel.json` gains the cron and function timeouts. |
+
+### The email transport is deliberately switchable
+
+Sending needs the service mailbox to hold the `gmail.send` OAuth scope, which is
+**still outstanding**. Rather than block, the transport is chosen at call time:
+
+- `gmail` — credentials present **and** `CATERING_EMAIL_ENABLED=true`
+- `log` — otherwise: the fully-rendered message is logged, nothing is sent
+
+The log path runs the identical code, so recipients, templates, and the
+`lastNotified*` bookkeeping are all exercised today. Flipping one env var is the
+only change needed once the scope lands. The console says so plainly rather than
+implying an email went out.
+
+**Acceptance criteria — Phase 5**
+
+- ✅ All four notification types fire with the correct recipients: created →
+  planner (+ ops cc), updated → planner, confirmed and closed → planner and
+  on-site contact.
+- ✅ Re-notifying an already-notified state is a no-op; `lastNotifiedStatus`
+  records both status axes.
+- ✅ Recap PDF matches the source data — verified by asserting the generated
+  document contains each source value (event, dates, contacts, room, setup,
+  menu, service notes, project IDs, payment notes, actual revenue, actual
+  attendance).
+- ✅ Regenerating a recap overwrites in place.
+- ✅ The nightly sweep recovers a missed notification and a missing revenue row,
+  reports what it did, and finds nothing on a second run.
+- ✅ The cron endpoint rejects unauthenticated calls.
+- ⚠️ **UAT with 2–3 real planners has NOT been run** — see [`UAT.md`](./UAT.md).
+
+### Three bugs this phase surfaced
+
+1. **The nightly sweep could not roll up revenue.** It authenticates with
+   `CRON_SECRET`, but `catering-revenue-rollup` had its own `verifyStaff()` that
+   only accepted staff ID tokens, so every sweep attempt returned "Invalid
+   token". Now uses the shared `verifyStaffOrCron`.
+
+2. **The recap endpoint had no storage bucket.** `catering-revenue-rollup`
+   carried a duplicate inline Admin SDK bootstrap without one, and
+   `firebase-admin` keeps a single default app per process — so whichever
+   endpoint loaded first decided whether Storage worked at all. All catering
+   endpoints now share one bootstrap.
+
+3. **The sweep never looked like it converged.** It counted no-ops and skips as
+   work done. It now counts only real outcomes and reports `skipped` separately,
+   which is what surfaced a test event with no planner email instead of silently
+   retrying it nightly.
 
 ---
 

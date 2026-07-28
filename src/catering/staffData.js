@@ -175,16 +175,33 @@ export async function updateEventFields(eventId, patch) {
  * the nightly reconciliation sweep in Phase 5 is the backstop.
  */
 export async function rollUpEventRevenue(eventId) {
+  return callCateringApi("catering-revenue-rollup", { eventId });
+}
+
+/**
+ * Send the notification the event's current state warrants. Idempotent: the
+ * endpoint skips a state it has already notified.
+ */
+export async function notifyForEvent(eventId, type) {
+  return callCateringApi("catering-notify", type ? { eventId, type } : { eventId });
+}
+
+/** Generate (or regenerate) the event recap PDF and store its URL. */
+export async function generateRecap(eventId) {
+  return callCateringApi("catering-recap", { eventId });
+}
+
+async function callCateringApi(route, body) {
   const token = await getAuthToken();
-  const res = await fetch("/api/catering-revenue-rollup", {
+  const res = await fetch(`/api/${route}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ eventId }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Revenue rollup failed (${res.status}).`);
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload.error || `${route} failed (${res.status}).`);
   }
   return res.json();
 }
