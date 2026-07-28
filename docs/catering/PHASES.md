@@ -9,8 +9,8 @@ Sandbox setup and isolation are documented in [`SANDBOX.md`](./SANDBOX.md).
 | Phase | Scope | Status |
 |---|---|---|
 | **0 — Environment** | Emulator sandbox, feature flag, `/catering` entry point, preview deploy | ✅ Complete |
-| **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ✅ Complete — awaiting sign-off |
-| **2 — Requester intake** | `/catering` multi-step form, "my requests" | ⏸ Not started |
+| **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ✅ Complete |
+| **2 — Requester intake** | `/catering` multi-step form, "my requests" | ✅ Complete — awaiting sign-off |
 | **3 — Staff console** | Catering tab, queue, confirm / assign / close | ⏸ Not started |
 | **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ⏸ Not started |
 | **5 — Automation + UAT** | Notifications, recap PDF, cron reconciliation, UAT sign-off | ⏸ Not started |
@@ -74,6 +74,55 @@ data.
 catering rules use their own `user_roles`-based helpers and are unaffected.
 Correcting `userRole()` changes live production permissions on `event_revenue`
 and should be a separate, deliberate change.
+
+---
+
+## Phase 2 — what was built
+
+| Area | Change |
+|---|---|
+| Form model | `src/catering/formState.js` — step definitions, empty state, per-step validation, Firestore mapping, and draft persistence. Pure, so the whole model is unit tested without React. |
+| Intake form | `src/catering/IntakeForm.jsx` — five steps (basics → schedule → meals → logistics → review) with repeatable schedule days, meals nested per day, inline validation, and an editable review summary. |
+| My requests | `src/catering/MyRequests.jsx` — live list scoped to `createdBy == uid`, expandable detail showing schedule, meals, services, payment, and staff room assignments. |
+| Shell | `CateringApp.jsx` wraps the module in `AuthProvider selfProvisionRole="requester"` and switches between the list and the form. |
+| Auth | `AuthProvider` gains a `selfProvisionRole` prop: an `@ucar.edu` user with no role document and no invite is provisioned as `requester` instead of being signed out. `LoginPage` gains `productName` / `tagline` / `description` props so both entry points share one sign-in implementation. |
+| Data | `src/catering/data.js` — reference-data reads, request submission (parent then batched children), the live "my requests" subscription, and detail reads. |
+
+**Acceptance criteria — Phase 2**
+
+- ✅ A test `@ucar.edu` account signs in, is self-provisioned as `requester`,
+  submits a full event (2 schedule days, 2 meals, a room request, split
+  payment), and sees it in "my requests" — verified end to end in a real
+  browser against the emulator suite.
+- ✅ Submitted detail round-trips: room request, setup, security and access
+  notes, both project IDs, payment notes, and per-day meals all persist and
+  render.
+- ✅ An unfinished request survives a page refresh and reopens itself;
+  cancelling discards it.
+
+**Note on the E2E harness.** This container's proxy blocks
+`accounts.google.com`, so the Google sign-in button cannot complete here. The
+acceptance run signs in through the Auth emulator instead; everything
+downstream — `onAuthStateChanged`, self-provisioning, and all rules-enforced
+reads and writes — runs exactly as in the browser. **The Google sign-in path
+itself still needs manual confirmation during Phase 5 UAT.**
+
+### Two bugs this phase surfaced
+
+1. **`plannerEmail` was missing from the requester allowlist** (Phase 1
+   oversight). Creating a request would have worked, but every later edit would
+   have been rejected. Caught by the test asserting `toEventDoc()` only emits
+   allowlisted fields. Added to both `schema.js` and `firestore.rules`.
+
+2. **`AuthContext`'s UID-migration lookup aborted sign-in.** It runs a `list`
+   query on `user_roles`, which the rules only permit for administrators. The
+   denial threw inside the shared `try`, so the handler fell to its catch and
+   signed the user out with "We couldn't verify your account" — before ever
+   reaching the pending-invite or self-provisioning paths. This is pre-existing
+   and affects any first-time sign-in, not just catering. Fixed by scoping that
+   lookup in its own try/catch and treating a denial as "no match to migrate",
+   which needed no rule change. **Worth verifying against production invite
+   activation** — the same path runs there.
 
 ---
 

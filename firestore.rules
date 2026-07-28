@@ -69,7 +69,7 @@ service cloud.firestore {
     // rather than allow-by-default (build plan §3).
     function requesterEditableFields() {
       return [
-        'plannerName', 'plannerPhone',
+        'plannerName', 'plannerEmail', 'plannerPhone',
         'onsiteContactName', 'onsiteContactEmail', 'onsiteContactPhone',
         'secondaryContactName', 'secondaryContactEmail', 'secondaryContactPhone',
         'organization', 'lcpo',
@@ -81,7 +81,7 @@ service cloud.firestore {
         'custodialNotes', 'needsCustodial',
         'accessDoorsNotes', 'needsAccessDoors',
         'sustainabilityNotes', 'needsSustainability',
-        'buildingId', 'primaryRoomId',
+        'buildingId', 'primaryRoomId', 'campus',
         'paymentMethod', 'projectIds', 'paymentNotes',
         'updatedAt'
       ];

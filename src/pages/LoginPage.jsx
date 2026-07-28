@@ -29,7 +29,16 @@ function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height 
   );
 }
 
-export default function LoginPage() {
+/**
+ * Shared sign-in screen. The Catering Companion mounts this with its own
+ * wordmark and copy — the Google/magic-link logic and the @ucar.edu domain
+ * enforcement are identical for both entry points.
+ */
+export default function LoginPage({
+  productName  = "Cafe Connection",
+  tagline      = "Internal Operations Hub",
+  description  = "Sign in with your UCAR Google account.",
+}) {
   const { authError, clearAuthError } = useAuth();
   const [email,    setEmail]    = useState("");
   const [status,   setStatus]   = useState("idle");
@@ -146,11 +155,11 @@ export default function LoginPage() {
 
         <div style={{ marginBottom: 32 }}>
           <div style={{ fontWeight: 800, fontSize: 16, color: COLORS.TEXT_PRIMARY }}>
-            <span style={{ color: COLORS.AQUA }}>UCAR</span> Cafe Connection
+            <span style={{ color: COLORS.AQUA }}>UCAR</span> {productName}
           </div>
           <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 500,
             letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Internal Operations Hub
+            {tagline}
           </div>
         </div>
 
@@ -235,7 +244,7 @@ export default function LoginPage() {
               Sign In
             </div>
             <div style={{ fontSize: 12, color: COLORS.TEXT_SECONDARY, marginBottom: 24, lineHeight: 1.6 }}>
-              Sign in with your UCAR Google account.
+              {description}
             </div>
 
             {authError && (

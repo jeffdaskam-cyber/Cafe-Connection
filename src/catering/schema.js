@@ -109,6 +109,7 @@ export const SERVICE_FIELDS = [
 export const REQUESTER_EDITABLE_FIELDS = [
   // Contact details
   "plannerName",
+  "plannerEmail",
   "plannerPhone",
   "onsiteContactName",
   "onsiteContactEmail",
@@ -141,6 +142,11 @@ export const REQUESTER_EDITABLE_FIELDS = [
   // catering_event_rooms, which requesters cannot write)
   "buildingId",
   "primaryRoomId",
+  // Derived from buildingId, which is already requester-editable, so allowing
+  // it grants no additional authority — it exists to make campus-filtered
+  // queries cheap. Phase 4's revenue rollup must re-derive campus server-side
+  // from buildingId rather than trusting this value.
+  "campus",
   // Payment intent — amounts are staff-only
   "paymentMethod",
   "projectIds",

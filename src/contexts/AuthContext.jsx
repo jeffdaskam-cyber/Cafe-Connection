@@ -8,7 +8,18 @@ import { auth, db } from "../firebase.js";
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+/**
+ * @param selfProvisionRole  When set, an authenticated @ucar.edu user who has
+ *   neither a role document nor a pending invite is provisioned with this role
+ *   instead of being signed out. Used by the Catering Companion entry point,
+ *   which is open to any UCAR employee (`requester`). Left null by the Cafe
+ *   Connection staff shell, which stays invite-only.
+ *
+ *   The matching security rule pins self-creation to the literal role
+ *   'requester', so passing anything else here will simply be rejected by
+ *   Firestore rather than granting elevated access.
+ */
+export function AuthProvider({ children, selfProvisionRole = null }) {
   // undefined = still initializing, null = no user, object = signed in
   const [user, setUser]           = useState(undefined);
   const [authError, setAuthError] = useState("");
@@ -48,9 +59,24 @@ export function AuthProvider({ children }) {
         // the case where the same authorized user signs in via a new provider
         // (e.g. Google after originally being invited via email link), which
         // produces a different Firebase UID for the same email.
-        const emailMatch = await getDocs(
-          query(collection(db, "user_roles"), where("email", "==", email), limit(1))
-        );
+        //
+        // This is a `list` on user_roles, which the security rules only permit
+        // for administrators — for everyone else it is denied. A denial here
+        // means "no match to migrate", not "sign-in failed", so it must not
+        // abort the handler: the pending-invite and self-provisioning paths
+        // below are the ones that matter for a first-time sign-in.
+        let emailMatch = { empty: true, docs: [] };
+        try {
+          emailMatch = await getDocs(
+            query(collection(db, "user_roles"), where("email", "==", email), limit(1))
+          );
+        } catch (lookupErr) {
+          console.debug(
+            "[AuthContext] user_roles email lookup unavailable (expected for non-admins):",
+            lookupErr?.code || lookupErr
+          );
+        }
+
         if (!emailMatch.empty) {
           const existing = emailMatch.docs[0];
           const existingData = existing.data();
@@ -117,7 +143,39 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        // No active record and no pending invite — unauthorized
+        // No active record and no pending invite. On an entry point that
+        // self-provisions (the Catering Companion), create the role document
+        // and continue; otherwise this is an unauthorized sign-in attempt.
+        if (selfProvisionRole) {
+          await setDoc(roleRef, {
+            uid:         firebaseUser.uid,
+            // Must equal request.auth.token.email exactly, not a lowercased
+            // copy, or the self-provisioning rule rejects the write.
+            email:       firebaseUser.email,
+            displayName: firebaseUser.displayName || "",
+            role:        selfProvisionRole,
+            assignedBy:  "self:catering",
+            assignedAt:  serverTimestamp(),
+            createdAt:   serverTimestamp(),
+          });
+
+          await setDoc(
+            doc(db, "users", firebaseUser.uid),
+            {
+              uid:         firebaseUser.uid,
+              email:       firebaseUser.email,
+              displayName: firebaseUser.displayName || "",
+              createdAt:   serverTimestamp(),
+              lastLoginAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+
+          setAuthError("");
+          setUser(firebaseUser);
+          return;
+        }
+
         await signOut(auth);
         setAuthError(
           "You don't have access to this application. Contact your administrator to request an invite."
@@ -133,6 +191,9 @@ export function AuthProvider({ children }) {
       }
     });
     return unsub;
+    // selfProvisionRole is fixed per entry point (set once at mount), so the
+    // listener does not need to be torn down and rebuilt when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function logout() {
