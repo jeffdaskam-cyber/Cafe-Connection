@@ -54,16 +54,16 @@ Plain `npm run dev` is unchanged: it uses `.env.local` and, with
 
 ### Serverless functions in the sandbox
 
-`npm run dev` and `npm run dev:sandbox` serve the Vercel functions in `api/`
-through a dev-only Vite middleware, so `/api/*` works locally instead of
-404ing. In sandbox mode the Firestore and Auth emulator hosts are set
-automatically, so catering endpoints such as
-`/api/catering-revenue-rollup` run against the emulators with no credentials.
+A dev-only Vite middleware serves the Catering Companion's own Vercel
+functions — `/api/catering-*` — from the dev server, so the revenue rollup can
+be exercised locally instead of 404ing. In sandbox mode the Firestore and Auth
+emulator hosts are set automatically, so those endpoints run against the
+emulators with no credentials.
 
-Functions backed by Google Drive or Gmail (`get-schedule-pdf`, `get-specials`,
-`ingest-email-orders`, …) still need real service-account credentials and will
-return a clear 500 in the sandbox. That is expected — before the middleware
-existed those calls simply 404ed.
+**Scoped on purpose.** Every other function in `api/` belongs to Cafe
+Connection proper, needs real Google service-account credentials, and continues
+to 404 under `npm run dev` exactly as it did before this module existed. The
+middleware does not touch them.
 
 ### Emulator data persistence
 

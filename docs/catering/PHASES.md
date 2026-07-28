@@ -203,7 +203,7 @@ Corrected on 2026-07-28:
 | Revenue entry | Staff enter estimated and actual amounts in the event detail view. The console triggers the rollup after any confirm, close, cancel, or revenue edit, and shows what happened. |
 | Dashboard widget | `CateringWidget` reads `catering_events` directly (the plan's §5.1 "live widget read"), showing awaiting-decision count, upcoming events, guests, and revenue. |
 | Event Revenue view | Catering rows are tagged `source: "catering"` and excluded by default, with an "Include catering (n)" toggle. |
-| Dev serverless | A dev-only Vite middleware serves `api/*` so serverless behavior is testable locally at all; sandbox mode wires the Firestore and Auth emulator hosts automatically. |
+| Dev serverless | A dev-only Vite middleware serves `/api/catering-*` so the rollup is testable locally; sandbox mode wires the Firestore and Auth emulator hosts automatically. Scoped to catering routes — the rest of `api/` still 404s in dev, as before. |
 
 **Decisions taken (2026-07-28)**
 

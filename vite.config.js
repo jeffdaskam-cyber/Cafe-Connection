@@ -5,11 +5,17 @@ import { pathToFileURL } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
+// Only the Catering Companion's own endpoints are served locally. Deliberately
+// NOT every function in api/: the rest belong to Cafe Connection proper, need
+// real Google credentials, and used to 404 in dev — serving them here would
+// change existing behavior (to a 500) for no benefit to this module.
+const DEV_API_ROUTE_PREFIX = "catering-";
+
 /**
- * Serve the Vercel serverless functions in `api/` from the Vite dev server.
+ * Serve the Catering Companion's Vercel functions from the Vite dev server.
  *
  * Vercel runs these in production; without this, `npm run dev` returns 404 for
- * every /api/* call and serverless behavior can't be exercised locally at all.
+ * /api/catering-* and the rollup can't be exercised locally at all.
  * Dev only — it never affects a production build.
  */
 function devApiRoutes() {
@@ -21,6 +27,8 @@ function devApiRoutes() {
         if (!req.url?.startsWith("/api/")) return next();
 
         const route = req.url.split("?")[0].replace(/^\/api\//, "");
+        // Everything else falls through to Vite, exactly as before.
+        if (!route.startsWith(DEV_API_ROUTE_PREFIX)) return next();
         const candidates = [`api/${route}.mjs`, `api/${route}.js`]
           .map((p) => resolve(process.cwd(), p))
           .filter((p) => existsSync(p));
