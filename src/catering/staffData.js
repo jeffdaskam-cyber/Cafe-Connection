@@ -5,8 +5,10 @@
  * enforcement, this module is the convenience layer. Kept separate from
  * data.js so the requester bundle never imports staff write paths.
  *
- * Revenue is deliberately absent: Phase 4 writes event_revenue server-side via
- * the Admin SDK, which is the only path allowed to.
+ * Revenue AMOUNTS are entered here by staff, on the catering event itself.
+ * Rolling those amounts into the event_revenue collection is done server-side
+ * by /api/catering-revenue-rollup — the only writer of that collection — so
+ * there is never a second, unreconciled client-side path.
  */
 
 import {
@@ -15,6 +17,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../firebase.js";
+import { getAuthToken } from "../firebase/core.js";
 import { COLLECTIONS, LIFECYCLE_STATUS, REQUEST_STATUS } from "./schema.js";
 
 // ── Reading ──────────────────────────────────────────────────────────────────
@@ -150,16 +153,40 @@ export async function resolveReviewFlag(eventId) {
 // ── Editing ──────────────────────────────────────────────────────────────────
 
 /**
- * Staff may edit any field on an event. Revenue amounts are excluded here on
- * purpose — Phase 4 writes those server-side, and letting the console set them
- * would create a second, unreconciled source of truth.
+ * Staff may edit any field on an event, including the revenue amounts. Those
+ * amounts live on the catering event; the derived event_revenue row is written
+ * only by the server-side rollup below.
  */
 export async function updateEventFields(eventId, patch) {
-  const { estimatedRevenue: _e, actualRevenue: _a, ...safe } = patch;
   await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), {
-    ...safe,
+    ...patch,
     updatedAt: serverTimestamp(),
   });
+}
+
+/**
+ * Ask the server to reconcile this event's event_revenue row.
+ *
+ * Safe to call after any status change or revenue edit: the endpoint is
+ * idempotent, skips events with no amount yet, and removes the row when an
+ * event is no longer confirmed.
+ *
+ * Failures are surfaced but never block the status change that triggered them —
+ * the nightly reconciliation sweep in Phase 5 is the backstop.
+ */
+export async function rollUpEventRevenue(eventId) {
+  const token = await getAuthToken();
+  const res = await fetch("/api/catering-revenue-rollup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ eventId }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Revenue rollup failed (${res.status}).`);
+  }
+  return res.json();
 }
 
 /**

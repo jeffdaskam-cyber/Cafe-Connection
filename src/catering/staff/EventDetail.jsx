@@ -5,7 +5,9 @@
  * correct the recorded room bookings. Rooms are reserved in a separate calendar
  * system, so this edits an existing booking rather than assigning one.
  *
- * Revenue is intentionally absent — Phase 4 writes event_revenue server-side.
+ * Staff enter the revenue amounts here; the derived event_revenue row is
+ * written only by /api/catering-revenue-rollup, which this view triggers after
+ * a confirm, close, or revenue edit.
  */
 import { useEffect, useState } from "react";
 
@@ -13,7 +15,7 @@ import { COLORS, FONT, RADIUS } from "../../theme.js";
 import { LIFECYCLE_STATUS, PAYMENT_METHOD, REQUEST_STATUS } from "../schema.js";
 import {
   deleteRoomBooking, fetchEventRooms, fetchEventScheduleDays,
-  resolveReviewFlag, setLifecycleStatus, setRequestStatus,
+  resolveReviewFlag, rollUpEventRevenue, setLifecycleStatus, setRequestStatus,
   updateEventFields, updateRoomBooking,
 } from "../staffData.js";
 import {
@@ -30,6 +32,7 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
   const [bookedRooms, setBookedRooms] = useState([]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [rollup, setRollup] = useState(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
 
@@ -44,11 +47,26 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
     return () => { live = false; };
   }, [event.id]);
 
-  async function run(label, fn) {
+  /**
+   * Reconcile the event_revenue row after a status change or revenue edit.
+   * Never allowed to fail the action that triggered it — the nightly sweep in
+   * Phase 5 is the backstop.
+   */
+  async function reconcileRevenue() {
+    try {
+      setRollup(await rollUpEventRevenue(event.id));
+    } catch (err) {
+      console.error("[catering/staff] revenue rollup failed:", err);
+      setRollup({ action: "failed", reason: err.message });
+    }
+  }
+
+  async function run(label, fn, { reconcile = false } = {}) {
     setBusy(label);
     setError("");
     try {
       await fn();
+      if (reconcile) await reconcileRevenue();
     } catch (err) {
       console.error(`[catering/staff] ${label} failed:`, err);
       setError(
@@ -68,6 +86,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
       endDate: event.endDate || "",
       expectedAttendance: event.expectedAttendance ?? "",
       actualAttendance: event.actualAttendance ?? "",
+      estimatedRevenue: event.estimatedRevenue ?? "",
+      actualRevenue: event.actualRevenue ?? "",
       plannerName: event.plannerName || "",
       plannerEmail: event.plannerEmail || "",
       plannerPhone: event.plannerPhone || "",
@@ -87,16 +107,23 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
   }
 
   async function saveEdits() {
-    const { projectIdsText, expectedAttendance, actualAttendance, ...rest } = draft;
+    const {
+      projectIdsText, expectedAttendance, actualAttendance,
+      estimatedRevenue, actualRevenue, ...rest
+    } = draft;
+    const num = (v) => (v === "" ? null : Number(v));
+
     await run("save", async () => {
       await updateEventFields(event.id, {
         ...rest,
-        expectedAttendance: expectedAttendance === "" ? null : Number(expectedAttendance),
-        actualAttendance: actualAttendance === "" ? null : Number(actualAttendance),
+        expectedAttendance: num(expectedAttendance),
+        actualAttendance: num(actualAttendance),
+        estimatedRevenue: num(estimatedRevenue),
+        actualRevenue: num(actualRevenue),
         projectIds: projectIdsText.split(",").map((s) => s.trim()).filter(Boolean),
       });
       setEditing(false);
-    });
+    }, { reconcile: true });
   }
 
   const isConfirmed = event.requestStatus === REQUEST_STATUS.CONFIRMED;
@@ -113,6 +140,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
       </button>
 
       {error && <Banner tone="error" title="Action failed">{error}</Banner>}
+
+      {rollup && <RevenueRollupBanner rollup={rollup} />}
 
       {event.needsReview && (
         <Banner tone="warning" title="Migrated record needs review">
@@ -153,13 +182,15 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
         }}>
           {!isConfirmed && event.requestStatus !== REQUEST_STATUS.CANCELLED && (
             <Button disabled={Boolean(busy)}
-              onClick={() => run("confirm", () => setRequestStatus(event, REQUEST_STATUS.CONFIRMED, user))}>
+              onClick={() => run("confirm",
+                () => setRequestStatus(event, REQUEST_STATUS.CONFIRMED, user), { reconcile: true })}>
               {busy === "confirm" ? "Confirming…" : "Confirm request"}
             </Button>
           )}
           {isConfirmed && !isClosed && (
             <Button disabled={Boolean(busy)}
-              onClick={() => run("close", () => setLifecycleStatus(event, LIFECYCLE_STATUS.CLOSED, user))}>
+              onClick={() => run("close",
+                () => setLifecycleStatus(event, LIFECYCLE_STATUS.CLOSED, user), { reconcile: true })}>
               {busy === "close" ? "Closing…" : "Close event"}
             </Button>
           )}
@@ -171,7 +202,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
           )}
           {event.requestStatus !== REQUEST_STATUS.CANCELLED && (
             <Button variant="danger" disabled={Boolean(busy)}
-              onClick={() => run("cancel", () => setRequestStatus(event, REQUEST_STATUS.CANCELLED, user))}>
+              onClick={() => run("cancel",
+                () => setRequestStatus(event, REQUEST_STATUS.CANCELLED, user), { reconcile: true })}>
               Cancel request
             </Button>
           )}
@@ -203,6 +235,14 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
             <Field label="Actual attendance" hint="Recorded after the event.">
               <Input type="number" min="0" value={draft.actualAttendance}
                 onChange={(e) => setDraft({ ...draft, actualAttendance: e.target.value })} />
+            </Field>
+            <Field label="Estimated revenue" hint="Used until an actual amount is recorded.">
+              <Input type="number" min="0" step="0.01" value={draft.estimatedRevenue}
+                onChange={(e) => setDraft({ ...draft, estimatedRevenue: e.target.value })} />
+            </Field>
+            <Field label="Actual revenue" hint="Recorded at close. Takes precedence.">
+              <Input type="number" min="0" step="0.01" value={draft.actualRevenue}
+                onChange={(e) => setDraft({ ...draft, actualRevenue: e.target.value })} />
             </Field>
             <Field label="Lab / Program">
               <Input value={draft.lcpo} onChange={(e) => setDraft({ ...draft, lcpo: e.target.value })} />
@@ -276,6 +316,7 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
               : event.paymentMethod === PAYMENT_METHOD.ACH_EXTERNAL ? "ACH (External)" : ""],
             ["Project ID(s)", (event.projectIds || []).join(", ")],
             ["Payment notes", event.paymentNotes],
+            ["Revenue", formatRevenue(event)],
             ["Staff notes", event.staffNotes],
           ]} />
         </Card>
@@ -449,6 +490,56 @@ function RoomEditor({ room, rooms, buildings, onSave, onDelete }) {
       )}
     </div>
   );
+}
+
+function formatRevenue(event) {
+  const money = (n) => `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const parts = [];
+  if (event.actualRevenue != null && event.actualRevenue !== "") {
+    parts.push(`${money(event.actualRevenue)} actual`);
+  }
+  if (event.estimatedRevenue != null && event.estimatedRevenue !== "") {
+    parts.push(`${money(event.estimatedRevenue)} estimated`);
+  }
+  if (parts.length === 0) return "";
+  if (event.revenueRolledUpAt) parts.push("· rolled up");
+  return parts.join(" · ");
+}
+
+function RevenueRollupBanner({ rollup }) {
+  if (rollup.action === "written") {
+    return (
+      <Banner tone="success" title="Revenue rolled up">
+        {`$${Number(rollup.revenue).toLocaleString("en-US", { minimumFractionDigits: 2 })} `}
+        recorded as {rollup.type} revenue for {rollup.campus}, {rollup.monthKey}
+        {rollup.isEstimate ? " (estimate — will update when an actual amount is recorded)." : "."}
+      </Banner>
+    );
+  }
+  if (rollup.action === "removed") {
+    return (
+      <Banner tone="info" title="Revenue withdrawn">
+        This event is no longer confirmed, so its revenue entry was removed.
+      </Banner>
+    );
+  }
+  if (rollup.action === "failed") {
+    return (
+      <Banner tone="warning" title="Revenue rollup didn't run">
+        {rollup.reason} The status change was saved. The nightly reconciliation
+        will retry, or you can re-save to try again.
+      </Banner>
+    );
+  }
+  if (rollup.action === "skipped") {
+    return (
+      <Banner tone="info" title="No revenue recorded yet">
+        {rollup.reason}. Add an amount under “Edit details” to include this
+        event in revenue reporting.
+      </Banner>
+    );
+  }
+  return null;
 }
 
 function EditGrid({ children }) {

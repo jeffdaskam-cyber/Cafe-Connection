@@ -11,8 +11,8 @@ Sandbox setup and isolation are documented in [`SANDBOX.md`](./SANDBOX.md).
 | **0 — Environment** | Emulator sandbox, feature flag, `/catering` entry point, preview deploy | ✅ Complete |
 | **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ✅ Complete |
 | **2 — Requester intake** | `/catering` multi-step form, "my requests" | ✅ Complete |
-| **3 — Staff console** | Catering tab, queue, confirm / edit / close | ✅ Complete — awaiting sign-off |
-| **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ⏸ Not started |
+| **3 — Staff console** | Catering tab, queue, confirm / edit / close | ✅ Complete |
+| **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ✅ Complete — awaiting sign-off |
 | **5 — Automation + UAT** | Notifications, recap PDF, cron reconciliation, UAT sign-off | ⏸ Not started |
 
 ---
@@ -191,6 +191,60 @@ Corrected on 2026-07-28:
    actually toggled "Breakfast". `Field` now takes a `group` prop rendering
    `<fieldset>`/`<legend>` instead. This was a live data-entry bug, not just a
    test artifact.
+
+---
+
+## Phase 4 — what was built
+
+| Area | Change |
+|---|---|
+| Rollup endpoint | `api/catering-revenue-rollup.mjs` — the only writer of catering rows in `event_revenue`. Verifies a manager-and-above caller against `user_roles`, then writes, skips, or removes. |
+| Mapping | `api/_lib/cateringRevenue.mjs` — pure, unit-tested: payment method → type, building → campus (resolved server-side, never trusting the client-writable `campus`), actual-over-estimate amount, start date → month. |
+| Revenue entry | Staff enter estimated and actual amounts in the event detail view. The console triggers the rollup after any confirm, close, cancel, or revenue edit, and shows what happened. |
+| Dashboard widget | `CateringWidget` reads `catering_events` directly (the plan's §5.1 "live widget read"), showing awaiting-decision count, upcoming events, guests, and revenue. |
+| Event Revenue view | Catering rows are tagged `source: "catering"` and excluded by default, with an "Include catering (n)" toggle. |
+| Dev serverless | A dev-only Vite middleware serves `api/*` so serverless behavior is testable locally at all; sandbox mode wires the Firestore and Auth emulator hosts automatically. |
+
+**Decisions taken (2026-07-28)**
+
+- **Double counting.** The uploaded Internal/External spreadsheets already
+  include catering, and `EventRevenuePage` sums every document in
+  `event_revenue`. Catering rows are therefore tagged and hidden by default;
+  flip the toggle's default once catering leaves the uploads.
+- **Split payments.** One entry per event, with every project ID recorded.
+  `event_revenue` has no project dimension, so allocation stays finance-side.
+- **Revenue source.** Staff enter the amounts; nothing else in the system knows
+  them (there is no price list anywhere in the repo).
+
+**Acceptance criteria — Phase 4**
+
+- ✅ Confirming an event with `paymentMethod: project_id` produces a
+  correctly-typed (`internal`) entry with campus resolved from the building,
+  the right `monthKey`, and both project IDs recorded.
+- ✅ Non-duplicated: the document ID is derived from the event ID, so
+  re-saving updates in place. Verified by re-saving with an actual amount —
+  still exactly one row, estimate replaced.
+- ✅ Visible in the existing Event Revenue view via the toggle, and excluded
+  from its totals by default.
+- ✅ Cancelling an event withdraws its revenue row.
+- ✅ A confirmed event with no amount yet is skipped with an explanation
+  rather than written as zero.
+
+### Design notes
+
+- **Idempotency by construction.** The deliberate contrast with the
+  spreadsheet importer, which uses an accumulating transaction because each
+  upload carries new totals. A deterministic ID means no duplicate is possible,
+  which is stronger than the plan's §5.3 "check then update".
+- **Campus is re-derived server-side.** The event's `campus` field is
+  requester-writable, so the rollup maps it from `buildingId` and refuses to
+  write when it cannot.
+
+### Known gap
+
+`FIREBASE_AUTH_EMULATOR_HOST` had to be set for the Admin SDK to verify
+emulator-issued tokens; without it every call was a 401. Worth remembering for
+Phase 5's notification endpoints, which will hit the same wall.
 
 ---
 

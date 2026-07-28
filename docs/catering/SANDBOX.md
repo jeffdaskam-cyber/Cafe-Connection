@@ -52,6 +52,19 @@ placeholder — it contains no secrets and is safe in version control. Your own
 Plain `npm run dev` is unchanged: it uses `.env.local` and, with
 `VITE_CATERING_ENABLED` unset there, behaves exactly as it did before.
 
+### Serverless functions in the sandbox
+
+`npm run dev` and `npm run dev:sandbox` serve the Vercel functions in `api/`
+through a dev-only Vite middleware, so `/api/*` works locally instead of
+404ing. In sandbox mode the Firestore and Auth emulator hosts are set
+automatically, so catering endpoints such as
+`/api/catering-revenue-rollup` run against the emulators with no credentials.
+
+Functions backed by Google Drive or Gmail (`get-schedule-pdf`, `get-specials`,
+`ingest-email-orders`, …) still need real service-account credentials and will
+return a clear 500 in the sandbox. That is expected — before the middleware
+existed those calls simply 404ed.
+
 ### Emulator data persistence
 
 Emulator data is in-memory and discarded on shutdown. To keep a data set across

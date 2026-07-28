@@ -31,6 +31,7 @@ import RecentReportsWidget from "../components/dashboard/RecentReportsWidget.jsx
 import EventOrderLibraryWidget from "../components/dashboard/EventOrderLibraryWidget.jsx";
 import EventReportDashWidget  from "../components/dashboard/EventReportDashWidget.jsx";
 import SetUpReportWidget     from "../components/dashboard/SetUpReportWidget.jsx";
+import CateringWidget        from "../components/dashboard/CateringWidget.jsx";
 import WeeklyExceptions from "../components/WeeklyExceptions.jsx";
 import VendorPortal from "../components/VendorPortal.jsx";
 
@@ -46,6 +47,7 @@ const WIDGET_COMPONENTS = {
   setup_report:        SetUpReportWidget,
   weekly_exceptions:   WeeklyExceptions,
   vendor_portal:       VendorPortal,
+  catering:            CateringWidget,
 };
 
 

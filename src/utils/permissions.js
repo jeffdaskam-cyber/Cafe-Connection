@@ -120,6 +120,14 @@ const WIDGET_ACCESS = {
     manager:       "full",
     user:          "full",
   },
+  // Catering is manager-and-above, matching the Catering tab and the
+  // security rules on catering_events.
+  dashboard_catering: {
+    administrator: "full",
+    senior_leader: "full",
+    manager:       "full",
+    user:          "hidden",
+  },
 
   // Weekly Ops widgets (senior_leader never sees this page)
   weekly_ops_cafe_sales_summary: {
@@ -201,6 +209,7 @@ export const DASHBOARD_WIDGET_KEY = {
   setup_report:        "dashboard_setup_report",
   cash_drop:           "dashboard_cash_drop",
   vendor_portal:       "dashboard_vendor_portal",
+  catering:            "dashboard_catering",
 };
 
 // Returns "full" | "read_only" | "hidden"
