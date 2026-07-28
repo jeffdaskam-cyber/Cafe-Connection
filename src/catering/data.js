@@ -16,7 +16,7 @@ import {
 
 import { db } from "../firebase.js";
 import { COLLECTIONS } from "./schema.js";
-import { toEventDoc, toScheduleDayDocs } from "./formState.js";
+import { toEventDoc, toRoomBookingDocs, toScheduleDayDocs } from "./formState.js";
 
 // ── Reference data ───────────────────────────────────────────────────────────
 
@@ -56,8 +56,11 @@ export async function submitCateringRequest(form, user) {
   });
 
   const days = toScheduleDayDocs(form);
-  if (days.length) {
+  const rooms = toRoomBookingDocs(form);
+
+  if (days.length || rooms.length) {
     const batch = writeBatch(db);
+
     for (const day of days) {
       const dayRef = doc(collection(eventRef, COLLECTIONS.SCHEDULE_DAYS));
       batch.set(dayRef, { ...day.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -66,6 +69,14 @@ export async function submitCateringRequest(form, user) {
         batch.set(mealRef, { ...meal.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
       }
     }
+
+    // Rooms are already booked externally, so the requester records them here
+    // rather than waiting for staff to assign one.
+    for (const room of rooms) {
+      const roomRef = doc(collection(eventRef, COLLECTIONS.EVENT_ROOMS));
+      batch.set(roomRef, { ...room.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    }
+
     await batch.commit();
   }
 
@@ -137,8 +148,8 @@ export async function fetchScheduleDays(eventId) {
   );
 }
 
-/** Room assignments made by staff. Read-only for requesters. */
-export async function fetchAssignedRooms(eventId) {
+/** Rooms booked for this event. Editable by the owner and by staff. */
+export async function fetchBookedRooms(eventId) {
   const snap = await getDocs(
     collection(db, COLLECTIONS.EVENTS, eventId, COLLECTIONS.EVENT_ROOMS)
   );

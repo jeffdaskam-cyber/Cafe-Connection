@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { COLORS, FONT, RADIUS } from "../theme.js";
 import { REQUEST_STATUS } from "./schema.js";
 import {
-  fetchAssignedRooms, fetchScheduleDays, subscribeMyRequests,
+  fetchBookedRooms, fetchScheduleDays, subscribeMyRequests,
 } from "./data.js";
 import { Banner, Button, Card, EmptyState, SectionTitle, StatusBadge } from "./ui.jsx";
 
@@ -119,12 +119,12 @@ function RequestRow({ request, expanded, onToggle }) {
 
 function RequestDetail({ request, editable }) {
   const [days, setDays] = useState(null);
-  const [assignedRooms, setAssignedRooms] = useState([]);
+  const [bookedRooms, setBookedRooms] = useState([]);
 
   useEffect(() => {
     let live = true;
-    Promise.all([fetchScheduleDays(request.id), fetchAssignedRooms(request.id)])
-      .then(([d, r]) => { if (live) { setDays(d); setAssignedRooms(r); } })
+    Promise.all([fetchScheduleDays(request.id), fetchBookedRooms(request.id)])
+      .then(([d, r]) => { if (live) { setDays(d); setBookedRooms(r); } })
       .catch((err) => { console.error("[catering] detail load failed:", err); if (live) setDays([]); });
     return () => { live = false; };
   }, [request.id]);
@@ -144,13 +144,23 @@ function RequestDetail({ request, editable }) {
         ["Secondary", [request.secondaryContactName, request.secondaryContactEmail].filter(Boolean).join(" · ")],
       ]} />
 
-      <DetailSection title="Space" rows={[
-        ["Building", request.buildingId],
-        ["Requested room", request.primaryRoomId],
-        ["Setup", request.setupNotes],
-        ["Assigned room(s)", assignedRooms.length
-          ? assignedRooms.map((r) => r.roomId || r.rawRoom).filter(Boolean).join(", ")
-          : "Not yet assigned"],
+      <DetailSection title="Booked rooms" rows={
+        bookedRooms.length
+          ? bookedRooms.map((r) => [
+              r.roomId || r.rawRoom || "—",
+              [
+                [r.startTime, r.endTime].filter(Boolean).join("–"),
+                r.setupType,
+                r.expectedHeadcount ? `${r.expectedHeadcount} in room` : "",
+                r.isPrimary && bookedRooms.length > 1 ? "(primary)" : "",
+                r.notes,
+              ].filter(Boolean).join(" · "),
+            ])
+          : [["Rooms", "None recorded"]]
+      } />
+
+      <DetailSection title="Setup" rows={[
+        ["Overall notes", request.setupNotes],
       ]} />
 
       <DetailSection title="Schedule" rows={

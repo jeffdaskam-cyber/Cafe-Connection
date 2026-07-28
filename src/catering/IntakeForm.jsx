@@ -13,7 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { COLORS, FONT, RADIUS } from "../theme.js";
 import { MEAL_PERIODS, PAYMENT_METHOD } from "./schema.js";
 import {
-  STEPS, emptyIntakeForm, emptyMeal, emptyScheduleDay,
+  STEPS, emptyIntakeForm, emptyMeal, emptyRoomBooking, emptyScheduleDay,
   browserStorage, clearDraft, loadDraft, saveDraft, validateStep,
 } from "./formState.js";
 import { fetchBuildings, fetchRooms, submitCateringRequest } from "./data.js";
@@ -101,9 +101,16 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
     }
   }
 
-  const roomsForBuilding = form.buildingId
-    ? rooms.filter((r) => r.buildingId === form.buildingId)
-    : rooms;
+  const updateRoom = (index, patch) => setForm((f) => ({
+    ...f,
+    rooms: f.rooms.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+  }));
+
+  // Exactly one booking is the primary space.
+  const setPrimaryRoom = (index) => setForm((f) => ({
+    ...f,
+    rooms: f.rooms.map((r, i) => ({ ...r, isPrimary: i === index })),
+  }));
 
   return (
     <div>
@@ -347,35 +354,108 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
           </>
         )}
 
+        {step.id === "rooms" && (
+          <>
+            <SectionTitle>Booked rooms</SectionTitle>
+            <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
+              Add the room (or rooms) you have already reserved for this event.
+              Rooms are booked through the room calendar system — recording them
+              here tells Event Services where to deliver and set up.
+            </p>
+
+            {visibleErrors.rooms && <Banner tone="error">{visibleErrors.rooms}</Banner>}
+
+            {form.rooms.map((room, i) => {
+              const availableRooms = room.buildingId
+                ? rooms.filter((r) => r.buildingId === room.buildingId)
+                : rooms;
+              return (
+                <RepeatRow key={room.localId} title={`Room ${i + 1}`}
+                  onRemove={form.rooms.length > 1
+                    ? () => set({ rooms: form.rooms.filter((_, idx) => idx !== i) })
+                    : null}>
+                  <Row>
+                    <Field label="Building" required error={visibleErrors[`rooms.${i}.buildingId`]}>
+                      <Select value={room.buildingId}
+                        invalid={Boolean(visibleErrors[`rooms.${i}.buildingId`])}
+                        onChange={(e) => updateRoom(i, { buildingId: e.target.value, roomId: "" })}>
+                        <option value="">Choose…</option>
+                        {buildings.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name} ({b.id})</option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Room" required error={visibleErrors[`rooms.${i}.roomId`]}>
+                      <Select value={room.roomId}
+                        invalid={Boolean(visibleErrors[`rooms.${i}.roomId`])}
+                        onChange={(e) => updateRoom(i, { roomId: e.target.value })}>
+                        <option value="">Choose…</option>
+                        {availableRooms.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}{r.capacity ? ` — seats ${r.capacity}` : ""}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Headcount in this room"
+                      error={visibleErrors[`rooms.${i}.expectedHeadcount`]}>
+                      <Input type="number" min="0" value={room.expectedHeadcount}
+                        invalid={Boolean(visibleErrors[`rooms.${i}.expectedHeadcount`])}
+                        onChange={(e) => updateRoom(i, { expectedHeadcount: e.target.value })} />
+                    </Field>
+                  </Row>
+
+                  <Row>
+                    <Field label="Room start time">
+                      <Input type="time" value={room.startTime}
+                        onChange={(e) => updateRoom(i, { startTime: e.target.value })} />
+                    </Field>
+                    <Field label="Room end time" error={visibleErrors[`rooms.${i}.endTime`]}>
+                      <Input type="time" value={room.endTime}
+                        invalid={Boolean(visibleErrors[`rooms.${i}.endTime`])}
+                        onChange={(e) => updateRoom(i, { endTime: e.target.value })} />
+                    </Field>
+                    <Field label="Setup style">
+                      <Input value={room.setupType}
+                        onChange={(e) => updateRoom(i, { setupType: e.target.value })}
+                        placeholder="e.g. Classroom, 12 rounds of 6" />
+                    </Field>
+                  </Row>
+
+                  <Field label="Notes for this room">
+                    <Textarea rows={2} value={room.notes}
+                      onChange={(e) => updateRoom(i, { notes: e.target.value })} />
+                  </Field>
+
+                  {form.rooms.length > 1 && (
+                    <label style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      fontSize: 12, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
+                    }}>
+                      <input type="radio" name="primaryRoom" checked={Boolean(room.isPrimary)}
+                        onChange={() => setPrimaryRoom(i)}
+                        style={{ accentColor: COLORS.AQUA, cursor: "pointer" }} />
+                      Primary space for this event
+                    </label>
+                  )}
+                </RepeatRow>
+              );
+            })}
+
+            <Button variant="ghost"
+              onClick={() => set({ rooms: [...form.rooms, emptyRoomBooking(false)] })}>
+              + Add another room
+            </Button>
+          </>
+        )}
+
         {step.id === "logistics" && (
           <>
-            <SectionTitle>Space</SectionTitle>
-            <Row>
-              <Field label="Building">
-                <Select value={form.buildingId}
-                  onChange={(e) => set({ buildingId: e.target.value, primaryRoomId: "" })}>
-                  <option value="">No preference</option>
-                  {buildings.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name} ({b.id})</option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Requested room"
-                hint="Event Services confirm the final room assignment.">
-                <Select value={form.primaryRoomId}
-                  onChange={(e) => set({ primaryRoomId: e.target.value })}>
-                  <option value="">No preference</option>
-                  {roomsForBuilding.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}{r.capacity ? ` — seats ${r.capacity}` : ""}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </Row>
-            <Field label="Room setup">
+            <SectionTitle>Setup</SectionTitle>
+            <Field label="Overall setup notes"
+              hint="Anything spanning the whole event. Per-room setup lives on the Rooms step.">
               <Textarea value={form.setupNotes} onChange={(e) => set({ setupNotes: e.target.value })}
-                placeholder="e.g. Classroom style, 12 rounds of 6" />
+                placeholder="e.g. Registration table in the lobby from 7:30am" />
             </Field>
 
             <SectionTitle style={{ marginTop: 28 }}>Services</SectionTitle>
@@ -544,9 +624,9 @@ function StepBar({ stepIndex }) {
 }
 
 function ReviewStep({ form, buildings, rooms, onEdit }) {
-  const buildingName = buildings.find((b) => b.id === form.buildingId)?.name || form.buildingId || "No preference";
-  const roomName = rooms.find((r) => r.id === form.primaryRoomId)?.name || form.primaryRoomId || "No preference";
   const totalMeals = form.scheduleDays.reduce((n, d) => n + (d.meals?.length || 0), 0);
+  const bookedRooms = (form.rooms || []).filter((r) => r.roomId);
+  const nameFor = (list, id) => list.find((x) => x.id === id)?.name || id;
 
   return (
     <>
@@ -578,9 +658,18 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
           ])
         )} />
 
-      <ReviewBlock title="Logistics" onEdit={() => onEdit(3)} rows={[
-        ["Building", buildingName],
-        ["Room", roomName],
+      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(3)}
+        rows={bookedRooms.map((r) => [
+          nameFor(buildings, r.buildingId),
+          [
+            nameFor(rooms, r.roomId),
+            [r.startTime, r.endTime].filter(Boolean).join("–"),
+            r.setupType,
+            r.isPrimary && bookedRooms.length > 1 ? "(primary)" : "",
+          ].filter(Boolean).join(" · "),
+        ])} />
+
+      <ReviewBlock title="Logistics" onEdit={() => onEdit(4)} rows={[
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
         ["Payment", form.paymentMethod === PAYMENT_METHOD.PROJECT_ID ? "Project ID"
           : form.paymentMethod === PAYMENT_METHOD.ACH_EXTERNAL ? "ACH (External)" : "—"],

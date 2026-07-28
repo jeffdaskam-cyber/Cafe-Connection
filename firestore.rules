@@ -81,7 +81,7 @@ service cloud.firestore {
         'custodialNotes', 'needsCustodial',
         'accessDoorsNotes', 'needsAccessDoors',
         'sustainabilityNotes', 'needsSustainability',
-        'buildingId', 'primaryRoomId', 'campus',
+        'buildingId', 'primaryRoomId', 'roomIds', 'campus',
         'paymentMethod', 'projectIds', 'paymentNotes',
         'updatedAt'
       ];
@@ -351,11 +351,14 @@ service cloud.firestore {
         }
       }
 
-      // Room assignment is a staff action — requesters may see what they were
-      // given but never assign it themselves.
+      // Rooms are booked in a separate calendar system BEFORE this form is
+      // filled in, so a room recorded here is an existing booking rather than
+      // a request awaiting approval. The owner records it and may correct it;
+      // staff may also edit it. (The build plan's §3 modelled this as a
+      // staff-only assignment, which does not match how rooms are actually
+      // booked — see docs/catering/DATA_MODEL.md §6.)
       match /catering_event_rooms/{roomBookingId} {
-        allow read:  if ownsCateringEvent(eventId) || isManagerOrAbove();
-        allow write: if isManagerOrAbove();
+        allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
       }
     }
 

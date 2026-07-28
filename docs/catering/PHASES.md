@@ -47,16 +47,17 @@ branch assignment. Isolation is otherwise identical.
 |---|---|
 | Schema | `src/catering/schema.js` — collection names, both status enums, payment methods, meal periods, building→campus map, service-field pairs, and the requester-editable allowlist. Single source of truth shared by client, scripts, and tests. |
 | Roles | `permissions.js` gains `REQUESTER_ROLE` / `ALL_ROLES` / `isRequesterRole()`. `requester` is a sibling of the staff ladder: `roleAtLeast()` always returns false for it, and `canAccessPage()` / `widgetAccess()` deny it explicitly rather than by omission. `useRole.js` validates against `ALL_ROLES` so a requester is no longer silently downgraded to `user`. |
-| Rules | `catering_events` + three subcollections, `rooms`, `buildings`. Requester edits are limited to an explicit field allowlist and blocked once `requestStatus` leaves draft/submitted. Revenue fields are unwritable from any client. Room assignment is staff-only. `user_roles` gains a narrow self-provisioning path pinned to the literal role `'requester'`. |
+| Rules | `catering_events` + three subcollections, `rooms`, `buildings`. Requester edits are limited to an explicit field allowlist and blocked once `requestStatus` leaves draft/submitted. Revenue fields are unwritable from any client. Booked rooms are writable by the event owner and by staff (corrected 2026-07-28 — see below). `user_roles` gains a narrow self-provisioning path pinned to the literal role `'requester'`. |
 | Indexes | Seven composite/collection-group indexes covering the staff queue, "my requests", the daily schedule view, the cron sweep, and cross-event meal lookups. |
 | Scripts | `seedCateringReferenceData.mjs`, `migrateCateringEvents.mjs`, and shared libs (`cateringTransforms.mjs`, `csv.mjs`, `cateringAdmin.mjs`). Both refuse to write to a live project unless explicitly opted in. |
-| Tests | 61 total. 35 pure transform/CSV/routing tests under `npm test`; 26 rules tests under `npm run test:rules`. |
+| Tests | 35 pure transform/CSV/routing tests under `npm test`; rules tests under `npm run test:rules`. |
 
 **Acceptance criteria — Phase 1**
 
-- ✅ Rules unit tests pass (26/26): a requester cannot read others' events,
-  cannot write revenue fields, cannot advance status, cannot assign rooms, and
-  cannot self-provision as staff.
+- ✅ Rules unit tests pass (28/28 after the 2026-07-28 room correction): a
+  requester cannot read others' events, cannot write revenue fields, cannot
+  advance status, cannot touch another requester's records, and cannot
+  self-provision as staff.
 - ✅ Seeded counts match the source: **44 rooms, 9 buildings**.
 - ✅ Migrated event count matches the source: **10 events** (5 flagged
   `needsReview`, 1 orphan meal selection skipped — see
@@ -82,8 +83,8 @@ and should be a separate, deliberate change.
 | Area | Change |
 |---|---|
 | Form model | `src/catering/formState.js` — step definitions, empty state, per-step validation, Firestore mapping, and draft persistence. Pure, so the whole model is unit tested without React. |
-| Intake form | `src/catering/IntakeForm.jsx` — five steps (basics → schedule → meals → logistics → review) with repeatable schedule days, meals nested per day, inline validation, and an editable review summary. |
-| My requests | `src/catering/MyRequests.jsx` — live list scoped to `createdBy == uid`, expandable detail showing schedule, meals, services, payment, and staff room assignments. |
+| Intake form | `src/catering/IntakeForm.jsx` — six steps (basics → schedule → meals → rooms → logistics → review) with repeatable schedule days, meals nested per day, booked rooms, inline validation, and an editable review summary. |
+| My requests | `src/catering/MyRequests.jsx` — live list scoped to `createdBy == uid`, expandable detail showing schedule, meals, booked rooms, services, and payment. |
 | Shell | `CateringApp.jsx` wraps the module in `AuthProvider selfProvisionRole="requester"` and switches between the list and the form. |
 | Auth | `AuthProvider` gains a `selfProvisionRole` prop: an `@ucar.edu` user with no role document and no invite is provisioned as `requester` instead of being signed out. `LoginPage` gains `productName` / `tagline` / `description` props so both entry points share one sign-in implementation. |
 | Data | `src/catering/data.js` — reference-data reads, request submission (parent then batched children), the live "my requests" subscription, and detail reads. |
@@ -91,12 +92,12 @@ and should be a separate, deliberate change.
 **Acceptance criteria — Phase 2**
 
 - ✅ A test `@ucar.edu` account signs in, is self-provisioned as `requester`,
-  submits a full event (2 schedule days, 2 meals, a room request, split
+  submits a full event (2 schedule days, 2 meals, a booked room, split
   payment), and sees it in "my requests" — verified end to end in a real
   browser against the emulator suite.
-- ✅ Submitted detail round-trips: room request, setup, security and access
-  notes, both project IDs, payment notes, and per-day meals all persist and
-  render.
+- ✅ Submitted detail round-trips: booked room with its setup and times,
+  security and access notes, both project IDs, payment notes, and per-day meals
+  all persist and render.
 - ✅ An unfinished request survives a page refresh and reopens itself;
   cancelling discards it.
 
@@ -106,6 +107,27 @@ acceptance run signs in through the Auth emulator instead; everything
 downstream — `onAuthStateChanged`, self-provisioning, and all rules-enforced
 reads and writes — runs exactly as in the browser. **The Google sign-in path
 itself still needs manual confirmation during Phase 5 UAT.**
+
+### Correction: rooms are bookings, not requests
+
+The build plan modelled room assignment as a staff action, with
+`catering_event_rooms` writable only by manager-and-above. **That was wrong
+about how rooms actually work at UCAR.** Rooms are reserved through a separate
+room-calendar system, and the catering form is filled in only after that
+reservation is secured — so the room a requester enters is already booked, and
+the requester is the one who knows it.
+
+Corrected on 2026-07-28:
+
+- `catering_event_rooms` is now readable and writable by the event owner **and**
+  by manager-and-above.
+- The form gained a dedicated **Rooms** step: one or more booked rooms, each
+  with building, room, setup style, start/end times, headcount, and notes, with
+  one marked primary. At least one booked room is required.
+- `buildingId` / `primaryRoomId` / `roomIds[]` on the event are now derived from
+  those bookings as a query denormalization; the subcollection is authoritative.
+- "Requested room" and "Not yet assigned" are gone from the UI — the model has
+  no pending-assignment state.
 
 ### Two bugs this phase surfaced
 

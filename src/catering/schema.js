@@ -138,10 +138,13 @@ export const REQUESTER_EDITABLE_FIELDS = [
   "specialRequests",
   // Service notes and their derived flags
   ...SERVICE_FIELDS.flatMap((f) => [f.notes, f.flag]),
-  // Requested location (staff make the authoritative assignment in
-  // catering_event_rooms, which requesters cannot write)
+  // Location. Rooms are booked in a separate calendar system before this form
+  // is filled in, so these record an existing booking rather than a request.
+  // Denormalized from the catering_event_rooms subcollection for list queries;
+  // that subcollection is the authoritative record.
   "buildingId",
   "primaryRoomId",
+  "roomIds",
   // Derived from buildingId, which is already requester-editable, so allowing
   // it grants no additional authority — it exists to make campus-filtered
   // queries cheap. Phase 4's revenue rollup must re-derive campus server-side

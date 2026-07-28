@@ -19,6 +19,7 @@ export const STEPS = [
   { id: "basics",    label: "Event basics" },
   { id: "schedule",  label: "Schedule"     },
   { id: "meals",     label: "Meals"        },
+  { id: "rooms",     label: "Rooms"        },
   { id: "logistics", label: "Logistics"    },
   { id: "review",    label: "Review"       },
 ];
@@ -57,6 +58,24 @@ export function emptyMeal() {
   };
 }
 
+/**
+ * One room booking. Rooms are reserved in a separate calendar system before
+ * this form is filled in, so these rows record bookings that already exist.
+ */
+export function emptyRoomBooking(isPrimary = false) {
+  return {
+    localId: nextLocalId("room"),
+    buildingId: "",
+    roomId: "",
+    setupType: "",
+    startTime: "",
+    endTime: "",
+    expectedHeadcount: "",
+    isPrimary,
+    notes: "",
+  };
+}
+
 export function emptyIntakeForm(user = {}) {
   return {
     // Basics
@@ -80,9 +99,10 @@ export function emptyIntakeForm(user = {}) {
     // Schedule (each day carries its own meals)
     scheduleDays: [emptyScheduleDay()],
 
+    // Rooms already booked for this event
+    rooms: [emptyRoomBooking(true)],
+
     // Logistics
-    buildingId: "",
-    primaryRoomId: "",
     setupNotes: "",
     needsCatering: true,
     needsAlcohol: false,
@@ -168,6 +188,28 @@ export function validateStep(stepId, form) {
     });
   }
 
+  if (stepId === "rooms") {
+    // The form is filled in after the room is booked elsewhere, so at least
+    // one real booking is expected.
+    if (!form.rooms?.length) {
+      errors.rooms = "Add the room you have booked for this event.";
+    } else {
+      form.rooms.forEach((room, i) => {
+        if (isBlank(room.buildingId)) errors[`rooms.${i}.buildingId`] = "Choose the building.";
+        if (isBlank(room.roomId))     errors[`rooms.${i}.roomId`] = "Choose the room you booked.";
+        if (!isBlank(room.startTime) && !isBlank(room.endTime) && room.endTime <= room.startTime) {
+          errors[`rooms.${i}.endTime`] = "End time must be after the start time.";
+        }
+        if (!isBlank(room.expectedHeadcount) && !Number.isFinite(Number(room.expectedHeadcount))) {
+          errors[`rooms.${i}.expectedHeadcount`] = "Enter a number.";
+        }
+      });
+      if (form.rooms.length > 1 && form.rooms.filter((r) => r.isPrimary).length !== 1) {
+        errors.rooms = "Mark exactly one room as the primary space.";
+      }
+    }
+  }
+
   if (stepId === "logistics") {
     if (!isBlank(form.paymentMethod) && !Object.values(PAYMENT_METHOD).includes(form.paymentMethod)) {
       errors.paymentMethod = "Choose a payment method.";
@@ -224,7 +266,16 @@ export function deriveFlag(text) {
  * Only ever emits fields on the requester allowlist, so the same shape works
  * for both create and update. Revenue fields are never produced.
  */
+/** The booking that represents the event's main space. */
+export function primaryRoomBooking(form) {
+  const rooms = (form.rooms || []).filter((r) => !isBlank(r.roomId));
+  if (rooms.length === 0) return null;
+  return rooms.find((r) => r.isPrimary) ?? rooms[0];
+}
+
 export function toEventDoc(form, uid) {
+  const primary = primaryRoomBooking(form);
+  const buildingId = trimmed(primary?.buildingId);
   const doc = {
     createdBy: uid,
     requestStatus:   REQUESTER_CREATE_STATUS,
@@ -248,11 +299,15 @@ export function toEventDoc(form, uid) {
     secondaryContactEmail: trimmed(form.secondaryContactEmail),
     secondaryContactPhone: trimmed(form.secondaryContactPhone),
 
-    buildingId:    trimmed(form.buildingId) || null,
-    primaryRoomId: trimmed(form.primaryRoomId) || null,
+    // Denormalized from the room bookings below, which are authoritative.
+    // Kept on the event so the staff queue and dashboards can filter without
+    // a collection-group query.
+    buildingId:    buildingId || null,
+    primaryRoomId: trimmed(primary?.roomId) || null,
+    roomIds:       (form.rooms || []).map((r) => trimmed(r.roomId)).filter(Boolean),
     // Derived from buildingId purely as a query convenience. Phase 4's rollup
     // must re-derive it server-side rather than trusting this value.
-    campus:        BUILDING_CAMPUS[trimmed(form.buildingId).toUpperCase()] ?? null,
+    campus:        BUILDING_CAMPUS[buildingId.toUpperCase()] ?? null,
 
     needsCatering:  Boolean(form.needsCatering),
     needsAlcohol:   Boolean(form.needsAlcohol),
@@ -300,6 +355,30 @@ export function toScheduleDayDocs(form) {
         headcount:     numberOrNull(meal.headcount),
       },
     })),
+  }));
+}
+
+/**
+ * Room booking subcollection documents.
+ *
+ * These record rooms already reserved in the separate calendar system, so they
+ * are written by the requester on submit rather than assigned by staff later.
+ */
+export function toRoomBookingDocs(form) {
+  const rooms = (form.rooms || []).filter((r) => !isBlank(r.roomId));
+  const primary = primaryRoomBooking(form);
+  return rooms.map((room) => ({
+    localId: room.localId,
+    data: {
+      buildingId:        trimmed(room.buildingId) || null,
+      roomId:            trimmed(room.roomId),
+      setupType:         trimmed(room.setupType),
+      startTime:         trimmed(room.startTime),
+      endTime:           trimmed(room.endTime),
+      expectedHeadcount: numberOrNull(room.expectedHeadcount),
+      isPrimary:         room.localId === primary?.localId,
+      notes:             trimmed(room.notes),
+    },
   }));
 }
 

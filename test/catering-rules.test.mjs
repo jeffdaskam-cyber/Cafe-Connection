@@ -240,22 +240,46 @@ test("a requester cannot touch another requester's schedule days", suiteOpts, as
   );
 });
 
-test("room assignment is staff-only; the owner may read it", suiteOpts, async () => {
-  await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), "catering_events", EVENT_ID,
-      "catering_event_rooms", "r1"), { roomId: "CG1-2122" });
-  });
-
+// Rooms are booked in a separate calendar system before the form is filled in,
+// so the owner records an existing booking rather than requesting one. Both the
+// owner and staff can add and edit them.
+test("the owner can record and edit their own booked rooms", suiteOpts, async () => {
+  const db = ctxFor(REQUESTER);
   await assertSucceeds(
-    getDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID, "catering_event_rooms", "r1"))
+    setDoc(doc(db, "catering_events", EVENT_ID, "catering_event_rooms", "r1"),
+      { roomId: "CG1-2122", buildingId: "CG1", isPrimary: true })
   );
-  await assertFails(
-    setDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID,
-      "catering_event_rooms", "r2"), { roomId: "CG1-2122" })
+  await assertSucceeds(
+    getDoc(doc(db, "catering_events", EVENT_ID, "catering_event_rooms", "r1"))
   );
+  await assertSucceeds(
+    updateDoc(doc(db, "catering_events", EVENT_ID, "catering_event_rooms", "r1"),
+      { setupType: "Classroom" })
+  );
+  await assertSucceeds(
+    deleteDoc(doc(db, "catering_events", EVENT_ID, "catering_event_rooms", "r1"))
+  );
+});
+
+test("staff can also edit a requester's booked rooms", suiteOpts, async () => {
   await assertSucceeds(
     setDoc(doc(ctxFor(MANAGER), "catering_events", EVENT_ID,
+      "catering_event_rooms", "r2"), { roomId: "CG1-2122" })
+  );
+});
+
+test("a requester cannot touch another requester's booked rooms", suiteOpts, async () => {
+  await assertFails(
+    setDoc(doc(ctxFor(REQUESTER), "catering_events", OTHER_EVENT_ID,
       "catering_event_rooms", "r3"), { roomId: "CG1-2122" })
+  );
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "catering_events", OTHER_EVENT_ID,
+      "catering_event_rooms", "r4"), { roomId: "CG1-2122" });
+  });
+  await assertFails(
+    getDoc(doc(ctxFor(REQUESTER), "catering_events", OTHER_EVENT_ID,
+      "catering_event_rooms", "r4"))
   );
 });
 

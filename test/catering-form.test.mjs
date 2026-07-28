@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  STEP_IDS, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal, emptyScheduleDay,
-  isStepValid, loadDraft, parseProjectIdsText, saveDraft, toEventDoc,
-  toScheduleDayDocs, validateAll, validateStep,
+  STEP_IDS, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal, emptyRoomBooking,
+  emptyScheduleDay, isStepValid, loadDraft, parseProjectIdsText, primaryRoomBooking,
+  saveDraft, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
 } from "../src/catering/formState.js";
 import { REQUESTER_EDITABLE_FIELDS, STAFF_ONLY_FIELDS } from "../src/catering/schema.js";
 
@@ -16,8 +16,12 @@ function completeForm() {
   form.startDate = "2026-08-10";
   form.endDate = "2026-08-11";
   form.expectedAttendance = "60";
-  form.buildingId = "CG1";
-  form.primaryRoomId = "CG1-2122";
+  form.rooms = [{
+    ...emptyRoomBooking(true),
+    buildingId: "CG1", roomId: "CG1-2122",
+    setupType: "Classroom", startTime: "08:00", endTime: "17:00",
+    expectedHeadcount: "60",
+  }];
   form.paymentMethod = "project_id";
   form.projectIdsText = "PRJ000000001, PRJ000000002";
   form.securityNotes = "Guard 8am-5pm";
@@ -142,12 +146,12 @@ test("toEventDoc submits as submitted/open owned by the caller", () => {
   assert.equal(doc.lifecycleStatus, "open");
 });
 
-test("toEventDoc derives campus from the building", () => {
+test("toEventDoc derives campus from the booked room's building", () => {
   const form = completeForm();
   assert.equal(toEventDoc(form, USER.uid).campus, "Center Green");
-  form.buildingId = "ML";
+  form.rooms[0].buildingId = "ML";
   assert.equal(toEventDoc(form, USER.uid).campus, "Mesa Lab");
-  form.buildingId = "";
+  form.rooms = [];
   assert.equal(toEventDoc(form, USER.uid).campus, null);
 });
 
@@ -241,4 +245,89 @@ test("draft persistence survives unavailable storage", () => {
   assert.equal(loadDraft(broken), null);
   assert.doesNotThrow(() => clearDraft(broken));
   assert.equal(loadDraft(null), null);
+});
+
+// ── Booked rooms ─────────────────────────────────────────────────────────────
+// Rooms are reserved in a separate calendar system before this form is filled
+// in, so a room recorded here is an existing booking, not a request.
+
+test("the rooms step requires a building and a room", () => {
+  const form = completeForm();
+  form.rooms = [{ ...emptyRoomBooking(true) }];
+  const errors = validateStep("rooms", form);
+  assert.ok(errors["rooms.0.buildingId"]);
+  assert.ok(errors["rooms.0.roomId"]);
+});
+
+test("at least one booked room is required", () => {
+  const form = completeForm();
+  form.rooms = [];
+  assert.ok(validateStep("rooms", form).rooms);
+});
+
+test("a booked room cannot end before it starts", () => {
+  const form = completeForm();
+  form.rooms[0].endTime = "07:00";
+  assert.ok(validateStep("rooms", form)["rooms.0.endTime"]);
+});
+
+test("exactly one room must be primary when several are booked", () => {
+  const form = completeForm();
+  form.rooms = [
+    { ...emptyRoomBooking(true), buildingId: "CG1", roomId: "CG1-2122" },
+    { ...emptyRoomBooking(true), buildingId: "CG1", roomId: "CG1-2126" },
+  ];
+  assert.ok(validateStep("rooms", form).rooms, "two primaries should fail");
+
+  form.rooms[1].isPrimary = false;
+  assert.equal(validateStep("rooms", form).rooms, undefined);
+});
+
+test("primaryRoomBooking picks the flagged room, else the first", () => {
+  const form = completeForm();
+  form.rooms = [
+    { ...emptyRoomBooking(false), buildingId: "CG1", roomId: "CG1-2122" },
+    { ...emptyRoomBooking(true), buildingId: "ML", roomId: "ML-40" },
+  ];
+  assert.equal(primaryRoomBooking(form).roomId, "ML-40");
+
+  form.rooms.forEach((r) => { r.isPrimary = false; });
+  assert.equal(primaryRoomBooking(form).roomId, "CG1-2122");
+
+  form.rooms = [];
+  assert.equal(primaryRoomBooking(form), null);
+});
+
+test("toEventDoc denormalizes booked rooms onto the event", () => {
+  const form = completeForm();
+  form.rooms = [
+    { ...emptyRoomBooking(false), buildingId: "CG1", roomId: "CG1-2122" },
+    { ...emptyRoomBooking(true), buildingId: "ML", roomId: "ML-40" },
+  ];
+  const doc = toEventDoc(form, USER.uid);
+  assert.equal(doc.primaryRoomId, "ML-40");
+  assert.equal(doc.buildingId, "ML");
+  assert.deepEqual(doc.roomIds, ["CG1-2122", "ML-40"]);
+});
+
+test("toRoomBookingDocs emits one document per booked room", () => {
+  const rooms = toRoomBookingDocs(completeForm());
+  assert.equal(rooms.length, 1);
+  assert.equal(rooms[0].data.roomId, "CG1-2122");
+  assert.equal(rooms[0].data.buildingId, "CG1");
+  assert.equal(rooms[0].data.setupType, "Classroom");
+  assert.equal(rooms[0].data.expectedHeadcount, 60);
+  assert.equal(rooms[0].data.isPrimary, true);
+});
+
+test("toRoomBookingDocs skips incomplete rows and marks one primary", () => {
+  const form = completeForm();
+  form.rooms = [
+    { ...emptyRoomBooking(false), buildingId: "CG1", roomId: "CG1-2122" },
+    { ...emptyRoomBooking(true), buildingId: "ML", roomId: "ML-40" },
+    { ...emptyRoomBooking(false), buildingId: "CG1", roomId: "" },
+  ];
+  const docs = toRoomBookingDocs(form);
+  assert.equal(docs.length, 2, "the row with no room is dropped");
+  assert.deepEqual(docs.map((d) => d.data.isPrimary), [false, true]);
 });

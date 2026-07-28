@@ -170,6 +170,25 @@ plan's `legacyId` — those collapse into one field.
 | Meal Selections | `Meal Selection ID`, `Schedule ID`, `Meal Period`, `Meal Start Time`, `Menu Selection`, `Location` | `catering_meal_selections` ✅ — keyed by `Schedule ID`, confirming the plan's nesting under schedule day ✅ |
 | Event Rooms | `Event Room ID`, `Event ID`, `Building ID`, `Room ID`, `Setup`, `Room Start Time`, `Room End Time`, `Expected Headcount`, `Is Primary Room`, `Room Notes` | `catering_event_rooms` ✅ — near-exact match, plus `Room Notes` |
 
+> **Rooms are bookings, not requests.** Corrected 2026-07-28. The build plan's
+> §3 made `catering_event_rooms` staff-write-only, describing room assignment as
+> "a staff action". That does not match the actual workflow: rooms are reserved
+> in a **separate room-calendar system**, and the catering form is filled in
+> *after* that reservation is secured. A room recorded here is therefore an
+> existing booking, and the requester is the one who knows it.
+>
+> Consequences, all implemented:
+> - `catering_event_rooms` is readable and writable by the event owner **and**
+>   by manager-and-above. Neither party "approves" the other's room.
+> - The intake form has a dedicated **Rooms** step where the requester records
+>   one or more booked rooms, each with its own setup, times, headcount, and
+>   notes, with one marked primary.
+> - `buildingId`, `primaryRoomId`, and `roomIds[]` on the event are a
+>   denormalization of that subcollection for list queries. The subcollection is
+>   authoritative.
+>
+> There is no "pending room assignment" state anywhere in the model.
+
 Observed meal periods: `Breakfast`, `Coffee Break`, `Lunch` — note **`Coffee
 Break`** is a real period not listed in the plan's
 `breakfast | lunch | dinner | reception | custom` enum.
