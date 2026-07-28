@@ -6,7 +6,7 @@
  *   Dashboard, Weekly Ops, Financials, Reports.
  * Handles authentication state and first-run wizard routing.
  */
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext.jsx";
 import { useRole } from "./hooks/useRole.js";
 import { canAccessPage } from "./utils/permissions.js";
@@ -21,7 +21,12 @@ import WeeklyOps    from "./WeeklyOps.jsx";
 import EventRevenuePage from "./pages/EventRevenuePage.jsx";
 import FpaPage from "./pages/FpaPage.jsx";
 import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
+import { CATERING_ENABLED } from "./config/features.js";
 import { COLORS, SHADOWS } from "./theme.js";
+
+// Lazily imported so the catering console never enters the main bundle while
+// the feature flag is off.
+const CateringConsole = lazy(() => import("./catering/staff/CateringConsole.jsx"));
 
 function WaveGraphic({ color = COLORS.AQUA, opacity = 0.18, width = 420, height = 80 }) {
   return (
@@ -78,6 +83,9 @@ const TABS = [
   { id: "eventrevenue",  label: "Event Revenue",  pageKey: "event_revenue" },
   { id: "fpa",           label: "FP&A",           pageKey: "fpa"           },
   { id: "reports",       label: "Reports",        pageKey: "reports"       },
+  // Gated by the feature flag as well as by role, so the tab stays dark in
+  // production until Phase 5 sign-off.
+  { id: "catering",      label: "Catering",       pageKey: "catering",      flagged: true },
 ];
 
 // ── Main App Shell ─────────────────────────────────────────────────────────────
@@ -128,8 +136,9 @@ function AppShell() {
           justifyContent: "space-between",
           height: 64, overflow: "hidden",
         }}>
-          {/* Wave decoration */}
-          <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.12 }}>
+          {/* Wave decoration — purely decorative, so it must never intercept
+              clicks on the tab buttons it overlaps. */}
+          <div style={{ position: "absolute", right: 200, top: 0, opacity: 0.12, pointerEvents: "none" }}>
             <WaveGraphic color={COLORS.AQUA} opacity={0.6} width={500} height={64} />
           </div>
 
@@ -142,7 +151,10 @@ function AppShell() {
 
           {/* Tab navigation */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, zIndex: 1 }}>
-            {TABS.filter(tab => canAccessPage(role, tab.pageKey)).map(tab => {
+            {TABS
+              .filter(tab => !tab.flagged || CATERING_ENABLED)
+              .filter(tab => canAccessPage(role, tab.pageKey))
+              .map(tab => {
               const active = activeTab === tab.id;
               return (
                 <button key={tab.id} className="ucar-tab-btn"
@@ -212,6 +224,9 @@ function AppShell() {
         {activeTab === "eventrevenue" && <EventRevenuePage />}
         {activeTab === "fpa"        && <FpaPage />}
         {activeTab === "reports"    && <ReportsPage />}
+        {activeTab === "catering"   && CATERING_ENABLED && (
+          <Suspense fallback={null}><CateringConsole /></Suspense>
+        )}
         {activeTab === "admin"      && <AdminPage />}
 
       </div>

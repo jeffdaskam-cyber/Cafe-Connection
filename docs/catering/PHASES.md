@@ -10,8 +10,8 @@ Sandbox setup and isolation are documented in [`SANDBOX.md`](./SANDBOX.md).
 |---|---|---|
 | **0 — Environment** | Emulator sandbox, feature flag, `/catering` entry point, preview deploy | ✅ Complete |
 | **1 — Data foundation** | Collections, security rules, indexes, seed + migration scripts | ✅ Complete |
-| **2 — Requester intake** | `/catering` multi-step form, "my requests" | ✅ Complete — awaiting sign-off |
-| **3 — Staff console** | Catering tab, queue, confirm / assign / close | ⏸ Not started |
+| **2 — Requester intake** | `/catering` multi-step form, "my requests" | ✅ Complete |
+| **3 — Staff console** | Catering tab, queue, confirm / edit / close | ✅ Complete — awaiting sign-off |
 | **4 — Reporting rollup** | Server-side `event_revenue` rollup, dashboard widget | ⏸ Not started |
 | **5 — Automation + UAT** | Notifications, recap PDF, cron reconciliation, UAT sign-off | ⏸ Not started |
 
@@ -145,6 +145,52 @@ Corrected on 2026-07-28:
    lookup in its own try/catch and treating a denial as "no match to migrate",
    which needed no rule change. **Worth verifying against production invite
    activation** — the same path runs there.
+
+---
+
+## Phase 3 — what was built
+
+| Area | Change |
+|---|---|
+| Tab | `App.jsx` gains a **Catering** tab, gated by `canAccessPage(role, "catering")` (manager and above) *and* by `CATERING_ENABLED`, and lazy-loaded so it stays out of the main bundle while the flag is off. |
+| Console | `staff/CateringConsole.jsx` — two views (request queue, daily schedule) plus the event detail drill-in. Denies access itself as well as relying on the rules. |
+| Queue | `staff/RequestQueue.jsx` — summary chips, filters for status / lifecycle / building / date range / free-text search, and a sortable table. |
+| Event detail | `staff/EventDetail.jsx` — confirm, close, reopen, cancel; edit any event field including actual attendance and internal staff notes; correct booked rooms; clear a migration review flag. |
+| Daily schedule | `staff/DailySchedule.jsx` — cross-event view by day via a collection-group query, with per-meal-period event and headcount totals. |
+| Data | `staffData.js` (status transitions with history, field edits, room edits, collection-group range query) and `staffFilters.js` (pure filtering, sorting, grouping, totals). |
+
+**Acceptance criteria — Phase 3**
+
+- ✅ A manager-role test account confirmed, edited (actual attendance + staff
+  notes), and closed a test event — verified end to end in a real browser.
+- ✅ A requester cannot perform those actions: no Catering tab, staff console
+  unreachable, and the rules reject every staff-only write (36/36 rules tests).
+- ✅ Internal staff notes are not visible to the requester.
+- ✅ The cross-event daily schedule renders with meal-period totals.
+
+### Three bugs this phase surfaced
+
+1. **The daily schedule would not have worked in production.** A
+   collection-group query is matched by collection ID only — the nested rule
+   under `/catering_events/{eventId}` does **not** apply. The query was denied
+   even for managers. Fixed with an explicit
+   `match /{path=**}/catering_schedule_days/{dayId}` rule granting read to
+   manager-and-above; requesters still reach their own days only through the
+   nested path. The Phase 1 index was necessary but not sufficient.
+
+2. **The header's decorative wave overlay swallowed tab clicks.** Its wrapper
+   `<div>` had no `pointer-events: none` (only the inner SVG did), so it
+   intercepted clicks on any tab it overlapped. Adding a seventh tab made this
+   reachable; it was latent before and would already have affected narrow
+   windows. One-line fix in `App.jsx`.
+
+3. **`Field` produced nested labels for checkbox groups.** The component wraps
+   children in a `<label>`; the catering-services checkboxes are themselves
+   labelled inputs. Nested labels are invalid HTML and make the browser
+   associate the outer label with the first inner input — selecting "Lunch"
+   actually toggled "Breakfast". `Field` now takes a `group` prop rendering
+   `<fieldset>`/`<legend>` instead. This was a live data-entry bug, not just a
+   test artifact.
 
 ---
 

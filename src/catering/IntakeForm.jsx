@@ -248,7 +248,7 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
                   </Field>
                 </Row>
 
-                <Field label="Catering services needed">
+                <Field label="Catering services needed" group>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 14, paddingTop: 4 }}>
                     {MEAL_PERIODS.filter((p) => p !== "other").map((period) => (
                       <label key={period} style={{

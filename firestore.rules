@@ -362,6 +362,17 @@ service cloud.firestore {
       }
     }
 
+    // ── catering_schedule_days (collection group) ──────────────────────────
+    // A collection-group query is matched by collection ID only — the nested
+    // rule under /catering_events/{eventId} does NOT apply to it. The staff
+    // console's cross-event daily schedule needs this rule to run at all.
+    //
+    // Staff-only on purpose: a requester reads their own schedule days through
+    // the nested path above, and must not be able to sweep every event's.
+    match /{path=**}/catering_schedule_days/{dayId} {
+      allow read: if isManagerOrAbove();
+    }
+
     // ── rooms / buildings ──────────────────────────────────────────────────
     // Reference data seeded from the AppSheet source. Readable by any signed-in
     // UCAR user (the intake form needs it); administrator-only to change.

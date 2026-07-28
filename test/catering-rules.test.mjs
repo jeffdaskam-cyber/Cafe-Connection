@@ -15,7 +15,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, collectionGroup, getDocs,
 } from "firebase/firestore";
 
 import { REQUESTER_EDITABLE_FIELDS } from "../src/catering/schema.js";
@@ -326,5 +326,90 @@ test("a non-UCAR account cannot self-provision", suiteOpts, async () => {
   await assertFails(
     setDoc(doc(ctxFor(OUTSIDER), "user_roles", OUTSIDER.uid),
       { role: "requester", email: OUTSIDER.email })
+  );
+});
+
+// ── Staff console (Phase 3) ────────────────────────────────────────────────
+
+test("a manager can list the whole queue; a requester cannot", suiteOpts, async () => {
+  await assertSucceeds(getDocs(collection(ctxFor(MANAGER), "catering_events")));
+  await assertFails(getDocs(collection(ctxFor(REQUESTER), "catering_events")));
+});
+
+test("a manager can run the cross-event schedule collection-group query", suiteOpts, async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "catering_events", EVENT_ID, "catering_schedule_days", "d1"),
+      { date: "2026-09-10", startTime: "08:00" });
+    await setDoc(doc(db, "catering_events", OTHER_EVENT_ID, "catering_schedule_days", "d2"),
+      { date: "2026-09-11", startTime: "09:00" });
+  });
+
+  // The daily schedule view depends on this working for staff.
+  await assertSucceeds(getDocs(collectionGroup(ctxFor(MANAGER), "catering_schedule_days")));
+  // A requester must not be able to sweep every event's schedule.
+  await assertFails(getDocs(collectionGroup(ctxFor(REQUESTER), "catering_schedule_days")));
+});
+
+test("a manager can record status history when confirming and closing", suiteOpts, async () => {
+  const ref = doc(ctxFor(MANAGER), "catering_events", EVENT_ID);
+  await assertSucceeds(updateDoc(ref, {
+    requestStatus: "confirmed",
+    requestStatusHistory: [{ status: "confirmed", changedBy: MANAGER.uid, changedAt: "2026-07-28T00:00:00Z" }],
+  }));
+  await assertSucceeds(updateDoc(ref, {
+    lifecycleStatus: "closed",
+    lifecycleStatusHistory: [{ status: "closed", changedBy: MANAGER.uid, changedAt: "2026-07-28T01:00:00Z" }],
+  }));
+});
+
+test("a requester cannot forge status history", suiteOpts, async () => {
+  await assertFails(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), {
+      requestStatusHistory: [{ status: "confirmed", changedBy: REQUESTER.uid }],
+    })
+  );
+});
+
+test("a manager can clear a migration review flag; a requester cannot", suiteOpts, async () => {
+  await assertSucceeds(
+    updateDoc(doc(ctxFor(MANAGER), "catering_events", EVENT_ID), {
+      needsReview: false, reviewNotes: [],
+    })
+  );
+  await assertFails(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { needsReview: true })
+  );
+});
+
+test("a manager can record actual attendance; a requester cannot", suiteOpts, async () => {
+  await assertSucceeds(
+    updateDoc(doc(ctxFor(MANAGER), "catering_events", EVENT_ID), { actualAttendance: 73 })
+  );
+  await assertFails(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { actualAttendance: 999 })
+  );
+});
+
+test("a manager can write internal staff notes; a requester cannot", suiteOpts, async () => {
+  await assertSucceeds(
+    updateDoc(doc(ctxFor(MANAGER), "catering_events", EVENT_ID), { staffNotes: "Chef briefed" })
+  );
+  await assertFails(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { staffNotes: "let me in" })
+  );
+});
+
+test("a plain staff `user` role gets no catering console access", suiteOpts, async () => {
+  const staffUser = { uid: "staffuser1", email: "staff@ucar.edu" };
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "user_roles", staffUser.uid),
+      { role: "user", email: staffUser.email });
+  });
+
+  await assertFails(getDocs(collection(ctxFor(staffUser), "catering_events")));
+  await assertFails(getDoc(doc(ctxFor(staffUser), "catering_events", EVENT_ID)));
+  await assertFails(
+    updateDoc(doc(ctxFor(staffUser), "catering_events", EVENT_ID), { requestStatus: "confirmed" })
   );
 });

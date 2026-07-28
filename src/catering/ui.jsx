@@ -23,16 +23,32 @@ export function Card({ children, style }) {
   );
 }
 
-export function Field({ label, error, required, hint, children }) {
+/**
+ * A labelled form field.
+ *
+ * `group` must be set when the children contain more than one labelled control
+ * (a checkbox or radio group). Wrapping those in a <label> nests labels, which
+ * is invalid HTML and makes the browser associate the outer label's text with
+ * the first inner input — so assistive tech, and anything else resolving
+ * controls by their label, picks the wrong one.
+ */
+export function Field({ label, error, required, hint, group = false, children }) {
+  const Wrapper = group ? "fieldset" : "label";
+  const Caption = group ? "legend" : "span";
+
   return (
-    <label style={{ display: "block", marginBottom: 16 }}>
-      <span style={{
+    <Wrapper style={{
+      display: "block", marginBottom: 16,
+      ...(group ? { border: "none", padding: 0, margin: "0 0 16px" } : {}),
+    }}>
+      <Caption style={{
         display: "block", fontSize: 11, fontWeight: FONT.WEIGHT_BOLD,
         color: COLORS.TEXT_SECONDARY, letterSpacing: "0.04em",
         textTransform: "uppercase", marginBottom: 6,
+        ...(group ? { padding: 0 } : {}),
       }}>
         {label}{required && <span style={{ color: COLORS.ERROR }}> *</span>}
-      </span>
+      </Caption>
       {children}
       {hint && !error && (
         <span style={{ display: "block", fontSize: 11, color: COLORS.TEXT_MUTED, marginTop: 4 }}>
@@ -44,7 +60,7 @@ export function Field({ label, error, required, hint, children }) {
           {error}
         </span>
       )}
-    </label>
+    </Wrapper>
   );
 }
 
