@@ -35,6 +35,11 @@ npm run lint
 npm test
 ```
 
+## Firebase Project Migration
+
+To move the Firebase project between Google accounts (e.g. personal → work), see
+[MIGRATION.md](./MIGRATION.md).
+
 ## Security
 
 - Do not commit real secrets (`.env`, service-account keys, OAuth tokens).
