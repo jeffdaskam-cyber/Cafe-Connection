@@ -359,30 +359,43 @@ are silently lost.
 
 ---
 
-## Pre-existing bugs — unrelated to migration, but they will look like fallout
-
-Both of these already fail on `main`. Neither is fixed here; they are flagged so
-that post-migration verification is not spent debugging them.
-
-**1. `/api/parse-event-revenue` rejects every upload.**
-`api/parse-event-revenue.mjs:137` calls `isValidStorageUrl(fileUrl)` with one
-argument, but the signature is `isValidStorageUrl(url, allowedBucket)` and the
-function returns `false` when `allowedBucket` is falsy
-(`api/_lib/serverless.mjs:69`). The check therefore always fails and the route
-responds "Invalid fileUrl: must be a Firebase Storage URL for this project."
-The sibling call sites pass `process.env.ALLOWED_STORAGE_BUCKET` correctly
-(`parse-report.js:88`, `parse-fpa-report.mjs:410`).
-
-**2. `npm test` reports a failure regardless of code health.**
-`npm test` runs `node --test`, whose default glob matches `test-*.mjs`. That
-picks up `scripts/test-gmail-send.mjs` — an interactive OAuth helper, not a test
-— which exits 1 without `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` set. The
-suite shows 1 failure on a clean checkout. Until it is addressed, verify with
-the test files named explicitly:
+## Verifying with `npm test`
 
 ```bash
-node --test test/rewrite-storage-urls.test.mjs test/serverless-utils.test.mjs
+npm test
 ```
 
-Renaming the helper to `scripts/gmail-send-check.mjs`, or scoping `npm test` to
-`node --test test/*.test.mjs`, would fix it.
+This is safe to use as post-cutover verification. It previously reported a
+failure on a clean checkout regardless of code health — it ran bare
+`node --test`, whose default discovery glob matches `test-*.mjs` and so picked up
+`scripts/test-gmail-send.mjs`, an interactive OAuth helper that exits non-zero
+without `GMAIL_CLIENT_ID` and `GMAIL_CLIENT_SECRET`. Discovery is now scoped to
+`test/**/*.test.mjs`, so a red suite means a real failure.
+
+Note that the test suite covers pure helpers only. It does not exercise
+Firestore, Storage, Auth, or the Drive-backed routes, so a green suite says
+nothing about whether a migration succeeded — work the § B10 cutover checklist
+regardless.
+
+## Note on the `isValidStorageUrl` guards
+
+There are **two** functions with this name, which matters if you are auditing
+the upload paths during migration:
+
+- the shared `isValidStorageUrl(url, allowedBucket)` exported from
+  `api/_lib/serverless.mjs`, taking the bucket as its second argument — used by
+  `api/parse-report.js` and `api/parse-fpa-report.mjs`;
+- a **local** single-argument `isValidStorageUrl(url)` defined inside
+  `api/parse-event-revenue.mjs` (line 53), which closes over a module-level
+  `ALLOWED_STORAGE_BUCKET` read from the environment at import time.
+
+Both fail closed when the bucket is unset, and both are correct as written. The
+single-argument call in `parse-event-revenue.mjs` is calling its own local
+function, not the shared one — it is not a missing-argument bug. The duplication
+is a refactor opportunity, not a defect.
+
+The practical migration consequence: `parse-event-revenue.mjs` reads
+`ALLOWED_STORAGE_BUCKET` at module load and throws at import time if it is
+missing (lines 20-22), so a partially-updated Vercel environment fails that
+route loudly at cold start rather than at request time. Set the bucket vars
+before redeploying.
