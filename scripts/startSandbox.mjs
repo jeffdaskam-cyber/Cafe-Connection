@@ -58,17 +58,39 @@ if (seedStatus !== 0) {
 // strictPort turns a collision into a loud failure instead of a silent move.
 const PORT = process.env.SANDBOX_PORT || "5180";
 
+// stdout is piped rather than inherited so the banner below can be printed
+// *after* Vite's own. Vite advertises only its root URL, and terminals make that
+// clickable — following it lands on the Cafe Connection staff app, where signing
+// in reports "you don't have access" because the requester self-provisioning
+// lives on the /catering entry point. Whatever prints last is what gets clicked,
+// so this has to come second. stderr stays inherited so errors are never held up.
 const vite = spawn(
   process.execPath,
   [VITE_BIN, "--mode", "sandbox", "--port", PORT, "--strictPort"],
-  { stdio: "inherit" }
+  { stdio: ["inherit", "pipe", "inherit"] }
 );
 
-vite.on("spawn", () => {
-  console.log(`\n[sandbox] Catering Companion   http://localhost:${PORT}/catering`);
-  console.log(`[sandbox] Cafe Connection      http://localhost:${PORT}/`);
-  console.log(`[sandbox] Emulator UI          http://localhost:4000\n`);
+let bannerShown = false;
+function showBanner() {
+  if (bannerShown) return;
+  bannerShown = true;
+  process.stdout.write(
+    `\n  Catering Companion  ->  http://localhost:${PORT}/catering   <- start here\n` +
+      `  Cafe Connection     ->  http://localhost:${PORT}/\n` +
+      `  Emulator UI         ->  http://localhost:4000\n\n`
+  );
+}
+
+vite.stdout.on("data", (chunk) => {
+  process.stdout.write(chunk);
+  // Vite prints "ready in NNN ms" then its Local/Network lines. Waiting a beat
+  // puts this banner after all of them.
+  if (!bannerShown && /ready in/.test(chunk.toString())) setTimeout(showBanner, 300);
 });
+
+// If Vite's output ever stops matching, still show the URLs rather than none.
+const bannerFallback = setTimeout(showBanner, 15000);
+bannerFallback.unref?.();
 
 vite.on("error", (err) => {
   console.error(`\n[sandbox] Could not start Vite: ${err.message}\n`);
