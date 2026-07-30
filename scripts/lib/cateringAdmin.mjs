@@ -74,15 +74,23 @@ export function loadCsv(filename) {
   return parseCsv(readFileSync(path, "utf8"));
 }
 
-/** Guard destructive writes against a real (non-emulator) project. */
+/**
+ * Guard destructive writes against a real (non-emulator) project.
+ *
+ * "Real" includes a dev/UAT project, not just production — the check is
+ * emulator-or-not, because that is the only boundary this process can verify.
+ * Seeding a dev project therefore needs the same opt-in.
+ */
 export function assertWriteAllowed() {
   if (isEmulator()) return;
   if (process.env.CATERING_ALLOW_PRODUCTION_WRITE === "true") return;
   throw new Error(
-    "Refusing to write to a live Firebase project.\n" +
+    "Refusing to write to live Firebase project " +
+      `'${process.env.FIREBASE_ADMIN_PROJECT_ID || "unknown"}'.\n` +
       "Run against the emulator (FIRESTORE_EMULATOR_HOST=127.0.0.1:8080), or " +
-      "set CATERING_ALLOW_PRODUCTION_WRITE=true if this is a deliberate " +
-      "production seed."
+      "set CATERING_ALLOW_PRODUCTION_WRITE=true to seed a live project " +
+      "deliberately — including a dev or UAT project. Check the project ID " +
+      "above before you do."
   );
 }
 

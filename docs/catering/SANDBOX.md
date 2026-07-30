@@ -95,24 +95,143 @@ the emulator wiring lives in [`src/firebase/core.js`](../../src/firebase/core.js
 
 ---
 
-## 4. Vercel preview deployment
+## 4. Vercel preview deployment — the UAT environment
 
-Pushing the feature branch produces a Vercel preview deployment automatically.
-To exercise `/catering` there, set **preview-scoped** environment variables in
-the Vercel project (Settings → Environment Variables → Preview):
-
-- `VITE_CATERING_ENABLED=true`
-
-Leave `VITE_USE_FIREBASE_EMULATORS` unset on Vercel — emulators only run
-locally. A preview build therefore talks to whichever Firebase project the
-preview `VITE_FIREBASE_*` variables name. **Before enabling catering writes on a
-preview (Phase 1 onward), point those preview variables at a dedicated dev
-Firebase project, not production.** Until Phase 1 the catering shell performs no
-Firebase reads or writes at all, so the Phase 0 preview is inert either way.
+This is the runbook for standing up a shareable `/catering` URL backed by a
+dedicated dev Firebase project, so real planners can test without touching
+production data. Every step needs Firebase Console or Vercel Dashboard access.
 
 `vercel.json` adds rewrites so `/catering` and `/catering/*` serve `index.html`
 rather than 404ing on the static host. The rewrites are scoped to those paths
 only and do not change routing for `/api/*` or the existing app.
+
+### 4.1 Create the dev Firebase project
+
+In the Firebase Console, create a project (suggested ID `cafe-connection-dev`)
+and enable three products:
+
+| Product | Setting |
+|---|---|
+| **Authentication** | Enable the **Google** provider. The app rejects non-`@ucar.edu` addresses in `verifyStaffOrCron` and in the rules, so no extra restriction is needed here. |
+| **Firestore** | Any region. Rules are deployed from this repo in 4.2 — do **not** accept the console's default test-mode rules. |
+| **Storage** | Needed for catering recap PDFs (`catering_recaps/`). |
+
+Then register a **Web app** and copy the SDK config — those seven values become
+the `VITE_FIREBASE_*` variables in 4.4.
+
+### 4.2 Deploy rules and indexes to it
+
+```bash
+firebase login
+firebase use --add          # select the dev project, alias it `dev`
+firebase deploy --project dev --only firestore:rules,firestore:indexes,storage
+```
+
+The eleven composite indexes build asynchronously. Catering's queue, daily
+schedule, and meal lookups will fail until they finish — start this before
+seeding, not after.
+
+### 4.3 Authorize the preview domain — do this or Google sign-in fails
+
+Firebase Auth rejects OAuth from any origin not on its **Authorized domains**
+list, with `auth/unauthorized-domain`. Vercel's per-deployment URLs contain a
+fresh hash each build, so authorizing one is useless. Authorize the **branch
+alias**, which is stable:
+
+```
+cafe-connection-git-claude-cat-c21903-jeffdaskam-7140s-projects.vercel.app
+```
+
+Firebase Console → Authentication → Settings → Authorized domains → Add domain.
+
+That same branch-alias URL is the one to send planners — not the hashed
+per-deployment URL, which changes on every push.
+
+> Check Vercel's **Deployment Protection** setting too (Project Settings →
+> Deployment Protection). If Vercel Authentication is enabled for previews,
+> anyone without a Vercel account on this team gets an SSO wall before the app
+> ever loads. Planners will need it disabled for previews, or a protection
+> bypass, or they cannot reach the URL at all.
+
+### 4.4 Set preview-scoped environment variables
+
+Vercel Dashboard → Settings → Environment Variables, each scoped to
+**Preview** only. Leaving production untouched is the entire point.
+
+| Variable | Value |
+|---|---|
+| `VITE_CATERING_ENABLED` | `true` |
+| `VITE_FIREBASE_API_KEY` | dev project web config |
+| `VITE_FIREBASE_AUTH_DOMAIN` | dev project web config |
+| `VITE_FIREBASE_PROJECT_ID` | dev project web config |
+| `VITE_FIREBASE_STORAGE_BUCKET` | dev project web config |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | dev project web config |
+| `VITE_FIREBASE_APP_ID` | dev project web config |
+| `VITE_FIREBASE_MEASUREMENT_ID` | dev project web config (optional) |
+| `FIREBASE_ADMIN_PROJECT_ID` | dev service-account key |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` | dev service-account key |
+| `FIREBASE_ADMIN_PRIVATE_KEY` | dev service-account key, newlines as `\n` |
+| `FIREBASE_STORAGE_BUCKET` | must equal `VITE_FIREBASE_STORAGE_BUCKET` |
+| `ALLOWED_STORAGE_BUCKET` | same again |
+| `CRON_SECRET` | any long random string |
+| `INVITE_APP_URL` | the branch-alias URL from 4.3 |
+| `CATERING_APP_URL` | the branch-alias URL from 4.3 |
+| `CATERING_EMAIL_ENABLED` | `false` until `gmail.send` re-consent lands |
+| `CATERING_OPS_INBOX` | ops distribution list, or blank |
+
+Generate the service-account key at Firebase Console → Project Settings →
+Service Accounts → Generate new private key.
+
+**Leave `VITE_USE_FIREBASE_EMULATORS` unset.** Emulators only run locally;
+setting it on Vercel points the SDK at a `127.0.0.1` that does not exist there.
+
+> **This changes previews for every branch, not just this one.** Preview-scoped
+> variables apply to all preview deployments. Once `VITE_FIREBASE_*` points at
+> the dev project, a preview of any unrelated Cafe Connection PR will also run
+> against dev — an empty database, not production data. That is usually what you
+> want from a preview, but it is a behavior change worth knowing about before a
+> reviewer opens an unrelated preview and finds no data.
+
+### 4.5 Seed the dev project
+
+The seed scripts refuse to write to any non-emulator project unless the guard
+is lifted deliberately — see `assertWriteAllowed()` in
+[`scripts/lib/cateringAdmin.mjs`](../../scripts/lib/cateringAdmin.mjs). A dev
+project is a real project, so the guard applies:
+
+```bash
+export FIREBASE_ADMIN_PROJECT_ID=<dev-project-id>
+export FIREBASE_ADMIN_CLIENT_EMAIL=<dev-service-account-email>
+export FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n"
+export CATERING_ALLOW_PRODUCTION_WRITE=true   # required for any live project
+
+node scripts/seedCateringReferenceData.mjs    # 44 rooms, 9 buildings
+node scripts/migrateCateringEvents.mjs        # historical events (optional)
+```
+
+Reference data is required — the Rooms step has nothing to offer without it.
+The event migration is optional for UAT and needs the git-ignored CSVs in
+`data/catering/`; skip it to start planners on an empty queue.
+
+Give yourself a staff role in the dev project by creating a `user_roles`
+document keyed by your UID with `{ role: "administrator", email: "..." }`.
+Requesters self-provision on first sign-in; staff roles do not.
+
+### 4.6 Verify before inviting planners
+
+- [ ] The branch-alias URL loads, and `/catering` shows the Catering Companion
+      rather than the Cafe Connection shell
+- [ ] Google sign-in with a `@ucar.edu` account completes — the one thing no
+      automated run has ever covered (see `UAT.md`)
+- [ ] The Rooms step lists buildings and rooms (confirms seeding and indexes)
+- [ ] A submitted request appears in the dev project's Firestore, and **nothing
+      new appears in production Firestore**
+- [ ] `POST /api/catering` with `{"action":"reconcile"}` and a staff token
+      returns a report rather than a 401
+
+Note that `vercel.json` crons run on **production only**, so the nightly sweep
+does not fire on a preview. Trigger it by hand, which is what `UAT.md` §4 asks
+for anyway.
 
 ---
 
