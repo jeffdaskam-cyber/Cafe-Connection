@@ -5,3 +5,16 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # eslint-plugin-react's latest release (7.37.5, April 2025) peer-requires
+      # eslint "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7" and has no published
+      # version that accepts ESLint 10, so any major eslint bump makes the
+      # dependency graph unresolvable and fails `npm install` with ERESOLVE.
+      # eslint-plugin-react-hooks and eslint-plugin-react-refresh already
+      # support ESLint 10; eslint-plugin-react is the only holdout.
+      #
+      # Remove this entry once eslint-plugin-react ships ESLint 10 support.
+      # The upgrade also needs @eslint/js moved to ^10 in the same change,
+      # since @eslint/js@10 peer-requires eslint ^10.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]

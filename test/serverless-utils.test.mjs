@@ -35,6 +35,20 @@ test("isValidStorageUrl only allows Firebase Storage URLs from the configured bu
   );
 });
 
+test("isValidStorageUrl fails closed when no allowed bucket is configured", () => {
+  // The second argument is required. Callers that omit it (or run with
+  // ALLOWED_STORAGE_BUCKET unset) get a rejection, never a pass-through.
+  const url = "https://firebasestorage.googleapis.com/v0/b/my-bucket/o/reports%2Ffoo.pdf?alt=media";
+  assert.equal(isValidStorageUrl(url), false);
+  assert.equal(isValidStorageUrl(url, undefined), false);
+  assert.equal(isValidStorageUrl(url, ""), false);
+});
+
+test("isValidStorageUrl rejects malformed URLs instead of throwing", () => {
+  assert.equal(isValidStorageUrl("not-a-url", "my-bucket"), false);
+  assert.equal(isValidStorageUrl("", "my-bucket"), false);
+});
+
 test("firebasePrivateKey restores embedded newlines from env formatting", () => {
   assert.equal(firebasePrivateKey("line1\\nline2"), "line1\nline2");
 });
