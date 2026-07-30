@@ -7,7 +7,7 @@
  *
  * Revenue AMOUNTS are entered here by staff, on the catering event itself.
  * Rolling those amounts into the event_revenue collection is done server-side
- * by /api/catering-revenue-rollup — the only writer of that collection — so
+ * by /api/catering (action "rollup") — the only writer of that collection — so
  * there is never a second, unreconciled client-side path.
  */
 
@@ -175,7 +175,7 @@ export async function updateEventFields(eventId, patch) {
  * the nightly reconciliation sweep in Phase 5 is the backstop.
  */
 export async function rollUpEventRevenue(eventId) {
-  return callCateringApi("catering-revenue-rollup", { eventId });
+  return callCateringApi("rollup", { eventId });
 }
 
 /**
@@ -183,25 +183,29 @@ export async function rollUpEventRevenue(eventId) {
  * endpoint skips a state it has already notified.
  */
 export async function notifyForEvent(eventId, type) {
-  return callCateringApi("catering-notify", type ? { eventId, type } : { eventId });
+  return callCateringApi("notify", type ? { eventId, type } : { eventId });
 }
 
 /** Generate (or regenerate) the event recap PDF and store its URL. */
 export async function generateRecap(eventId) {
-  return callCateringApi("catering-recap", { eventId });
+  return callCateringApi("recap", { eventId });
 }
 
-async function callCateringApi(route, body) {
+/**
+ * All catering server-side actions go through one endpoint, which routes on
+ * `action`. Consolidated to stay within the host's per-deployment function cap.
+ */
+async function callCateringApi(action, body) {
   const token = await getAuthToken();
-  const res = await fetch(`/api/${route}`, {
+  const res = await fetch("/api/catering", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ action, ...body }),
   });
 
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
-    throw new Error(payload.error || `${route} failed (${res.status}).`);
+    throw new Error(payload.error || `catering ${action} failed (${res.status}).`);
   }
   return res.json();
 }

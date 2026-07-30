@@ -69,7 +69,7 @@ rather than requesting one.
 
 ## 4. Automation
 
-- [ ] Trigger `/api/catering-cron-reconcile` manually; it reports what it did
+- [ ] Trigger `/api/catering?action=reconcile` manually; it reports what it did
 - [ ] Break something on purpose (confirm an event while the notify endpoint is
       unreachable), then run the sweep and confirm it recovers
 - [ ] Run the sweep twice; the second run reports zero work

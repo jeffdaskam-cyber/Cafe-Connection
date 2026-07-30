@@ -198,12 +198,12 @@ Corrected on 2026-07-28:
 
 | Area | Change |
 |---|---|
-| Rollup endpoint | `api/catering-revenue-rollup.mjs` — the only writer of catering rows in `event_revenue`. Verifies a manager-and-above caller against `user_roles`, then writes, skips, or removes. |
+| Rollup endpoint | The only writer of catering rows in `event_revenue`. Verifies a manager-and-above caller against `user_roles`, then writes, skips, or removes. (Now the `rollup` action of `api/catering.mjs` — see the consolidation note below.) |
 | Mapping | `api/_lib/cateringRevenue.mjs` — pure, unit-tested: payment method → type, building → campus (resolved server-side, never trusting the client-writable `campus`), actual-over-estimate amount, start date → month. |
 | Revenue entry | Staff enter estimated and actual amounts in the event detail view. The console triggers the rollup after any confirm, close, cancel, or revenue edit, and shows what happened. |
 | Dashboard widget | `CateringWidget` reads `catering_events` directly (the plan's §5.1 "live widget read"), showing awaiting-decision count, upcoming events, guests, and revenue. |
 | Event Revenue view | Catering rows are tagged `source: "catering"` and excluded by default, with an "Include catering (n)" toggle. |
-| Dev serverless | A dev-only Vite middleware serves `/api/catering-*` so the rollup is testable locally; sandbox mode wires the Firestore and Auth emulator hosts automatically. Scoped to catering routes — the rest of `api/` still 404s in dev, as before. |
+| Dev serverless | A dev-only Vite middleware serves `/api/catering` so the rollup is testable locally; sandbox mode wires the Firestore, Auth, and Storage emulator hosts automatically. Scoped to the catering route — the rest of `api/` still 404s in dev, as before. |
 
 **Decisions taken (2026-07-28)**
 
@@ -252,9 +252,9 @@ Phase 5's notification endpoints, which will hit the same wall.
 
 | Area | Change |
 |---|---|
-| Notifications | `api/catering-notify.mjs` + `_lib/cateringNotify.mjs`. All four plan types (created / updated / confirmed / closed), recipient rules, plain-text templates, and Gmail RFC-2822 encoding. |
-| Recap PDF | `api/catering-recap.mjs` + `_lib/cateringRecap.mjs`. Built only from the event's own stored fields, rendered with `jspdf`, stored at a deterministic path, URL saved on the event. |
-| Cron reconciliation | `api/catering-cron-reconcile.mjs` + `_lib/cateringReconcile.mjs`, wired to a nightly Vercel cron (08:00 UTC). Sweeps for un-notified states, missing revenue rows, and missing recaps. |
+| Notifications | `_lib/cateringNotify.mjs`. All four plan types (created / updated / confirmed / closed), recipient rules, plain-text templates, and Gmail RFC-2822 encoding. |
+| Recap PDF | `_lib/cateringRecap.mjs`. Built only from the event's own stored fields, rendered with `jspdf`, stored at a deterministic path, URL saved on the event. |
+| Cron reconciliation | `_lib/cateringReconcile.mjs`, wired to a nightly cron (08:00 UTC). Sweeps for un-notified states, missing revenue rows, and missing recaps. |
 | Console | Confirm and close now fire the notification (and, on close, the recap) alongside the revenue rollup, each reporting what happened. |
 | Config | `storage.rules` gains `catering_recaps/`; `.env.example` documents the five new vars; `vercel.json` gains the cron and function timeouts. |
 
@@ -305,6 +305,45 @@ implying an email went out.
    work done. It now counts only real outcomes and reports `skipped` separately,
    which is what surfaced a test event with no planner email instead of silently
    retrying it nightly.
+
+---
+
+## Post-Phase-5 — endpoint consolidation (2026-07-28)
+
+The host caps serverless functions per deployment, and Cafe Connection already
+sat exactly at that cap with 12. Adding catering's four took it to 16, so every
+deployment from Phase 4 onward failed — the build succeeded and then died at
+"Deploying outputs" with nothing in the log.
+
+Consolidated back to 12 with no loss of behavior:
+
+| Before | After |
+|---|---|
+| `catering-revenue-rollup`, `catering-notify`, `catering-recap`, `catering-cron-reconcile` | **`api/catering.mjs`** — one endpoint routing on `action` |
+| `generate-invite-link`, `delete-invite` | **`api/invites.mjs`** — one endpoint routing on HTTP method |
+
+`12 − 2 + 1 + 1 = 12`.
+
+The catering endpoint takes `{ action, ... }` on POST, and the cron calls it as
+`GET /api/catering?action=reconcile`. The invite endpoint is `POST` to create
+and `DELETE` to remove; the two former files were byte-for-byte identical apart
+from method and body.
+
+**This also removed a wart.** The nightly sweep used to invoke the other three
+endpoints over HTTP against its own origin — extra cold starts, an extra auth
+round trip per event, and an origin guessed from request headers. Now it calls
+them in process. That is simpler here and is the shape it wants on any host,
+so the Azure rebuild inherits the better design rather than the workaround.
+
+Re-verified after consolidation: all three browser suites (Phase 2 intake,
+Phase 3 staff console, Phase 4 revenue) and the Phase 5 automation suite pass
+unchanged, including the cron invoked as a GET with a query string.
+
+> **Azure note.** This consolidation is scaffolding for the current host's
+> limit, not a design constraint Azure shares. Azure Functions has no
+> comparable per-deployment cap, so the actions could be split back into
+> separate functions there if that reads better — but the in-process
+> reconciliation should stay either way.
 
 ---
 

@@ -5,17 +5,17 @@ import { pathToFileURL } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Only the Catering Companion's own endpoints are served locally. Deliberately
+// Only the Catering Companion's own endpoint is served locally. Deliberately
 // NOT every function in api/: the rest belong to Cafe Connection proper, need
 // real Google credentials, and used to 404 in dev — serving them here would
 // change existing behavior (to a 500) for no benefit to this module.
-const DEV_API_ROUTE_PREFIX = "catering-";
+const DEV_API_ROUTES = new Set(["catering"]);
 
 /**
  * Serve the Catering Companion's Vercel functions from the Vite dev server.
  *
  * Vercel runs these in production; without this, `npm run dev` returns 404 for
- * /api/catering-* and the rollup can't be exercised locally at all.
+ * /api/catering and none of it can be exercised locally.
  * Dev only — it never affects a production build.
  */
 function devApiRoutes() {
@@ -28,7 +28,7 @@ function devApiRoutes() {
 
         const route = req.url.split("?")[0].replace(/^\/api\//, "");
         // Everything else falls through to Vite, exactly as before.
-        if (!route.startsWith(DEV_API_ROUTE_PREFIX)) return next();
+        if (!DEV_API_ROUTES.has(route)) return next();
         const candidates = [`api/${route}.mjs`, `api/${route}.js`]
           .map((p) => resolve(process.cwd(), p))
           .filter((p) => existsSync(p));
@@ -37,8 +37,13 @@ function devApiRoutes() {
 
         try {
           const body = await readJsonBody(req);
+          // Vercel supplies req.query; a raw Node request does not, and the
+          // cron invokes /api/catering?action=reconcile as a GET.
+          const query = Object.fromEntries(
+            new URL(req.url, "http://localhost").searchParams
+          );
           const mod = await server.ssrLoadModule(pathToFileURL(candidates[0]).pathname);
-          await mod.default({ ...req, body, headers: req.headers, method: req.method },
+          await mod.default({ ...req, body, query, headers: req.headers, method: req.method },
             expressLikeResponse(res));
         } catch (err) {
           server.config.logger.error(`[dev-api] ${route} failed: ${err.stack || err}`);

@@ -54,11 +54,11 @@ Plain `npm run dev` is unchanged: it uses `.env.local` and, with
 
 ### Serverless functions in the sandbox
 
-A dev-only Vite middleware serves the Catering Companion's own Vercel
-functions — `/api/catering-*` — from the dev server, so the revenue rollup can
-be exercised locally instead of 404ing. In sandbox mode the Firestore and Auth
-emulator hosts are set automatically, so those endpoints run against the
-emulators with no credentials.
+A dev-only Vite middleware serves the Catering Companion's endpoint —
+`/api/catering` — from the dev server, so the rollup, notifications, recap, and
+reconciliation sweep can be exercised locally instead of 404ing. In sandbox mode the Firestore and Auth
+emulator hosts are set automatically, so it runs against the emulators with no
+credentials.
 
 **Scoped on purpose.** Every other function in `api/` belongs to Cafe
 Connection proper, needs real Google service-account credentials, and continues

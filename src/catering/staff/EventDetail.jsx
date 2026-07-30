@@ -6,7 +6,7 @@
  * system, so this edits an existing booking rather than assigning one.
  *
  * Staff enter the revenue amounts here; the derived event_revenue row is
- * written only by /api/catering-revenue-rollup, which this view triggers after
+ * written only by /api/catering, which this view triggers after
  * a confirm, close, or revenue edit.
  */
 import { useEffect, useState } from "react";
