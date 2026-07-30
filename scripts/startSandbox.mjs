@@ -2,50 +2,77 @@
 /**
  * Sandbox entry point, run inside `firebase emulators:exec`.
  *
- * This used to be the shell string "node scripts/seed… && vite --mode sandbox"
- * passed to emulators:exec. That is a cross-platform hazard: cmd.exe does not
- * treat `&&` inside a quoted argument the way a POSIX shell does, so on Windows
- * the command could split and Vite would start WITHOUT `--mode sandbox`. Vite
- * then never loads .env.sandbox, VITE_CATERING_ENABLED is unset, and /catering
- * silently falls through to the Cafe Connection shell — which looks like a
- * permissions bug ("You don't have access to this application") rather than a
- * quoting bug.
+ * Everything here exists to keep a shell out of the path, because two separate
+ * Windows failures came from letting one in:
  *
- * Spawning with explicit argument arrays removes the shell from the path.
+ *   1. The command handed to emulators:exec used to be the shell string
+ *      "node scripts/seed… && vite --mode sandbox". cmd.exe does not treat `&&`
+ *      inside a quoted argument the way a POSIX shell does, so it could split —
+ *      starting Vite without `--mode sandbox`, which means .env.sandbox never
+ *      loads and /catering silently falls through to the Cafe Connection shell.
+ *
+ *   2. Spawning with `shell: true` broke on `process.execPath`, which on Windows
+ *      is "C:\Program Files\nodejs\node.exe". cmd.exe split it at the space:
+ *      'C:\Program' is not recognized as an internal or external command.
+ *
+ * So: absolute interpreter, explicit argument arrays, no shell anywhere. Both
+ * steps run as `node <script.js>`, including Vite — its .bin entry on Windows is
+ * a .cmd wrapper that would need a shell, but bin/vite.js is plain JS and needs
+ * nothing.
  */
 
 import { spawn, spawnSync } from "node:child_process";
-import { platform } from "node:process";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
-// npm puts node_modules/.bin on PATH; on Windows the runnable file is vite.cmd,
-// which needs a shell. Everywhere else it does not.
-const useShell = platform === "win32";
+const ROOT = process.cwd();
 
-function run(command, args) {
-  const res = spawnSync(command, args, { stdio: "inherit", shell: useShell });
+/** Run a Node script to completion. No shell — paths may contain spaces. */
+function runNode(scriptPath, args = []) {
+  const res = spawnSync(process.execPath, [scriptPath, ...args], { stdio: "inherit" });
   if (res.error) throw res.error;
   return res.status ?? 1;
 }
 
-const seedStatus = run(process.execPath, ["scripts/seedCateringReferenceData.mjs"]);
+// vite/bin/vite.js is not exposed through the package's `exports`, so it cannot
+// be resolved with createRequire — reference it by path and check it is there.
+const VITE_BIN = resolve(ROOT, "node_modules/vite/bin/vite.js");
+if (!existsSync(VITE_BIN)) {
+  console.error(
+    `\n[sandbox] Could not find ${VITE_BIN}\n` +
+      "  Run `npm ci` first — dependencies are not installed.\n"
+  );
+  process.exit(1);
+}
+
+const seedStatus = runNode(resolve(ROOT, "scripts/seedCateringReferenceData.mjs"));
 if (seedStatus !== 0) {
   console.error("\n[sandbox] Seeding failed — not starting the dev server.\n");
   process.exit(seedStatus);
 }
 
 // A dedicated port, not Vite's default 5173. Another Vite app on 5173 would
-// make this one silently drift to 5174 while the browser stays on 5173 and
-// shows the other app — and if that app shares this codebase, the symptom is a
+// make this one silently drift to 5174 while the browser stays on 5173 showing
+// the other app — and if that app shares this codebase, the symptom is a
 // confusing "you don't have access" rather than an obvious wrong-app.
 // strictPort turns a collision into a loud failure instead of a silent move.
 const PORT = process.env.SANDBOX_PORT || "5180";
 
-console.log(`\n[sandbox] Catering Companion → http://localhost:${PORT}/catering`);
-console.log(`[sandbox] Cafe Connection staff app → http://localhost:${PORT}/\n`);
+const vite = spawn(
+  process.execPath,
+  [VITE_BIN, "--mode", "sandbox", "--port", PORT, "--strictPort"],
+  { stdio: "inherit" }
+);
 
-const vite = spawn("vite", ["--mode", "sandbox", "--port", PORT, "--strictPort"], {
-  stdio: "inherit",
-  shell: useShell,
+vite.on("spawn", () => {
+  console.log(`\n[sandbox] Catering Companion   http://localhost:${PORT}/catering`);
+  console.log(`[sandbox] Cafe Connection      http://localhost:${PORT}/`);
+  console.log(`[sandbox] Emulator UI          http://localhost:4000\n`);
+});
+
+vite.on("error", (err) => {
+  console.error(`\n[sandbox] Could not start Vite: ${err.message}\n`);
+  process.exit(1);
 });
 
 // Ctrl-C reaches this process first; pass it on so Vite exits cleanly and
