@@ -66,9 +66,9 @@ branch assignment. Isolation is otherwise identical.
   carried over from Phase 0).
 
 **Note on source data.** `data/catering/*.csv` is git-ignored — the Events
-export carries staff names, emails, and phone numbers, and this is a public
-repository. Committed `*.example.csv` files document the format with synthetic
-data.
+export carries staff names, emails, and phone numbers, which do not belong in
+version control. Committed `*.example.csv` files document the format with
+synthetic data, and double as fallback seed data for the local sandbox.
 
 **Deliberately not fixed:** the pre-existing `userRole()` helper in
 `firestore.rules` still reads from `/users` and so always returns `''`. The

@@ -56,22 +56,42 @@ export function initAdmin() {
   });
 }
 
+let usedExample = false;
+
+/** True once any loadCsv call has fallen back to committed sample data. */
+export function usedExampleData() {
+  return usedExample;
+}
+
 /**
- * Load one export CSV from data/catering/. That directory is git-ignored — the
- * AppSheet export carries staff names, emails, and phone numbers and this is a
- * public repository. See docs/catering/SEED_AND_MIGRATION.md.
+ * Load one export CSV from data/catering/. Those files are git-ignored — the
+ * AppSheet export carries staff names, emails, and phone numbers, which do not
+ * belong in version control. With allowExample, falls back to the committed
+ * synthetic sample. See docs/catering/SEED_AND_MIGRATION.md.
  */
-export function loadCsv(filename) {
+export function loadCsv(filename, { allowExample = false } = {}) {
   const path = resolve(DATA_DIR, filename);
-  if (!existsSync(path)) {
-    throw new Error(
-      `Missing ${path}\n` +
-        "Export the tab from the 'UCAR Summit Data Sheet' as CSV into " +
-        "data/catering/. See docs/catering/SEED_AND_MIGRATION.md for the " +
-        "expected filenames and columns."
+  if (existsSync(path)) return parseCsv(readFileSync(path, "utf8"));
+
+  // A fresh clone has no real exports — they are git-ignored. Rather than fail
+  // on the first command someone runs, fall back to the committed synthetic
+  // sample so the sandbox is usable immediately. Opt-in, and loud about it.
+  const examplePath = resolve(DATA_DIR, filename.replace(/\.csv$/, ".example.csv"));
+  if (allowExample && existsSync(examplePath)) {
+    console.warn(
+      `[seed] ${filename} not found — using ${filename.replace(/\.csv$/, ".example.csv")} ` +
+        "(synthetic sample data, not the real export)."
     );
+    usedExample = true;
+    return parseCsv(readFileSync(examplePath, "utf8"));
   }
-  return parseCsv(readFileSync(path, "utf8"));
+
+  throw new Error(
+    `Missing ${path}\n` +
+      "Export the tab from the 'UCAR Summit Data Sheet' as CSV into " +
+      "data/catering/. See docs/catering/SEED_AND_MIGRATION.md for the " +
+      "expected filenames and columns."
+  );
 }
 
 /**

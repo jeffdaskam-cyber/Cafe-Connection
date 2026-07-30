@@ -17,7 +17,14 @@ import admin from "firebase-admin";
 
 import { COLLECTIONS } from "../src/catering/schema.js";
 import { campusForBuilding, cleanString, parseNumber, parseYesNo } from "./lib/cateringTransforms.mjs";
-import { assertWriteAllowed, commitInBatches, initAdmin, isEmulator, loadCsv } from "./lib/cateringAdmin.mjs";
+import {
+  assertWriteAllowed, commitInBatches, initAdmin, isEmulator, loadCsv, usedExampleData,
+} from "./lib/cateringAdmin.mjs";
+
+// Only the local sandbox may fall back to the committed synthetic sample.
+// Seeding a real project silently with fake rooms would be much worse than
+// failing, so the fallback is emulator-only.
+const ALLOW_EXAMPLE = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 
 const EXPECTED_ROOMS = 44;
 const EXPECTED_BUILDINGS = 9;
@@ -30,7 +37,7 @@ async function main() {
   console.log(`[seed] target: ${isEmulator() ? "EMULATOR " + process.env.FIRESTORE_EMULATOR_HOST : "LIVE PROJECT"}`);
 
   // ── Buildings ──────────────────────────────────────────────────────────
-  const buildingRows = loadCsv("buildings.csv");
+  const buildingRows = loadCsv("buildings.csv", { allowExample: ALLOW_EXAMPLE });
   const buildingWrites = [];
   const unmappedBuildings = [];
 
@@ -63,7 +70,7 @@ async function main() {
   }
 
   // ── Rooms ──────────────────────────────────────────────────────────────
-  const roomRows = loadCsv("rooms.csv");
+  const roomRows = loadCsv("rooms.csv", { allowExample: ALLOW_EXAMPLE });
   const roomWrites = [];
   const orphanRooms = [];
   const buildingKeys = new Set(buildingWrites.map((w) => w.data.id));
@@ -101,6 +108,16 @@ async function main() {
   }
 
   // ── Validation pass (build plan §4.4) ──────────────────────────────────
+  // The expected counts describe the real export. Sample data is a handful of
+  // synthetic rows, so asserting against them would fail every fresh clone.
+  if (usedExampleData()) {
+    console.log(
+      `[seed] sample data: ${buildingWrites.length} buildings, ${roomWrites.length} rooms ` +
+        "— skipping the source-sheet count check."
+    );
+    process.exit(0);
+  }
+
   let ok = true;
   if (roomWrites.length !== EXPECTED_ROOMS) {
     console.error(`[seed] FAIL expected ${EXPECTED_ROOMS} rooms, wrote ${roomWrites.length}`);

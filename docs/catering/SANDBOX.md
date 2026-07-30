@@ -30,19 +30,54 @@ project. That combination is intended only for the eventual production cutover.
 Requires Node 22+ and a JRE (the Firestore and Storage emulators are Java).
 
 ```bash
-npm ci                 # installs firebase-tools as a devDependency
-
-# Terminal 1 — emulators (Auth 9099, Firestore 8080, Storage 9199, UI 4000)
-npm run emulators
-
-# Terminal 2 — Vite against the emulators
-npm run dev:sandbox
+npm ci          # installs firebase-tools as a devDependency
+npm run sandbox # emulators + seed + dev server, one command
 ```
 
 Then open <http://localhost:5173/catering>. You should see the Catering
 Companion shell with an orange **SANDBOX** banner across the top and a
 `[firebase] SANDBOX MODE` warning in the browser console. The emulator UI is at
-<http://localhost:4000>.
+<http://localhost:4000>. `Ctrl-C` stops everything.
+
+`npm run sandbox` starts the emulators, seeds reference data, and runs Vite
+against them. No Firebase project, no credentials, no Vercel changes — the
+`demo-` project prefix makes the SDK refuse to reach a live project even if real
+credentials are present.
+
+**Signing in.** Click *Continue with Google*. Against the Auth emulator this
+opens the emulator's own account chooser rather than a real Google prompt — add
+any `@ucar.edu` address and it becomes a signed-in user. First sign-in at
+`/catering` self-provisions you as a `requester`.
+
+**Getting to the staff side.** Staff roles are not self-provisioned, so the
+Catering tab will not appear until you grant yourself one:
+
+```bash
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
+npm run catering:grant -- you@ucar.edu administrator
+```
+
+Sign out and back in, then open <http://localhost:5173/> — the Catering tab sits
+between Reports and Admin.
+
+**Sample vs. real data.** The AppSheet exports in `data/catering/` are
+git-ignored, so a fresh clone has none. Rather than fail, the seed falls back to
+the committed `*.example.csv` files — two synthetic buildings and three rooms,
+enough to click through the whole flow. It says so on stdout. Drop the real
+exports into `data/catering/` and re-run for the full 9 buildings and 44 rooms.
+The fallback is emulator-only: seeding a live project with synthetic rooms would
+be worse than failing.
+
+### Running the pieces separately
+
+Useful when you want the emulators to outlive a dev-server restart:
+
+```bash
+npm run emulators    # terminal 1 — Auth 9099, Firestore 8080, Storage 9199, UI 4000
+npm run dev:sandbox  # terminal 2
+npm run catering:seed
+```
 
 `npm run dev:sandbox` runs Vite in `--mode sandbox`, which loads the committed
 [`.env.sandbox`](../../.env.sandbox). Every value in that file is an emulator

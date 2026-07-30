@@ -29,8 +29,9 @@ header text. A committed `*.example.csv` sits beside each one showing the
 expected shape with synthetic data.
 
 > ⚠️ **`data/catering/*.csv` is git-ignored and must stay that way.** The Events
-> export contains staff names, email addresses, and phone numbers, and this is a
-> public repository. Only the `*.example.csv` files are tracked.
+> export contains staff names, email addresses, and phone numbers, which do not
+> belong in version control. Only the `*.example.csv` files are tracked; the
+> local sandbox falls back to them when the real exports are absent.
 
 ---
 
