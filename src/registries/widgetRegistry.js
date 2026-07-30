@@ -98,6 +98,15 @@ export const WIDGET_REGISTRY = [
     colSpan:        1,
   },
   {
+    widgetId:       "catering",
+    label:          "Catering",
+    icon:           "🍽️",
+    description:    "Catering requests awaiting a decision, plus upcoming confirmed events.",
+    needsCampus:    true,
+    defaultEnabled: false,
+    colSpan:        1,
+  },
+  {
     widgetId:       "vendor_portal",
     label:          "Vendor Portal",
     icon:           "🔗",

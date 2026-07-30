@@ -1,7 +1,30 @@
 {
   "framework": "vite",
   "functions": {
-    "api/parse-report.js": { "maxDuration": 60 },
-    "api/parse-event-revenue.mjs": { "maxDuration": 60 }
-  }
+    "api/parse-report.js": {
+      "maxDuration": 60
+    },
+    "api/parse-event-revenue.mjs": {
+      "maxDuration": 60
+    },
+    "api/catering.mjs": {
+      "maxDuration": 300
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/catering",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/catering/:path*",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/catering?action=reconcile",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

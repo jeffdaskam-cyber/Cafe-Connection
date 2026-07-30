@@ -72,7 +72,7 @@ export default function UserInvitations() {
   }, []);
 
   const generateLink = useCallback(async (toEmail, targetRole) => {
-    const res = await authedFetch("/api/generate-invite-link", {
+    const res = await authedFetch("/api/invites", {
       method: "POST",
       body: JSON.stringify({ email: toEmail, role: targetRole }),
     });
@@ -122,7 +122,7 @@ export default function UserInvitations() {
   async function handleDelete(invite) {
     setRowBusy(invite.email);
     try {
-      const res = await authedFetch("/api/delete-invite", {
+      const res = await authedFetch("/api/invites", {
         method: "DELETE",
         body: JSON.stringify({ email: invite.email }),
       });

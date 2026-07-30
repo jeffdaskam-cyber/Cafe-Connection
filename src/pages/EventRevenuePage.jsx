@@ -282,13 +282,24 @@ export default function EventRevenuePage() {
   const [period, setPeriod]       = useState("Monthly");
   const [fiscalYear, setFiscalYear] = useState(null);
 
+  // Catering rollups are hidden by default — see the comment on safeDocs below.
+  const [includeCatering, setIncludeCatering] = useState(false);
+
   // ── Real-time Firestore subscription ──────────────────────────────────────
   const { data: allDocs, loading } = useWidgetSubscription(
     (cb) => subscribeEventRevenue(cb),
     []
   );
 
-  const safeDocs = allDocs ?? [];
+  // Catering Companion rollups are tagged source: "catering". They are excluded
+  // by default because the uploaded Internal/External spreadsheets already
+  // include catering events — counting both would double the totals. The toggle
+  // below lets you see them alongside; flip the default once catering stops
+  // being included in the uploads.
+  const cateringDocs = (allDocs ?? []).filter(d => d.source === "catering");
+  const safeDocs = includeCatering
+    ? (allDocs ?? [])
+    : (allDocs ?? []).filter(d => d.source !== "catering");
 
   // ── Derive fiscal years from data ─────────────────────────────────────────
   const fiscalYears = [...new Set(
@@ -384,6 +395,28 @@ export default function EventRevenuePage() {
             })}
           </div>
         </div>
+
+        {/* Catering rollups — off by default so they cannot double-count
+            against the uploaded spreadsheet totals. */}
+        {cateringDocs.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
+              textTransform: "uppercase", marginBottom: 10 }}>Catering</div>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+              background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+              borderRadius: RADIUS.SM, padding: "9px 14px",
+              fontFamily: "'Poppins',sans-serif", fontSize: 12, fontWeight: 600,
+              color: COLORS.TEXT_SECONDARY,
+            }}
+              title="Catering Companion events roll up separately. The uploaded reports may already include them — enabling this can double-count.">
+              <input type="checkbox" checked={includeCatering}
+                onChange={(e) => setIncludeCatering(e.target.checked)}
+                style={{ accentColor: COLORS.AQUA, cursor: "pointer" }} />
+              Include catering ({cateringDocs.length})
+            </label>
+          </div>
+        )}
 
         {/* Fiscal year dropdown */}
         {fiscalYears.length > 0 && (

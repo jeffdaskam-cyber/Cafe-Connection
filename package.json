@@ -4,10 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:sandbox": "vite --mode sandbox",
     "build": "vite build",
+    "build:sandbox": "vite build --mode sandbox",
     "preview": "vite preview",
     "lint": "eslint .",
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "test:rules": "firebase emulators:exec --project demo-cafe-connection --only firestore \"node --test test/catering-rules.test.mjs\"",
+    "catering:seed": "firebase emulators:exec --project demo-cafe-connection --only firestore \"node scripts/seedCateringReferenceData.mjs && node scripts/migrateCateringEvents.mjs\"",
+    "emulators": "firebase emulators:start --project demo-cafe-connection",
+    "emulators:exec": "firebase emulators:exec --project demo-cafe-connection"
   },
   "dependencies": {
     "docx": "^8.5.0",
@@ -25,11 +31,13 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@vitejs/plugin-react": "^4.2.0",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.0",
     "eslint-plugin-react-refresh": "^0.5.2",
+    "firebase-tools": "^13.35.1",
     "globals": "^17.5.0",
     "knip": "^6.15.0",
     "vite": "^5.2.0"

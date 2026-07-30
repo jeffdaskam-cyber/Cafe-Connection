@@ -47,6 +47,68 @@ service cloud.firestore {
                ['manager', 'senior_leader', 'administrator'];
     }
 
+    // ── Catering Companion helpers ─────────────────────────────────────────
+    // NOTE: these read /user_roles, which is the authoritative role store
+    // (written by api/update-user-role.mjs and AdminPage.jsx). The older
+    // userRole() helper above reads /users, which never carries a role field —
+    // do not reuse it here. See docs/catering/PHASES.md.
+
+    function cateringRole() {
+      return isAuthedUCAR()
+        ? get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.get('role', '')
+        : '';
+    }
+
+    function isAdministratorRole() {
+      return cateringRole() == 'administrator';
+    }
+
+    // Fields a requester may change on their own event after submission.
+    // Mirrors REQUESTER_EDITABLE_FIELDS in src/catering/schema.js — the rules
+    // unit tests assert the two lists stay in sync. Enumerated explicitly
+    // rather than allow-by-default (build plan §3).
+    function requesterEditableFields() {
+      return [
+        'plannerName', 'plannerEmail', 'plannerPhone',
+        'onsiteContactName', 'onsiteContactEmail', 'onsiteContactPhone',
+        'secondaryContactName', 'secondaryContactEmail', 'secondaryContactPhone',
+        'organization', 'lcpo',
+        'eventName', 'startDate', 'endDate', 'startTime', 'expectedAttendance',
+        'needsCatering', 'needsAlcohol', 'deliveryMethod', 'lunchOnOwnCount',
+        'setupNotes', 'airwallClosureTimeline',
+        'agendaType', 'agendaLink', 'agendaFileUrl', 'specialRequests',
+        'securityNotes', 'needsSecurity',
+        'custodialNotes', 'needsCustodial',
+        'accessDoorsNotes', 'needsAccessDoors',
+        'sustainabilityNotes', 'needsSustainability',
+        'buildingId', 'primaryRoomId', 'roomIds', 'campus',
+        'paymentMethod', 'projectIds', 'paymentNotes',
+        'updatedAt'
+      ];
+    }
+
+    function onlyRequesterFieldsChanged() {
+      return request.resource.data.diff(resource.data)
+               .affectedKeys().hasOnly(requesterEditableFields());
+    }
+
+    // Revenue amounts are never writable from a client, by anyone. Phase 4
+    // rolls revenue up via the Admin SDK, which bypasses these rules.
+    function noRevenueFields() {
+      return !request.resource.data.keys().hasAny(['estimatedRevenue', 'actualRevenue']);
+    }
+
+    // A requester may only edit while the request is still theirs to change.
+    function isEditableByRequester() {
+      return resource.data.requestStatus in ['draft', 'submitted'];
+    }
+
+    function ownsCateringEvent(eventId) {
+      return isAuthedUCAR() &&
+             get(/databases/$(database)/documents/catering_events/$(eventId)).data.createdBy
+               == request.auth.uid;
+    }
+
     // ── daily_metrics ──────────────────────────────────────────────────────
     // Read: any authenticated UCAR user
     // Write: server-side only (Admin SDK via /api/parse-report)
@@ -187,6 +249,15 @@ service cloud.firestore {
                        && request.resource.data.role ==
                           get(/databases/$(database)/documents/pending_invites/$(request.auth.token.email)).data.role;
 
+      // Catering Companion self-provisioning: any @ucar.edu user arriving at
+      // /catering with no existing role becomes a `requester` (build plan
+      // §6.1). Deliberately narrow — the role value is pinned to the literal
+      // 'requester', so this path can never mint a staff role, and it cannot
+      // overwrite an existing doc because create does not apply to one.
+      allow create: if isAuthedUCAR() && request.auth.uid == uid
+                       && request.resource.data.role == 'requester'
+                       && request.resource.data.email == request.auth.token.email;
+
       // Only administrators can update or delete role docs
       allow update, delete: if request.auth != null
                                && get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == "administrator";
@@ -241,6 +312,78 @@ service cloud.firestore {
     match /setup_report_entries/{entryId} {
       allow read: if isAuthedUCAR();
       allow create, update, delete: if isManagerOrAbove();
+    }
+
+    // ── catering_events ────────────────────────────────────────────────────
+    // Catering Companion (build plan §3, reconciled in docs/catering/).
+    // Read:   own events, or manager-and-above
+    // Create: requester creates their own, as requestStatus 'submitted'
+    // Update: requester may change only allowlisted fields, and only before
+    //         staff confirm; manager-and-above may change anything
+    // Delete: manager-and-above only
+    match /catering_events/{eventId} {
+      allow read: if isAuthedUCAR() &&
+                     (resource.data.createdBy == request.auth.uid || isManagerOrAbove());
+
+      allow create: if isAuthedUCAR() &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       request.resource.data.requestStatus == 'submitted' &&
+                       request.resource.data.lifecycleStatus == 'open' &&
+                       noRevenueFields();
+
+      allow update: if isAuthedUCAR() && (
+                       (resource.data.createdBy == request.auth.uid &&
+                        isEditableByRequester() &&
+                        onlyRequesterFieldsChanged() &&
+                        noRevenueFields())
+                       || isManagerOrAbove()
+                     );
+
+      allow delete: if isManagerOrAbove();
+
+      // Schedule days and their meal selections travel with the event: the
+      // owner may manage them, staff may manage anything.
+      match /catering_schedule_days/{dayId} {
+        allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
+
+        match /catering_meal_selections/{mealId} {
+          allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
+        }
+      }
+
+      // Rooms are booked in a separate calendar system BEFORE this form is
+      // filled in, so a room recorded here is an existing booking rather than
+      // a request awaiting approval. The owner records it and may correct it;
+      // staff may also edit it. (The build plan's §3 modelled this as a
+      // staff-only assignment, which does not match how rooms are actually
+      // booked — see docs/catering/DATA_MODEL.md §6.)
+      match /catering_event_rooms/{roomBookingId} {
+        allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
+      }
+    }
+
+    // ── catering_schedule_days (collection group) ──────────────────────────
+    // A collection-group query is matched by collection ID only — the nested
+    // rule under /catering_events/{eventId} does NOT apply to it. The staff
+    // console's cross-event daily schedule needs this rule to run at all.
+    //
+    // Staff-only on purpose: a requester reads their own schedule days through
+    // the nested path above, and must not be able to sweep every event's.
+    match /{path=**}/catering_schedule_days/{dayId} {
+      allow read: if isManagerOrAbove();
+    }
+
+    // ── rooms / buildings ──────────────────────────────────────────────────
+    // Reference data seeded from the AppSheet source. Readable by any signed-in
+    // UCAR user (the intake form needs it); administrator-only to change.
+    match /rooms/{roomId} {
+      allow read:  if isAuthedUCAR();
+      allow write: if isAdministratorRole();
+    }
+
+    match /buildings/{buildingId} {
+      allow read:  if isAuthedUCAR();
+      allow write: if isAdministratorRole();
     }
 
     // ── Catch-all: deny everything not explicitly matched ──────────────────

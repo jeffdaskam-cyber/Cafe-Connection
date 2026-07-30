@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { ROLES } from "../utils/permissions.js";
+import { ALL_ROLES, REQUESTER_ROLE } from "../utils/permissions.js";
 
 export function useRole() {
   const { user } = useAuth();
@@ -20,7 +20,10 @@ export function useRole() {
     const unsub = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         const raw = snap.data().role;
-        setRole(ROLES.includes(raw) ? raw : "user");
+        // ALL_ROLES, not ROLES: `requester` is a valid role that must survive
+        // this check. Falling back to "user" for it would silently grant a
+        // catering requester Cafe Connection staff access.
+        setRole(ALL_ROLES.includes(raw) ? raw : "user");
       } else {
         setRole("user");
       }
@@ -30,10 +33,15 @@ export function useRole() {
     return () => unsub();
   }, [user]);
 
-  const isAdministrator = role === "administrator";
-  const isSeniorLeader  = role === "senior_leader" || role === "administrator";
-  const isManager       = role === "manager" || role === "administrator";
-  const isUser          = role !== null;
+  const isRequester      = role === REQUESTER_ROLE;
+  const isAdministrator  = role === "administrator";
+  const isSeniorLeader   = role === "senior_leader" || role === "administrator";
+  const isManager        = role === "manager" || role === "administrator";
+  // A requester is not a Cafe Connection user.
+  const isUser           = role !== null && !isRequester;
 
-  return { role, roleLoading, isAdministrator, isSeniorLeader, isManager, isUser };
+  return {
+    role, roleLoading, isRequester,
+    isAdministrator, isSeniorLeader, isManager, isUser,
+  };
 }

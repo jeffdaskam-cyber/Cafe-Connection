@@ -160,8 +160,9 @@ firebase deploy --project <new-project-id> --only firestore:rules,firestore:inde
 ```
 
 Composite indexes build asynchronously — start this early, before importing
-data, and let them finish. Queries in `src/firebase/data.js` that rely on the
-five indexes in `firestore.indexes.json` will fail until the build completes.
+data, and let them finish. Queries in `src/firebase/data.js` and
+`src/catering/` that rely on the eleven indexes in `firestore.indexes.json`
+will fail until the build completes.
 
 ### B3. Migrate Firestore
 
@@ -185,12 +186,18 @@ gcloud firestore import gs://<old-project-id>-migration/export-<date>
 picker, or `gcloud projects describe <new-project-id> --format='value(projectNumber)'`),
 not the project ID.
 
-Collections carried over (per `firestore.rules`): `beos`, `cafe_specials`,
-`cash_drops`, `daily_metrics`, `event_orders`, `event_report_entries`,
-`event_reports`, `event_revenue`, `fpa_facts`, `fpa_uploads`,
-`generated_reports`, `pending_invites`, `setup_report_entries`,
-`setup_reports`, `user_dashboard_prefs`, `user_roles`, `users`,
-`vendor_links`, `weekly_schedules`.
+Collections carried over (per `firestore.rules`): `beos`, `buildings`,
+`cafe_specials`, `cash_drops`, `catering_events`, `daily_metrics`,
+`event_orders`, `event_report_entries`, `event_reports`, `event_revenue`,
+`fpa_facts`, `fpa_uploads`, `generated_reports`, `pending_invites`, `rooms`,
+`setup_report_entries`, `setup_reports`, `user_dashboard_prefs`, `user_roles`,
+`users`, `vendor_links`, `weekly_schedules`.
+
+`catering_events` carries three subcollections — `catering_schedule_days`
+(itself holding `catering_meal_selections`) and `catering_event_rooms`. A
+`gcloud firestore export` with no `--collection-ids` filter takes everything,
+subcollections included; if you scope the export, name the subcollections too
+or the events arrive empty.
 
 ### B4. Migrate Storage
 
@@ -201,7 +208,7 @@ gcloud storage rsync -r \
 ```
 
 Paths in use, per `storage.rules`: `reports/{campus}/`, `event_orders/`,
-`event_revenue_uploads/`, `fpa_uploads/`.
+`event_revenue_uploads/`, `fpa_uploads/`, `catering_recaps/`.
 
 `rsync` copies object bytes but **not** the download tokens that Firebase
 Storage download URLs embed. New URLs must be generated — hence B6.
@@ -242,10 +249,26 @@ Two consequences:
   `ALLOWED_STORAGE_BUCKET`, so old-bucket URLs are rejected outright by
   `/api/parse-report` and `/api/parse-fpa-report`.
 
-`event_orders` is the only collection that persists a Storage URL —
-`fpa_uploads` and `event_revenue` store filenames and metrics only. Also spot-check
+`event_orders` is the only collection this script rewrites — `fpa_uploads` and
+`event_revenue` store filenames and metrics only. Also spot-check
 `vendor_links.logoUrl`, which is admin-entered and *could* contain a pasted
 Storage URL.
+
+`catering_events.recapUrl` also embeds the old bucket, but does not need the
+script. Its download token is derived from the event ID rather than randomly
+assigned, so re-running the recap action regenerates both the PDF and a URL
+pointing at the new bucket:
+
+```bash
+curl -X POST https://<new-host>/api/catering \
+  -H "Authorization: Bearer <staff-id-token>" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"recap","eventId":"<id>"}'
+```
+
+Or clear `recapUrl` on the closed events and let the nightly sweep
+(`/api/catering?action=reconcile`) regenerate them — it already treats a closed
+event without a recap as work to do.
 
 Run `scripts/rewrite-storage-urls.mjs` (dry-run by default) against the new
 project after B3 and B4 complete:
