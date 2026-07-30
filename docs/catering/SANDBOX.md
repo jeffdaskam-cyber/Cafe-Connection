@@ -27,12 +27,33 @@ project. That combination is intended only for the eventual production cutover.
 
 ## 2. Running the sandbox locally
 
-Requires Node 22+ and a JRE (the Firestore and Storage emulators are Java).
+Two prerequisites, both checked before anything starts:
+
+| | |
+|---|---|
+| **Node 22+** | <https://nodejs.org> — the current LTS |
+| **A JRE** | The Firestore and Storage emulators are Java programs |
+
+Installing Java:
+
+```bash
+winget install --id Microsoft.OpenJDK.21 -e   # Windows — then reopen the terminal
+brew install --cask temurin                   # macOS
+sudo apt install default-jre                  # Debian/Ubuntu
+```
+
+On Windows, PATH only refreshes in a **new** terminal, so close and reopen the
+one you are in before continuing. `java -version` should print something.
 
 ```bash
 npm ci          # installs firebase-tools as a devDependency
 npm run sandbox # emulators + seed + dev server, one command
 ```
+
+Without Java, firebase-tools fails with ``Could not spawn `java -version` `` and
+shuts the emulators down — which reads like a broken repo rather than a missing
+dependency. `npm run sandbox` checks for both prerequisites first and prints the
+install command for your platform.
 
 Then open <http://localhost:5173/catering>. You should see the Catering
 Companion shell with an orange **SANDBOX** banner across the top and a
