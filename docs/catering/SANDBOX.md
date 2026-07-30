@@ -105,6 +105,14 @@ production data. Every step needs Firebase Console or Vercel Dashboard access.
 rather than 404ing on the static host. The rewrites are scoped to those paths
 only and do not change routing for `/api/*` or the existing app.
 
+> **This dev project is deliberately temporary.** Cafe Connection is scheduled
+> to move to UCAR-owned GitHub, Firestore, and Azure hosting. Stand this up in
+> whichever account is available now and treat its *data* as throwaway — UAT
+> events, test planners, seeded rooms. What carries forward is all in this repo
+> already: `firestore.rules`, `firestore.indexes.json`, `storage.rules`, and the
+> seed scripts. Don't let UAT data accumulate into something that feels worth
+> migrating; `MIGRATION.md` covers moving production, not this.
+
 ### 4.1 Create the dev Firebase project
 
 In the Firebase Console, create a project (suggested ID `cafe-connection-dev`)
@@ -147,11 +155,49 @@ Firebase Console → Authentication → Settings → Authorized domains → Add 
 That same branch-alias URL is the one to send planners — not the hashed
 per-deployment URL, which changes on every push.
 
-> Check Vercel's **Deployment Protection** setting too (Project Settings →
-> Deployment Protection). If Vercel Authentication is enabled for previews,
-> anyone without a Vercel account on this team gets an SSO wall before the app
-> ever loads. Planners will need it disabled for previews, or a protection
-> bypass, or they cannot reach the URL at all.
+### 4.3a Get planners past Vercel Authentication
+
+**Confirmed on this project:** `ssoProtection` is enabled with deployment type
+`all_except_custom_domains` — Vercel's "Standard Protection". Every
+`*.vercel.app` URL, preview and production alike, sits behind a Vercel login
+wall. A planner without a Vercel account on this team hits SSO before the app
+loads and never reaches Google sign-in.
+
+Authorizing the domain in Firebase (4.3) does nothing about this — they are two
+different walls, in series. Options, best first:
+
+| Option | Trade-off |
+|---|---|
+| **Shareable Link** (Project Settings → Deployment Protection → Shareable Links, or the Share button on a deployment) | Vercel's intended answer. Bypasses SSO for that link only; production stays protected. Best for UAT. |
+| **Custom domain** on the UAT deployment | Custom domains are exempt under Standard Protection. Heavier setup, but gives planners a URL that looks real. |
+| **Protection Bypass for Automation** | A token in a header or query param. Fine for scripts, awkward to hand to a person. |
+| **Disable SSO protection** | Exposes *all* `*.vercel.app` URLs including production deployment aliases. Not worth it for UAT. |
+
+Firebase Google sign-in and the Firestore rules are still the real access
+boundary either way — a shareable link only gets someone to the login screen,
+not to any data.
+
+> Worth confirming separately: under Standard Protection the production alias
+> `cafe-connection-eosin.vercel.app` should be behind the same wall, which does
+> not square with staff using the app daily. That suggests a production custom
+> domain not visible in the project's domain list. Whichever it is, it does not
+> change the options above.
+
+### 4.3b Confirming the flag actually took effect
+
+`VITE_CATERING_ENABLED` is read at **build** time, so a variable change does
+nothing until the next deployment. Two ways to tell it worked:
+
+- The preview's `index.html` should reference a **different** `index-*.js` hash
+  than production. Identical hashes mean the preview built with production's
+  variables and the flag never changed.
+- In that bundle, the render call should branch. Flag off compiles to a single
+  child:
+  ```js
+  render(jsx(StrictMode, { children: jsx(Hl, {}) }))   // Hl = the staff App
+  ```
+  Flag on keeps the conditional and the `Suspense` wrapper. The presence of a
+  `CateringApp-*.js` chunk proves nothing — it is emitted either way.
 
 ### 4.4 Set preview-scoped environment variables
 
