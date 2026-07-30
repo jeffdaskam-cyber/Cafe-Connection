@@ -55,10 +55,23 @@ shuts the emulators down — which reads like a broken repo rather than a missin
 dependency. `npm run sandbox` checks for both prerequisites first and prints the
 install command for your platform.
 
-Then open <http://localhost:5173/catering>. You should see the Catering
+Then open <http://localhost:5180/catering>. You should see the Catering
 Companion shell with an orange **SANDBOX** banner across the top and a
 `[firebase] SANDBOX MODE` warning in the browser console. The emulator UI is at
 <http://localhost:4000>. `Ctrl-C` stops everything.
+
+**Port 5180, not Vite's usual 5173.** Another Vite app already holding 5173
+would push this one silently to 5174 while the browser stays on 5173 showing the
+*other* app. If that app shares this codebase, `/catering` falls through to its
+shell and reports "You don't have access to this application" — which looks like
+a permissions problem and is not one. 5180 is used with `--strictPort`, so a
+collision fails loudly instead. Override with `SANDBOX_PORT` if 5180 is taken.
+
+> If you ever see "Access required — contact your administrator", check the page
+> heading first. **UCAR Catering Companion** means you are in the right app and
+> it is a real permissions issue. **UCAR Cafe Connection** means `/catering` fell
+> through — wrong port, wrong app, or `VITE_CATERING_ENABLED` unset — and no
+> amount of role-granting will fix it.
 
 `npm run sandbox` starts the emulators, seeds reference data, and runs Vite
 against them. No Firebase project, no credentials, no Vercel changes — the
@@ -79,7 +92,7 @@ FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
 npm run catering:grant -- you@ucar.edu administrator
 ```
 
-Sign out and back in, then open <http://localhost:5173/> — the Catering tab sits
+Sign out and back in, then open <http://localhost:5180/> — the Catering tab sits
 between Reports and Admin.
 
 **Sample vs. real data.** The AppSheet exports in `data/catering/` are
