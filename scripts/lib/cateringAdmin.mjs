@@ -56,33 +56,61 @@ export function initAdmin() {
   });
 }
 
-/**
- * Load one export CSV from data/catering/. That directory is git-ignored — the
- * AppSheet export carries staff names, emails, and phone numbers and this is a
- * public repository. See docs/catering/SEED_AND_MIGRATION.md.
- */
-export function loadCsv(filename) {
-  const path = resolve(DATA_DIR, filename);
-  if (!existsSync(path)) {
-    throw new Error(
-      `Missing ${path}\n` +
-        "Export the tab from the 'UCAR Summit Data Sheet' as CSV into " +
-        "data/catering/. See docs/catering/SEED_AND_MIGRATION.md for the " +
-        "expected filenames and columns."
-    );
-  }
-  return parseCsv(readFileSync(path, "utf8"));
+let usedExample = false;
+
+/** True once any loadCsv call has fallen back to committed sample data. */
+export function usedExampleData() {
+  return usedExample;
 }
 
-/** Guard destructive writes against a real (non-emulator) project. */
+/**
+ * Load one export CSV from data/catering/. Those files are git-ignored — the
+ * AppSheet export carries staff names, emails, and phone numbers, which do not
+ * belong in version control. With allowExample, falls back to the committed
+ * synthetic sample. See docs/catering/SEED_AND_MIGRATION.md.
+ */
+export function loadCsv(filename, { allowExample = false } = {}) {
+  const path = resolve(DATA_DIR, filename);
+  if (existsSync(path)) return parseCsv(readFileSync(path, "utf8"));
+
+  // A fresh clone has no real exports — they are git-ignored. Rather than fail
+  // on the first command someone runs, fall back to the committed synthetic
+  // sample so the sandbox is usable immediately. Opt-in, and loud about it.
+  const examplePath = resolve(DATA_DIR, filename.replace(/\.csv$/, ".example.csv"));
+  if (allowExample && existsSync(examplePath)) {
+    console.warn(
+      `[seed] ${filename} not found — using ${filename.replace(/\.csv$/, ".example.csv")} ` +
+        "(synthetic sample data, not the real export)."
+    );
+    usedExample = true;
+    return parseCsv(readFileSync(examplePath, "utf8"));
+  }
+
+  throw new Error(
+    `Missing ${path}\n` +
+      "Export the tab from the 'UCAR Summit Data Sheet' as CSV into " +
+      "data/catering/. See docs/catering/SEED_AND_MIGRATION.md for the " +
+      "expected filenames and columns."
+  );
+}
+
+/**
+ * Guard destructive writes against a real (non-emulator) project.
+ *
+ * "Real" includes a dev/UAT project, not just production — the check is
+ * emulator-or-not, because that is the only boundary this process can verify.
+ * Seeding a dev project therefore needs the same opt-in.
+ */
 export function assertWriteAllowed() {
   if (isEmulator()) return;
   if (process.env.CATERING_ALLOW_PRODUCTION_WRITE === "true") return;
   throw new Error(
-    "Refusing to write to a live Firebase project.\n" +
+    "Refusing to write to live Firebase project " +
+      `'${process.env.FIREBASE_ADMIN_PROJECT_ID || "unknown"}'.\n` +
       "Run against the emulator (FIRESTORE_EMULATOR_HOST=127.0.0.1:8080), or " +
-      "set CATERING_ALLOW_PRODUCTION_WRITE=true if this is a deliberate " +
-      "production seed."
+      "set CATERING_ALLOW_PRODUCTION_WRITE=true to seed a live project " +
+      "deliberately — including a dev or UAT project. Check the project ID " +
+      "above before you do."
   );
 }
 
