@@ -41,14 +41,32 @@ const VALID_ROLES = ["user", "manager", "senior_leader", "administrator", "reque
 function usage(message) {
   console.error(
     `${message}\n\n` +
-      "Usage: node scripts/grantCateringRole.mjs <email> <role>\n" +
-      `Roles: ${VALID_ROLES.join(", ")}\n`
+      "Usage: node scripts/grantCateringRole.mjs [--sandbox] <email> <role>\n" +
+      `Roles: ${VALID_ROLES.join(", ")}\n\n` +
+      "  --sandbox  Target the local emulators started by `npm run sandbox`.\n" +
+      "             Equivalent to setting FIRESTORE_EMULATOR_HOST and\n" +
+      "             FIREBASE_AUTH_EMULATOR_HOST yourself, without needing the\n" +
+      "             right shell syntax for your platform.\n"
   );
   process.exit(1);
 }
 
 async function main() {
-  const [email, role] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+
+  // Setting two env vars needs `set` on cmd.exe, `$env:` in PowerShell, and a
+  // prefix assignment in bash — three ways to get it wrong before the useful
+  // work starts. The emulator ports are fixed in firebase.json, so the script
+  // can just point itself at them.
+  const sandboxIndex = args.indexOf("--sandbox");
+  if (sandboxIndex !== -1) {
+    args.splice(sandboxIndex, 1);
+    process.env.FIRESTORE_EMULATOR_HOST ??= "127.0.0.1:8080";
+    process.env.FIREBASE_AUTH_EMULATOR_HOST ??= "127.0.0.1:9099";
+    process.env.GCLOUD_PROJECT ??= "demo-cafe-connection";
+  }
+
+  const [email, role] = args;
 
   if (!email) usage("An email address is required.");
   if (!role) usage("A role is required.");

@@ -87,10 +87,14 @@ any `@ucar.edu` address and it becomes a signed-in user. First sign-in at
 Catering tab will not appear until you grant yourself one:
 
 ```bash
-FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
-FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 \
-npm run catering:grant -- you@ucar.edu administrator
+npm run catering:grant -- --sandbox you@ucar.edu administrator
 ```
+
+Run it in a second terminal while the sandbox is still going. `--sandbox` points
+the script at the local emulators, so no environment variables are needed —
+setting those takes `set` on cmd.exe, `$env:` in PowerShell, and a prefix
+assignment in bash, which is three ways to get it wrong before doing anything
+useful.
 
 Sign out and back in, then open <http://localhost:5180/> — the Catering tab sits
 between Reports and Admin.
