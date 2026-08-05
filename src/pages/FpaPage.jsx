@@ -149,6 +149,8 @@ function FpaUploadZone({ accentColor = COLORS.AQUA }) {
     accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [] },
     multiple: false,
     disabled: isProcessing,
+    // react-dropzone 20 enables paste-to-upload by default; keep uploads deliberate.
+    noPaste: true,
   });
 
   const icon = isProcessing ? "\u23F3"
