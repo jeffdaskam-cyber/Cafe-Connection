@@ -171,6 +171,8 @@ function UploadZone({ title, subtitle, reportType, requiresMonthYear }) {
     accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [] },
     multiple: false,
     disabled: isProcessing || (requiresMonthYear && !canUpload),
+    // react-dropzone 20 enables paste-to-upload by default; keep uploads deliberate.
+    noPaste: true,
   });
 
   const accentColor = COLORS.AQUA;

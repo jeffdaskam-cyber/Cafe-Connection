@@ -28,6 +28,9 @@ function UploadZone({ onDrop, uploadState }) {
     },
     multiple: false,
     disabled: isProcessing,
+    // react-dropzone 20 enables paste-to-upload by default. This zone uploads to
+    // Storage and files a parsed report, so a stray Ctrl+V would create junk data.
+    noPaste: true,
   });
 
   const { status, campus, errorMsg } = uploadState;

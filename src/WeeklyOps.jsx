@@ -41,6 +41,8 @@ function EventOrderUpload({ onUpload, uploadState }) {
     onDrop,
     accept: { "application/pdf": [] },
     multiple: false,
+    // react-dropzone 20 enables paste-to-upload by default; keep uploads deliberate.
+    noPaste: true,
   });
 
   const icon = isProcessing          ? "⏳"
