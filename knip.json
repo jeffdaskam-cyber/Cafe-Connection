@@ -1,5 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
     "src/main.jsx",
     "src/App.jsx",
@@ -9,5 +9,6 @@
   ],
   "project": ["src/**/*.{js,jsx}", "api/**/*.{js,mjs}"],
   "ignore": [".claude/**", "dist/**", "test/**"],
-  "ignoreDependencies": ["firebase-admin"]
+  "ignoreDependencies": ["firebase-admin"],
+  "ignoreBinaries": ["java", "start"]
 }
