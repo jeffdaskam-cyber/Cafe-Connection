@@ -13,7 +13,7 @@
  * Building Key), so re-running updates in place rather than duplicating.
  */
 
-import admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 import { COLLECTIONS } from "../src/catering/schema.js";
 import { campusForBuilding, cleanString, parseNumber, parseYesNo } from "./lib/cateringTransforms.mjs";
@@ -32,7 +32,7 @@ const EXPECTED_BUILDINGS = 9;
 async function main() {
   assertWriteAllowed();
   const app = initAdmin();
-  const db = app.firestore();
+  const db = getFirestore(app);
 
   console.log(`[seed] target: ${isEmulator() ? "EMULATOR " + process.env.FIRESTORE_EMULATOR_HOST : "LIVE PROJECT"}`);
 
@@ -57,7 +57,7 @@ async function main() {
         // Not in the AppSheet source — supplied so Phase 4 can write
         // event_revenue, which requires a valid campus.
         campus,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       },
     });
   }
@@ -96,7 +96,7 @@ async function main() {
         // the opposite polarity — so it is stored under the source's name to
         // keep the meaning unambiguous. See docs/catering/DATA_MODEL.md §5.
         isFixed:      parseYesNo(row["Fixed"]),
-        updatedAt:    admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt:    FieldValue.serverTimestamp(),
       },
     });
   }

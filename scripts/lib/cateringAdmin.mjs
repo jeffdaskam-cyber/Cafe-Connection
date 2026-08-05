@@ -9,7 +9,7 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import admin from "firebase-admin";
+import { cert, getApp, initializeApp } from "firebase-admin/app";
 
 import { parseCsv } from "./csv.mjs";
 
@@ -22,13 +22,13 @@ export function isEmulator() {
 /** Initialize the Admin SDK once, against the emulator or a real project. */
 export function initAdmin() {
   try {
-    return admin.app();
+    return getApp();
   } catch {
     // not initialized yet
   }
 
   if (isEmulator()) {
-    return admin.initializeApp({
+    return initializeApp({
       projectId: process.env.GCLOUD_PROJECT || "demo-cafe-connection",
     });
   }
@@ -47,8 +47,8 @@ export function initAdmin() {
     );
   }
 
-  return admin.initializeApp({
-    credential: admin.credential.cert({
+  return initializeApp({
+    credential: cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
       privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
