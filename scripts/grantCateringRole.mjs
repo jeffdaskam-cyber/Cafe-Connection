@@ -28,7 +28,8 @@
  * the difference between a role granted here and one granted through an invite.
  */
 
-import admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 
 import { assertWriteAllowed, initAdmin } from "./lib/cateringAdmin.mjs";
 
@@ -83,7 +84,7 @@ async function main() {
 
   let user;
   try {
-    user = await app.auth().getUserByEmail(email);
+    user = await getAuth(app).getUserByEmail(email);
   } catch (err) {
     if (err?.code === "auth/user-not-found") {
       console.error(
@@ -97,8 +98,8 @@ async function main() {
     throw err;
   }
 
-  const db = app.firestore();
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const db = getFirestore(app);
+  const now = FieldValue.serverTimestamp();
 
   const existing = await db.collection("user_roles").doc(user.uid).get();
   const previousRole = existing.exists ? existing.data()?.role : null;

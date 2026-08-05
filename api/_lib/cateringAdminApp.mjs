@@ -7,28 +7,39 @@
  * both (see vite.config.js).
  */
 
-import admin from "firebase-admin";
+import { cert, getApp, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 
-import { createHttpError, getAdminApp, requireEnv } from "./serverless.mjs";
+import { createHttpError, firebasePrivateKey, requireEnv } from "./serverless.mjs";
 
 export const STAFF_ROLES = ["manager", "senior_leader", "administrator"];
 
 export const USE_EMULATOR = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 
+/**
+ * Catering deliberately does not share getAdminApp with the Cafe Connection
+ * endpoints. That helper returns the namespaced App, whose .firestore()/.auth()
+ * methods its callers rely on; this one uses the modular SDK, where services are
+ * reached through getFirestore(app)/getAuth(app) instead. The two cannot be one
+ * function until the remaining endpoints migrate too — see MIGRATION notes.
+ */
 export function initCateringAdmin(scope, options = {}) {
+  // firebase-admin keeps a single default app per process, so whichever catering
+  // endpoint loads first defines it for all of them.
+  try {
+    return getApp();
+  } catch {
+    // Not initialized yet — fall through and create it.
+  }
+
   if (USE_EMULATOR) {
-    try {
-      return admin.app();
-    } catch {
-      // The storage bucket is always supplied, even for endpoints that do not
-      // use Storage: firebase-admin keeps a single default app per process, so
-      // whichever catering endpoint loads first defines it for all of them.
-      return admin.initializeApp({
-        projectId: process.env.GCLOUD_PROJECT || "demo-cafe-connection",
-        storageBucket: process.env.FIREBASE_STORAGE_BUCKET
-          || `${process.env.GCLOUD_PROJECT || "demo-cafe-connection"}.firebasestorage.app`,
-      });
-    }
+    // The storage bucket is always supplied, even for endpoints that do not use
+    // Storage, for the same single-default-app reason.
+    return initializeApp({
+      projectId: process.env.GCLOUD_PROJECT || "demo-cafe-connection",
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET
+        || `${process.env.GCLOUD_PROJECT || "demo-cafe-connection"}.firebasestorage.app`,
+    });
   }
 
   requireEnv(scope, process.env, [
@@ -36,7 +47,23 @@ export function initCateringAdmin(scope, options = {}) {
     "FIREBASE_ADMIN_CLIENT_EMAIL",
     "FIREBASE_ADMIN_PRIVATE_KEY",
   ]);
-  return getAdminApp(admin, process.env, scope, options);
+
+  const appOptions = {
+    credential: cert({
+      projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
+      privateKey: firebasePrivateKey(process.env.FIREBASE_ADMIN_PRIVATE_KEY),
+    }),
+  };
+  if (options.storageBucketEnvVar) {
+    appOptions.storageBucket = process.env[options.storageBucketEnvVar];
+  }
+
+  try {
+    return initializeApp(appOptions);
+  } catch (err) {
+    throw new Error(`[${scope}] Failed to initialize Firebase Admin: ${err.message}`);
+  }
 }
 
 /**
@@ -56,7 +83,7 @@ export async function verifyStaffOrCron(app, db, req) {
 
   let decoded;
   try {
-    decoded = await app.auth().verifyIdToken(token);
+    decoded = await getAuth(app).verifyIdToken(token);
   } catch {
     throw createHttpError("Invalid token.", 401);
   }

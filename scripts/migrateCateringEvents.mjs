@@ -17,7 +17,7 @@
  * Documents are keyed by the AppSheet UniqueKey, so re-running is idempotent.
  */
 
-import admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 import { COLLECTIONS } from "../src/catering/schema.js";
 import {
@@ -32,8 +32,8 @@ const MIGRATION_ACTOR = "appsheet-migration";
 async function main() {
   assertWriteAllowed();
   const app = initAdmin();
-  const db = app.firestore();
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const db = getFirestore(app);
+  const now = FieldValue.serverTimestamp();
 
   console.log(`[migrate] target: ${isEmulator() ? "EMULATOR " + process.env.FIRESTORE_EMULATOR_HOST : "LIVE PROJECT"}`);
 

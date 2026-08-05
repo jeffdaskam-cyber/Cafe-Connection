@@ -23,7 +23,8 @@
 //
 // Every action stays individually idempotent, so retries and the sweep are safe.
 
-import admin from "firebase-admin";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { jsPDF } from "jspdf";
 
 import {
@@ -45,7 +46,7 @@ const EVENT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_EVENTS = 500;
 
 const adminApp = initCateringAdmin(SCOPE, { storageBucketEnvVar: "FIREBASE_STORAGE_BUCKET" });
-const db = adminApp.firestore();
+const db = getFirestore(adminApp);
 
 export const ACTIONS = ["rollup", "notify", "recap", "reconcile"];
 
@@ -79,7 +80,7 @@ async function runRollup(eventId, callerUid) {
   await revenueRef.set(
     {
       ...built.data,
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
       updated_by: callerUid ?? "cron",
     },
     { merge: true }
@@ -87,7 +88,7 @@ async function runRollup(eventId, callerUid) {
 
   await eventSnap.ref.set(
     {
-      revenueRolledUpAt: admin.firestore.FieldValue.serverTimestamp(),
+      revenueRolledUpAt: FieldValue.serverTimestamp(),
       revenueRollupAmount: built.data.revenue,
     },
     { merge: true }
@@ -218,7 +219,7 @@ async function runNotify(eventId, { type: requestedType, force = false } = {}) {
   await ref.set(
     {
       lastNotifiedStatus: state,
-      lastNotifiedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastNotifiedAt: FieldValue.serverTimestamp(),
       lastNotifiedType: type,
       lastNotifiedTransport: transport,
     },
@@ -319,7 +320,7 @@ async function runRecap(eventId) {
   const pdf = renderRecapPdf(recap);
 
   const path = recapStoragePath(eventId);
-  const file = adminApp.storage().bucket().file(path);
+  const file = getStorage(adminApp).bucket().file(path);
   // A stable download token keeps the URL constant across regenerations.
   const token = `recap-${eventId}`;
   await file.save(pdf, {
@@ -328,7 +329,7 @@ async function runRecap(eventId) {
     resumable: false,
   });
 
-  const bucketName = adminApp.storage().bucket().name;
+  const bucketName = getStorage(adminApp).bucket().name;
   // Sandbox runs against the Storage emulator, which serves downloads from its
   // own host. Production is unaffected.
   const storageOrigin = process.env.FIREBASE_STORAGE_EMULATOR_HOST
@@ -341,7 +342,7 @@ async function runRecap(eventId) {
   await bundle.ref.set(
     {
       recapUrl,
-      recapGeneratedAt: admin.firestore.FieldValue.serverTimestamp(),
+      recapGeneratedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
