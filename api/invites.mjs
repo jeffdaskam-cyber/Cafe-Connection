@@ -13,7 +13,8 @@
 // They were combined to stay within the host's per-deployment function limit;
 // the behavior of both routes is unchanged.
 
-import admin from "firebase-admin";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import {
   requireEnv,
   getAdminApp,
@@ -30,8 +31,8 @@ requireEnv(SCOPE, process.env, [
   "FIREBASE_ADMIN_PRIVATE_KEY",
 ]);
 
-const adminApp = getAdminApp(admin, process.env, SCOPE);
-const db = adminApp.firestore();
+const adminApp = getAdminApp(process.env, SCOPE);
+const db = getFirestore(adminApp);
 
 const VALID_ROLES = ["user", "manager", "senior_leader", "administrator"];
 const UCAR_DOMAIN = "ucar.edu";
@@ -44,7 +45,7 @@ async function verifyAdmin(req) {
   }
   let decoded;
   try {
-    decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+    decoded = await getAuth(adminApp).verifyIdToken(authHeader.slice(7));
   } catch {
     throw createHttpError("Invalid token.", 401);
   }
@@ -86,7 +87,7 @@ async function createInvite(req, res, caller) {
     return res.status(409).json({ error: "A user with this email is already registered." });
   }
 
-  const link = await adminApp.auth().generateSignInWithEmailLink(email, {
+  const link = await getAuth(adminApp).generateSignInWithEmailLink(email, {
     url: APP_URL,
     handleCodeInApp: true,
   });
@@ -94,7 +95,7 @@ async function createInvite(req, res, caller) {
   await db.collection("pending_invites").doc(email).set({
     email,
     role,
-    invitedAt: admin.firestore.FieldValue.serverTimestamp(),
+    invitedAt: FieldValue.serverTimestamp(),
     invitedBy: caller.uid,
     status: "pending",
   });

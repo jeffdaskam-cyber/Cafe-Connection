@@ -8,7 +8,9 @@
 // Secured by CRON_SECRET (Vercel cron) or Firebase ID token (manual trigger).
 
 import { randomUUID } from "crypto";
-import admin from "firebase-admin";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import {
   createHttpError,
   fetchWithTimeout,
@@ -28,11 +30,11 @@ const REQUIRED_ENV = [
 ];
 requireEnv("ingest-email-orders", process.env, REQUIRED_ENV);
 
-const adminApp = getAdminApp(admin, process.env, "ingest-email-orders", {
+const adminApp = getAdminApp(process.env, "ingest-email-orders", {
   storageBucketEnvVar: "FIREBASE_STORAGE_BUCKET",
 });
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const db = getFirestore();
+const bucket = getStorage().bucket();
 
 async function verifyRequest(req) {
   const authHeader = req.headers.authorization;
@@ -43,7 +45,7 @@ async function verifyRequest(req) {
   const token = authHeader.slice(7);
   if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) return;
 
-  const decoded = await adminApp.auth().verifyIdToken(token);
+  const decoded = await getAuth(adminApp).verifyIdToken(token);
   const roleDoc = await db.collection("user_roles").doc(decoded.uid).get();
   if (roleDoc.data()?.role !== "administrator") {
     throw createHttpError("Forbidden", 403);
@@ -184,7 +186,7 @@ async function writeEventOrderDoc(fileName, downloadURL, size) {
   await db.collection("event_orders").add({
     fileName,
     downloadURL,
-    uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+    uploadedAt: FieldValue.serverTimestamp(),
     size,
     source: "email",
   });

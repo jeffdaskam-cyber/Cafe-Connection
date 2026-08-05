@@ -8,7 +8,8 @@
  * daily_metrics/{YYYY-MM-DD_CampusName} with merge: true.
  */
 
-import admin from "firebase-admin";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import ExcelJS from "exceljs";
 // Use the internal path to avoid pdf-parse@1.1.1's buggy wrapper that tries to
 // read a test file at module-load time — that throws in serverless builds.
@@ -31,8 +32,8 @@ const REQUIRED_ENV = [
   "ALLOWED_STORAGE_BUCKET",
 ];
 requireEnv("parse-report", process.env, REQUIRED_ENV);
-const adminApp = getAdminApp(admin, process.env, "parse-report");
-const db = adminApp.firestore();
+const adminApp = getAdminApp(process.env, "parse-report");
+const db = getFirestore(adminApp);
 
 // ─── Auth verification ────────────────────────────────────────────────────────
 async function verifyAuth(req) {
@@ -40,7 +41,7 @@ async function verifyAuth(req) {
   if (!authHeader?.startsWith("Bearer ")) {
     throw createHttpError("Missing or invalid Authorization header.", 401);
   }
-  const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+  const decoded = await getAuth(adminApp).verifyIdToken(authHeader.slice(7));
   if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
     throw createHttpError("Forbidden.", 403);
   }
@@ -136,7 +137,7 @@ export default async function handler(req, res) {
       : `${metrics.date}_${campusSlug}`;
 
     const docData = {
-      date:            admin.firestore.Timestamp.fromDate(new Date(metrics.date + "T12:00:00")),
+      date:            Timestamp.fromDate(new Date(metrics.date + "T12:00:00")),
       report_type:     isPeriod ? "period" : "daily",
       campus,
       net_revenue:     metrics.net_revenue,
@@ -159,7 +160,7 @@ export default async function handler(req, res) {
       ...(metrics.credit_card !== undefined && { credit_card:  metrics.credit_card  }),
       source_file:  fileName,
       parse_method: isExcel ? "excel" : "pdf",
-      last_updated: admin.firestore.FieldValue.serverTimestamp(),
+      last_updated: FieldValue.serverTimestamp(),
     };
 
     await db.collection("daily_metrics").doc(docId).set(docData, { merge: true });

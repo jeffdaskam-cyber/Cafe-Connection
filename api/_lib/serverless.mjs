@@ -1,3 +1,5 @@
+import { cert, getApp, initializeApp } from "firebase-admin/app";
+
 export function requireEnv(scope, env, keys) {
   for (const key of keys) {
     if (!env[key]) {
@@ -10,12 +12,12 @@ export function firebasePrivateKey(rawKey) {
   return rawKey?.replace(/\\n/g, "\n");
 }
 
-export function getAdminApp(admin, env, scope, { storageBucketEnvVar } = {}) {
+export function getAdminApp(env, scope, { storageBucketEnvVar } = {}) {
   try {
-    return admin.app();
+    return getApp();
   } catch {
     const options = {
-      credential: admin.credential.cert({
+      credential: cert({
         projectId: env.FIREBASE_ADMIN_PROJECT_ID,
         clientEmail: env.FIREBASE_ADMIN_CLIENT_EMAIL,
         privateKey: firebasePrivateKey(env.FIREBASE_ADMIN_PRIVATE_KEY),
@@ -27,7 +29,7 @@ export function getAdminApp(admin, env, scope, { storageBucketEnvVar } = {}) {
     }
 
     try {
-      return admin.initializeApp(options);
+      return initializeApp(options);
     } catch (err) {
       throw new Error(`[${scope}] Failed to initialize Firebase Admin: ${err.message}`);
     }

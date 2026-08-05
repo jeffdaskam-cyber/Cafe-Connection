@@ -20,7 +20,8 @@
 //     valid FP&A records are found. Soft warnings are returned for missing
 //     project blocks or missing expected ledger rows.
 
-import admin from "firebase-admin";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import ExcelJS from "exceljs";
 import {
   getAdminApp,
@@ -65,7 +66,7 @@ requireEnv(SCOPE, process.env, [
   "FIREBASE_ADMIN_PRIVATE_KEY",
   "ALLOWED_STORAGE_BUCKET",
 ]);
-const adminApp = getAdminApp(admin, process.env, SCOPE);
+const adminApp = getAdminApp(process.env, SCOPE);
 
 const MONTH_NAMES_LONG = [
   "january", "february", "march", "april", "may", "june",
@@ -80,7 +81,7 @@ const MONTH_SHORT_TO_NUM = {
 async function verifyAuth(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) throw createHttpError("Unauthorized.", 401);
-  const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+  const decoded = await getAuth(adminApp).verifyIdToken(authHeader.slice(7));
   if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
     throw createHttpError("Forbidden.", 403);
   }
@@ -351,7 +352,7 @@ async function upsertFacts(db, period, facts, sourceFileName) {
   const monthLabel = monthLabelFor(period.year, period.month);
   const fiscalYear = fiscalYearFor(period.year, period.month);
   const fiscalMonthNumber = fiscalMonthNumberFor(period.month);
-  const uploadedAt = admin.firestore.FieldValue.serverTimestamp();
+  const uploadedAt = FieldValue.serverTimestamp();
 
   // Delete any existing facts for this monthKey (ensures overwrite semantics).
   const factsCol = db.collection("fpa_facts");
@@ -391,7 +392,7 @@ async function recordUpload(db, { monthKey, sourceFileName, written, overwritten
     overwroteExistingMonth: overwritten > 0,
     warnings,
     uploadedByUid: uid ?? null,
-    uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+    uploadedAt: FieldValue.serverTimestamp(),
   });
 }
 
@@ -439,7 +440,7 @@ export default async function handler(req, res) {
     const { period: detected, facts, warnings } = parseFpaWorkbook(workbook);
     const period = override ?? detected;
 
-    const db = adminApp.firestore();
+    const db = getFirestore(adminApp);
     const { monthKey, written, overwritten } = await upsertFacts(db, period, facts, sourceFileName);
     await recordUpload(db, {
       monthKey, sourceFileName, written, overwritten, warnings,

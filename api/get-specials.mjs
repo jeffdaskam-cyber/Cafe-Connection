@@ -6,7 +6,8 @@
 // GET /api/get-specials?weekOf=YYYY-MM-DD&campus=Mesa+Lab  (both optional)
 // Returns: { success: true, weekLabel: string, body: string }
 
-import admin from "firebase-admin";
+import { cert, getApp, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 import { SignJWT, importPKCS8 } from "jose";
 
 // ─── Required environment variables ──────────────────────────────────────────
@@ -23,10 +24,10 @@ for (const key of REQUIRED_ENV) {
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 let adminApp;
 try {
-  adminApp = admin.app();
+  adminApp = getApp();
 } catch {
-  adminApp = admin.initializeApp({
-    credential: admin.credential.cert({
+  adminApp = initializeApp({
+    credential: cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
       privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -53,7 +54,7 @@ async function verifyAuth(req) {
     err.status = 401;
     throw err;
   }
-  return adminApp.auth().verifyIdToken(authHeader.slice(7));
+  return getAuth(adminApp).verifyIdToken(authHeader.slice(7));
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

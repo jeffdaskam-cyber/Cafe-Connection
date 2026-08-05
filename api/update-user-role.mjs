@@ -6,7 +6,9 @@
 // Body: { targetUid: string, role: "user" | "manager" | "senior_leader" | "administrator" }
 // Auth: Bearer token (Firebase ID token) — must belong to an administrator
 
-import admin from "firebase-admin";
+import { cert, getApp, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
 // ─── Required environment variables ──────────────────────────────────────────
 const REQUIRED_ENV = [
@@ -21,10 +23,10 @@ for (const key of REQUIRED_ENV) {
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 let adminApp;
 try {
-  adminApp = admin.app();
+  adminApp = getApp();
 } catch {
-  adminApp = admin.initializeApp({
-    credential: admin.credential.cert({
+  adminApp = initializeApp({
+    credential: cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
       privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -32,7 +34,7 @@ try {
   });
 }
 
-const db = adminApp.firestore();
+const db = getFirestore(adminApp);
 const VALID_ROLES = ["user", "manager", "senior_leader", "administrator"];
 // Firebase UIDs are typically 28 chars but can be longer with custom auth.
 // Allow alphanumeric + common safe chars, capped at 128.
@@ -51,7 +53,7 @@ export default async function handler(req, res) {
 
   let callerUid;
   try {
-    const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+    const decoded = await getAuth(adminApp).verifyIdToken(authHeader.slice(7));
     callerUid = decoded.uid;
   } catch {
     return res.status(401).json({ error: "Invalid token" });
@@ -80,7 +82,7 @@ export default async function handler(req, res) {
     await db.collection("user_roles").doc(targetUid).update({
       role,
       assignedBy: callerUid,
-      assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+      assignedAt: FieldValue.serverTimestamp(),
     });
 
     return res.status(200).json({ success: true });

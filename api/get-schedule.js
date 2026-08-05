@@ -9,7 +9,7 @@
  * Returns { rows, colorMap } for the ScheduleTable component.
  */
 
-import admin from "firebase-admin";
+import { getAuth } from "firebase-admin/auth";
 import { SignJWT, importPKCS8 } from "jose";
 import {
   createHttpError,
@@ -30,7 +30,7 @@ const REQUIRED_ENV = [
   "GOOGLE_SCHEDULE_FOLDER_ID",
 ];
 requireEnv("get-schedule", process.env, REQUIRED_ENV);
-const adminApp = getAdminApp(admin, process.env, "get-schedule");
+const adminApp = getAdminApp(process.env, "get-schedule");
 
 // ─── Auth verification ────────────────────────────────────────────────────────
 async function verifyAuth(req) {
@@ -38,7 +38,7 @@ async function verifyAuth(req) {
   if (!authHeader?.startsWith("Bearer ")) {
     throw createHttpError("Unauthorized.", 401);
   }
-  return adminApp.auth().verifyIdToken(authHeader.slice(7));
+  return getAuth(adminApp).verifyIdToken(authHeader.slice(7));
 }
 
 // ─── weekOf format validation ─────────────────────────────────────────────────
