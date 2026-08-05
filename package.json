@@ -23,7 +23,7 @@
     "firebase": "^12.13.0",
     "firebase-admin": "^12.0.0",
     "html2canvas": "^1.4.1",
-    "jose": "^6.2.3",
+    "jose": "^6.2.7",
     "jspdf": "^4.2.1",
     "pdf-parse": "^1.1.1",
     "react": "^18.2.0",
