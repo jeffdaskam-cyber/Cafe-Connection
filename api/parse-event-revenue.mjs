@@ -7,7 +7,9 @@
 // Body: { fileUrl, reportType, month?, year? }
 // Returns: { success: true, written: [...] }
 
-import admin from "firebase-admin";
+import { cert, getApp, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import ExcelJS from "exceljs";
 
 // ── Required environment variables ──────────────────────────────────────────
@@ -24,10 +26,10 @@ for (const key of REQUIRED_ENV) {
 // ── Firebase Admin Init (singleton) ─────────────────────────────────────────
 let adminApp;
 try {
-  adminApp = admin.app();
+  adminApp = getApp();
 } catch {
-  adminApp = admin.initializeApp({
-    credential: admin.credential.cert({
+  adminApp = initializeApp({
+    credential: cert({
       projectId:   process.env.FIREBASE_ADMIN_PROJECT_ID,
       clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
       privateKey:  process.env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n"),
@@ -72,7 +74,7 @@ async function verifyAuth(req) {
     err.status = 401;
     throw err;
   }
-  const decoded = await adminApp.auth().verifyIdToken(authHeader.slice(7));
+  const decoded = await getAuth(adminApp).verifyIdToken(authHeader.slice(7));
   if (!decoded.email?.toLowerCase().endsWith("@ucar.edu")) {
     const err = new Error("Forbidden.");
     err.status = 403;
@@ -116,7 +118,7 @@ async function writeRevenueDoc(db, campus, year, month, type, revenue) {
     tx.set(ref, {
       campus, year, month, monthKey, type,
       revenue: Math.round((existing + revenue) * 100) / 100,
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
     });
   });
 
@@ -170,7 +172,7 @@ export default async function handler(req, res) {
     await workbook.xlsx.load(buffer);
     const sheet = workbook.worksheets[0];
 
-    const db      = adminApp.firestore();
+    const db      = getFirestore(adminApp);
     const written = [];
     const totals  = {}; // key: `${campus}|${year}|${month}` → revenue sum
 

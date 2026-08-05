@@ -171,7 +171,8 @@ async function reportVendorLinks(db, oldBucket) {
 }
 
 async function main() {
-  const admin = (await import("firebase-admin")).default;
+  const { getFirestore } = await import("firebase-admin/firestore");
+  const { getStorage } = await import("firebase-admin/storage");
   const { getAdminApp, requireEnv } = await import("../api/_lib/serverless.mjs");
 
   const SCOPE = "rewrite-storage-urls";
@@ -193,9 +194,9 @@ async function main() {
     process.exit(1);
   }
 
-  const app = getAdminApp(admin, process.env, SCOPE, { storageBucketEnvVar: "NEW_STORAGE_BUCKET" });
-  const db = app.firestore();
-  const bucket = app.storage().bucket(newBucket);
+  const app = getAdminApp(process.env, SCOPE, { storageBucketEnvVar: "NEW_STORAGE_BUCKET" });
+  const db = getFirestore(app);
+  const bucket = getStorage(app).bucket(newBucket);
 
   console.log(`[${SCOPE}] ${apply ? "APPLY" : "DRY RUN — no changes are written"}`);
   console.log(`[${SCOPE}] ${oldBucket} → ${newBucket}`);
