@@ -32,18 +32,21 @@ Two prerequisites, both checked before anything starts:
 | | |
 |---|---|
 | **Node 22+** | <https://nodejs.org> — the current LTS |
-| **A JRE** | The Firestore and Storage emulators are Java programs |
+| **Java 21+** | The Firestore and Storage emulators are Java programs, and firebase-tools rejects anything older |
 
 Installing Java:
 
 ```bash
 winget install --id Microsoft.OpenJDK.21 -e   # Windows — then reopen the terminal
 brew install --cask temurin                   # macOS
-sudo apt install default-jre                  # Debian/Ubuntu
+sudo apt install openjdk-21-jre               # Debian/Ubuntu
 ```
 
+Not `default-jre` on Debian/Ubuntu: it is still Java 11 on Ubuntu 22.04, which
+the emulators reject.
+
 On Windows, PATH only refreshes in a **new** terminal, so close and reopen the
-one you are in before continuing. `java -version` should print something.
+one you are in before continuing. `java -version` should print 21 or newer.
 
 ```bash
 npm ci          # installs firebase-tools as a devDependency
