@@ -18,7 +18,7 @@
  *
  * A browser window opens — sign in as cafe-connection@ucar.edu and approve.
  * The script then sends a test email from that mailbox to itself and prints
- * the refresh token (store it in Vercel as GMAIL_SEND_REFRESH_TOKEN if the
+ * the refresh token (store it in Vercel as GMAIL_REFRESH_TOKEN if the
  * test succeeds).
  */
 
@@ -117,7 +117,7 @@ const server = http.createServer(async (req, res) => {
 
     console.log(`✅ Test email sent (message id ${sendData.id}). Check the ${TEST_RECIPIENT} inbox.`);
     console.log("\n──────────────────────────────────────────────");
-    console.log("REFRESH TOKEN (store in Vercel as GMAIL_SEND_REFRESH_TOKEN):\n");
+    console.log("REFRESH TOKEN (store in Vercel as GMAIL_REFRESH_TOKEN):\n");
     console.log(tokens.refresh_token || "(none returned — re-run; prompt=consent should force one)");
     console.log("──────────────────────────────────────────────");
     console.log("\nNOTE: while the OAuth app is in 'Testing' status, refresh tokens expire after 7 days.");
