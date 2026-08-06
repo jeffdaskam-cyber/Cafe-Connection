@@ -42,9 +42,10 @@ The inverse would have held too. A genuinely personal side project should not go
 into NCAR at all, because putting personal work in an institutional org muddies
 ownership rather than clarifying it. That is not this project.
 
-`LICENSE` currently reads `Copyright (c) 2026 Cafe Connection Contributors`,
-which asserts neither. If UCAR owns the work, update that line as part of the
-transfer rather than leaving it ambiguous in an institutional repository.
+`LICENSE` has been updated to match: the copyright line now reads
+`University Corporation for Atmospheric Research (UCAR)` rather than the earlier
+`Cafe Connection Contributors`, which asserted neither owner. The license itself
+stays MIT — only the holder changed.
 
 ---
 
