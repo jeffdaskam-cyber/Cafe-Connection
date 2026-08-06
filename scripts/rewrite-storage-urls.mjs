@@ -1,6 +1,7 @@
 /**
  * rewrite-storage-urls.mjs — repoint persisted Firebase Storage download URLs
- * at a new project's bucket after a project migration (see MIGRATION.md § B6).
+ * at a new project's bucket after a project migration (see
+ * FIREBASE_TRANSFER.md § B6).
  *
  * Only needed for Option B (new project + data migration). Option A (ownership
  * transfer) leaves buckets and download URLs untouched.

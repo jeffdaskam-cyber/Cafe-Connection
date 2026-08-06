@@ -41,7 +41,7 @@ To move this repository to UCAR-owned GitHub, see
 [GITHUB_TRANSFER.md](./GITHUB_TRANSFER.md).
 
 To move the Firebase project between Google accounts (e.g. personal → work), see
-[MIGRATION.md](./MIGRATION.md).
+[FIREBASE_TRANSFER.md](./FIREBASE_TRANSFER.md).
 
 ## Security
 

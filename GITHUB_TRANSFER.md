@@ -8,17 +8,21 @@ moves no data, and it requires no code changes. Do it first.
 
 ---
 
-## Decide first: the organization, or your work account?
+## The destination — decided
 
-The destination is **`NCAR`**, the organization — not `jdaskam`, your work
-account.
+**`NCAR`, the organization.** Not `jdaskam`, the work account. No lab- or
+program-specific organization applies to this project, so the top-level NCAR org
+is where it lands.
 
-The trap is assuming these are close to the same thing because the account
-belongs to the organization. They are not. Being a member of NCAR grants you
-access to NCAR's repositories; it does not make your repositories NCAR's.
-`github.com/jdaskam/Cafe-Connection` would be owned by you as an individual,
-exactly as `jeffdaskam-cyber/Cafe-Connection` is today, with a work-flavored
-username on it and nothing else changed.
+The rest of this section records why, because it is the one decision here that a
+later step cannot correct cheaply.
+
+The trap is assuming the organization and a member's account are close to the
+same thing because the account belongs to the organization. They are not. Being
+a member of NCAR grants you access to NCAR's repositories; it does not make your
+repositories NCAR's. `github.com/jdaskam/Cafe-Connection` would be owned by you
+as an individual, exactly as `jeffdaskam-cyber/Cafe-Connection` is today, with a
+work-flavored username on it and nothing else changed.
 
 | | `NCAR/Cafe-Connection` | `jdaskam/Cafe-Connection` |
 |---|---|---|
@@ -28,17 +32,15 @@ username on it and nothing else changed.
 | Covered by org security policy | Yes | No |
 | Access management | Teams and SSO | Hand-added collaborators |
 
-So the real question is not which GitHub page to click. It is whether this is
-UCAR work product. If it was built on work time, for UCAR purposes, or with
-UCAR funding — and the `noreply@ucar.edu` sender, the `cafe-connection@ucar.edu`
-service mailbox, and the UCAR-branded recap PDF all say it was — it belongs to
-the institution, and the institution's GitHub presence is the organization.
+The question underneath is not which GitHub page to click. It is whether this is
+UCAR work product. It is: built for UCAR purposes, and the `noreply@ucar.edu`
+sender, the `cafe-connection@ucar.edu` service mailbox, and the UCAR-branded
+recap PDF all say so. Work product belonging to the institution goes to the
+institution's GitHub presence, which is the organization.
 
-The inverse holds too: if this were genuinely a personal side project, it should
-not go into NCAR at all. Putting personal work in an institutional org muddies
-ownership rather than clarifying it. Decide which it is before transferring;
-this is the one question in this document that a later step cannot correct
-cheaply.
+The inverse would have held too. A genuinely personal side project should not go
+into NCAR at all, because putting personal work in an institutional org muddies
+ownership rather than clarifying it. That is not this project.
 
 `LICENSE` currently reads `Copyright (c) 2026 Cafe Connection Contributors`,
 which asserts neither. If UCAR owns the work, update that line as part of the
@@ -54,7 +56,7 @@ look:
 | Move | Depends on | Blocks |
 |---|---|---|
 | **GitHub → NCAR** (this doc) | Nothing | Nothing |
-| **Firebase → UCAR** ([MIGRATION.md](./MIGRATION.md)) | Nothing | `gmail.send` go-live |
+| **Firebase → UCAR** ([FIREBASE_TRANSFER.md](./FIREBASE_TRANSFER.md)) | Nothing | `gmail.send` go-live |
 | **Vercel → Azure** | Nothing structural | Nothing |
 
 Nothing about the repository's location touches Firebase. There are no GitHub
@@ -97,9 +99,10 @@ Ask, in the same message:
    whatever org policy applies.
 4. Any required repository conventions — visibility, license, `CODEOWNERS`,
    branch protection or org rulesets — that this repo should satisfy on arrival?
-5. Is `NCAR` the correct destination, or is there a lab- or program-specific
-   organization that fits better? Answer this one before transferring, not
-   after: see the name-retirement note below.
+
+Destination is not among these questions: `NCAR` is settled, and no lab- or
+program-specific org applies. Worth stating because it is the one answer that
+has to be right the first time — see the name-retirement note below.
 
 ---
 
@@ -140,8 +143,8 @@ request, every review thread. There is no way to recover them afterward.
 
 ## Steps
 
-1. **Confirm the destination** with the NCAR admins (§ questions above) and get
-   creation permission granted, or arrange for an owner to receive it.
+1. **Get creation permission granted** on `NCAR`, or arrange for an owner to
+   receive the transfer instead (§ questions above).
 2. **Pick a quiet moment.** Open pull requests transfer intact, but a transfer
    mid-review is needless confusion. Nothing here requires a deploy freeze.
 3. **Transfer** from `jeffdaskam-cyber` → Settings → General → Danger Zone →
@@ -189,9 +192,9 @@ passing says nothing about whether the transfer succeeded.
 repository saw more than 100 clones or more than 100 GitHub Actions runs in the
 week before the transfer, GitHub permanently retires the
 `jeffdaskam-cyber/Cafe-Connection` owner-and-name combination. Nothing can be
-created at that path afterward, by anyone. This is why question 5 above — is
-`NCAR` really the right destination — is worth resolving before the transfer
-rather than correcting with a second one.
+created at that path afterward, by anyone. This is why the destination was
+settled before the transfer rather than left to be corrected by a second one:
+there is no undo, and a wrong first hop costs the original path permanently.
 
 **Vercel silence is the likely failure mode.** Nothing errors when the GitHub
 App is missing from the org. Pushes simply stop producing deployments, and
@@ -202,7 +205,8 @@ after the first push rather than assuming green because the site is up.
 travel, and the Vercel environment variables that actually run this application
 were never in GitHub to begin with — so there is nothing to re-enter, and no
 opportunity to discover a missing one. The environment-variable checklist in
-[MIGRATION.md § B8](./MIGRATION.md) belongs to the Firebase move, not this one.
+[FIREBASE_TRANSFER.md § B8](./FIREBASE_TRANSFER.md) belongs to the Firebase
+move, not this one.
 
 **Azure will introduce GitHub Actions to a repository that has none.** A Static
 Web Apps deployment workflow means a deploy token in repository secrets and
@@ -214,7 +218,8 @@ it while trying to ship a cutover.
 
 ## What this document does not cover
 
-- **The Firebase / Google Cloud move** — see [MIGRATION.md](./MIGRATION.md),
+- **The Firebase / Google Cloud move** — see
+  [FIREBASE_TRANSFER.md](./FIREBASE_TRANSFER.md),
   including the decision on whether the project must live inside UCAR's Cloud
   organization, which also gates `gmail.send`.
 - **The Vercel → Azure migration.** Not written yet. Two constraints already
