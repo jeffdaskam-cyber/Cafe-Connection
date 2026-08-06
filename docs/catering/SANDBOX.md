@@ -190,7 +190,7 @@ only and do not change routing for `/api/*` or the existing app.
 > events, test planners, seeded rooms. What carries forward is all in this repo
 > already: `firestore.rules`, `firestore.indexes.json`, `storage.rules`, and the
 > seed scripts. Don't let UAT data accumulate into something that feels worth
-> migrating; `MIGRATION.md` covers moving production, not this.
+> migrating; `FIREBASE_TRANSFER.md` covers moving production, not this.
 
 ### 4.1 Create the dev Firebase project
 

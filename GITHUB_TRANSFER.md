@@ -56,7 +56,7 @@ look:
 | Move | Depends on | Blocks |
 |---|---|---|
 | **GitHub → NCAR** (this doc) | Nothing | Nothing |
-| **Firebase → UCAR** ([MIGRATION.md](./MIGRATION.md)) | Nothing | `gmail.send` go-live |
+| **Firebase → UCAR** ([FIREBASE_TRANSFER.md](./FIREBASE_TRANSFER.md)) | Nothing | `gmail.send` go-live |
 | **Vercel → Azure** | Nothing structural | Nothing |
 
 Nothing about the repository's location touches Firebase. There are no GitHub
@@ -205,7 +205,8 @@ after the first push rather than assuming green because the site is up.
 travel, and the Vercel environment variables that actually run this application
 were never in GitHub to begin with — so there is nothing to re-enter, and no
 opportunity to discover a missing one. The environment-variable checklist in
-[MIGRATION.md § B8](./MIGRATION.md) belongs to the Firebase move, not this one.
+[FIREBASE_TRANSFER.md § B8](./FIREBASE_TRANSFER.md) belongs to the Firebase
+move, not this one.
 
 **Azure will introduce GitHub Actions to a repository that has none.** A Static
 Web Apps deployment workflow means a deploy token in repository secrets and
@@ -217,7 +218,8 @@ it while trying to ship a cutover.
 
 ## What this document does not cover
 
-- **The Firebase / Google Cloud move** — see [MIGRATION.md](./MIGRATION.md),
+- **The Firebase / Google Cloud move** — see
+  [FIREBASE_TRANSFER.md](./FIREBASE_TRANSFER.md),
   including the decision on whether the project must live inside UCAR's Cloud
   organization, which also gates `gmail.send`.
 - **The Vercel → Azure migration.** Not written yet. Two constraints already
