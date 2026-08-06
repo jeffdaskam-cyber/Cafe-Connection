@@ -17,7 +17,7 @@ coverage/
 *.temp
 *.bak
 .vercel
-.claude/worktrees/
+.claude/
 
 # Catering: AppSheet export CSVs.
 # Contains staff names, emails, and phone numbers, which do not belong in
