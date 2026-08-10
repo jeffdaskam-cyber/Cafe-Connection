@@ -35,3 +35,6 @@ ui-debug.log
 database-debug.log
 pubsub-debug.log
 storage-debug.log
+
+# Portable Node/Java for machines without admin rights (see setup-windows.cmd)
+tools/

@@ -63,6 +63,38 @@ service cloud.firestore {
       return cateringRole() == 'administrator';
     }
 
+    // ── Catering pilot allowlist ───────────────────────────────────────────
+    // While the module runs against production data with a small set of named
+    // users, every catering path is additionally gated on the signed-in email.
+    //
+    // Without this, enabling the feature flag in production would let ANY
+    // @ucar.edu user who reaches /catering self-provision as a `requester` and
+    // file real requests, and would show the staff console to every manager.
+    //
+    // An EMPTY list means "no restriction" — that is the end state when the
+    // pilot opens up, and it is what the rules unit tests run against by
+    // default so the rest of the suite keeps testing role behavior rather than
+    // the allowlist.
+    //
+    // Mirrored by CATERING_ALLOWLIST in src/config/features.js, which gates the
+    // UI. That one is a convenience; this one is the boundary.
+    function cateringAllowlist() {
+      return ['jdaskam@ucar.edu'];
+    }
+
+    function cateringAllowed() {
+      return isAuthedUCAR() &&
+             (cateringAllowlist().size() == 0 ||
+              request.auth.token.email.lower() in cateringAllowlist());
+    }
+
+    // Staff access to catering, which is manager-or-above AND on the pilot
+    // allowlist. Used in place of isManagerOrAbove() throughout the catering
+    // rules so a manager outside the pilot sees nothing.
+    function isCateringStaff() {
+      return isManagerOrAbove() && cateringAllowed();
+    }
+
     // Fields a requester may change on their own event after submission.
     // Mirrors REQUESTER_EDITABLE_FIELDS in src/catering/schema.js — the rules
     // unit tests assert the two lists stay in sync. Enumerated explicitly
@@ -254,7 +286,11 @@ service cloud.firestore {
       // §6.1). Deliberately narrow — the role value is pinned to the literal
       // 'requester', so this path can never mint a staff role, and it cannot
       // overwrite an existing doc because create does not apply to one.
-      allow create: if isAuthedUCAR() && request.auth.uid == uid
+      // Gated on the pilot allowlist as well: while catering runs against
+      // production data, this is the path that would otherwise let anyone at
+      // UCAR who reaches /catering create themselves an account and file real
+      // requests.
+      allow create: if cateringAllowed() && request.auth.uid == uid
                        && request.resource.data.role == 'requester'
                        && request.resource.data.email == request.auth.token.email;
 
@@ -322,32 +358,32 @@ service cloud.firestore {
     //         staff confirm; manager-and-above may change anything
     // Delete: manager-and-above only
     match /catering_events/{eventId} {
-      allow read: if isAuthedUCAR() &&
-                     (resource.data.createdBy == request.auth.uid || isManagerOrAbove());
+      allow read: if cateringAllowed() &&
+                     (resource.data.createdBy == request.auth.uid || isCateringStaff());
 
-      allow create: if isAuthedUCAR() &&
+      allow create: if cateringAllowed() &&
                        request.resource.data.createdBy == request.auth.uid &&
                        request.resource.data.requestStatus == 'submitted' &&
                        request.resource.data.lifecycleStatus == 'open' &&
                        noRevenueFields();
 
-      allow update: if isAuthedUCAR() && (
+      allow update: if cateringAllowed() && (
                        (resource.data.createdBy == request.auth.uid &&
                         isEditableByRequester() &&
                         onlyRequesterFieldsChanged() &&
                         noRevenueFields())
-                       || isManagerOrAbove()
+                       || isCateringStaff()
                      );
 
-      allow delete: if isManagerOrAbove();
+      allow delete: if isCateringStaff();
 
       // Schedule days and their meal selections travel with the event: the
       // owner may manage them, staff may manage anything.
       match /catering_schedule_days/{dayId} {
-        allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
+        allow read, write: if (ownsCateringEvent(eventId) && cateringAllowed()) || isCateringStaff();
 
         match /catering_meal_selections/{mealId} {
-          allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
+          allow read, write: if (ownsCateringEvent(eventId) && cateringAllowed()) || isCateringStaff();
         }
       }
 
@@ -358,7 +394,7 @@ service cloud.firestore {
       // staff-only assignment, which does not match how rooms are actually
       // booked — see docs/catering/DATA_MODEL.md §6.)
       match /catering_event_rooms/{roomBookingId} {
-        allow read, write: if ownsCateringEvent(eventId) || isManagerOrAbove();
+        allow read, write: if (ownsCateringEvent(eventId) && cateringAllowed()) || isCateringStaff();
       }
     }
 
@@ -370,7 +406,7 @@ service cloud.firestore {
     // Staff-only on purpose: a requester reads their own schedule days through
     // the nested path above, and must not be able to sweep every event's.
     match /{path=**}/catering_schedule_days/{dayId} {
-      allow read: if isManagerOrAbove();
+      allow read: if isCateringStaff();
     }
 
     // ── rooms / buildings ──────────────────────────────────────────────────

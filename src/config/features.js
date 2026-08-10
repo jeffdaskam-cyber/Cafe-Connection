@@ -1,3 +1,5 @@
+import { isAllowed, parseAllowlist } from "../catering/allowlist.js";
+
 /**
  * Cafe Connection — build-time feature flags.
  *
@@ -15,6 +17,35 @@
  * Cafe Connection shell.
  */
 export const CATERING_ENABLED = import.meta.env.VITE_CATERING_ENABLED === "true";
+
+/**
+ * Pilot allowlist for the Catering Companion, as a comma-separated list of
+ * email addresses.
+ *
+ * The feature flag alone is all-or-nothing: turning it on in production would
+ * reveal the staff Catering tab to every manager, and — more importantly — let
+ * any @ucar.edu user who finds /catering self-provision as a `requester` and
+ * file real requests. The allowlist narrows that to named people so the module
+ * can run against production data with a known, small set of users.
+ *
+ * Empty (the default) means no restriction beyond the flag and normal roles.
+ * That is the end state once the pilot opens up; during the pilot it is set.
+ *
+ * This is a build-time convenience for the UI only. The enforceable boundary is
+ * `cateringAllowed()` in firestore.rules — a client cannot be trusted to gate
+ * its own access, and the two lists must be kept in step.
+ */
+export const CATERING_ALLOWLIST = parseAllowlist(import.meta.env.VITE_CATERING_ALLOWLIST);
+
+/**
+ * True when `email` may use the Catering Companion.
+ *
+ * An empty allowlist permits everyone — the flag and the role checks still
+ * apply. A non-empty allowlist permits only the addresses on it.
+ */
+export function isCateringAllowed(email) {
+  return isAllowed(email, CATERING_ALLOWLIST);
+}
 
 /**
  * True when the Firebase SDK is pointed at the local Emulator Suite rather than

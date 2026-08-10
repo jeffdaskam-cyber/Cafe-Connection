@@ -25,6 +25,24 @@ const suiteOpts = { skip: EMULATOR ? false : "requires the Firestore emulator (n
 
 const RULES = readFileSync(new URL("../firestore.rules", import.meta.url), "utf8");
 
+/**
+ * Rewrite the pilot allowlist baked into firestore.rules.
+ *
+ * The deployed rules carry a real list, so every role test would otherwise fail
+ * for the wrong reason. The role suite runs against an EMPTY list — the state
+ * the pilot ends in — and the allowlist gets its own tests below with a known
+ * list, so both the restricted and unrestricted behaviors are covered.
+ */
+const ALLOWLIST_RE = /(function cateringAllowlist\(\)\s*\{\s*return\s*)\[[^\]]*\]/;
+
+function rulesWithAllowlist(emails) {
+  if (!ALLOWLIST_RE.test(RULES)) {
+    throw new Error("cateringAllowlist() not found in firestore.rules - the tests cannot substitute it");
+  }
+  const list = emails.length ? `['${emails.join("', '")}']` : "[]";
+  return RULES.replace(ALLOWLIST_RE, `$1${list}`);
+}
+
 const REQUESTER = { uid: "requester1", email: "requester@ucar.edu" };
 const OTHER     = { uid: "requester2", email: "other@ucar.edu" };
 const MANAGER   = { uid: "manager1",   email: "manager@ucar.edu" };
@@ -52,7 +70,7 @@ test.before(async () => {
   const [host, port] = EMULATOR.split(":");
   testEnv = await initializeTestEnvironment({
     projectId: "demo-cafe-connection-rules",
-    firestore: { rules: RULES, host, port: Number(port) },
+    firestore: { rules: rulesWithAllowlist([]), host, port: Number(port) },
   });
 });
 
@@ -412,4 +430,109 @@ test("a plain staff `user` role gets no catering console access", suiteOpts, asy
   await assertFails(
     updateDoc(doc(ctxFor(staffUser), "catering_events", EVENT_ID), { requestStatus: "confirmed" })
   );
+});
+
+// ── Pilot allowlist ─────────────────────────────────────────────────────────
+// While catering runs against production data it is limited to named people.
+// The suite above runs with an empty allowlist (the eventual end state); these
+// tests use their own environment with a populated one, because that is the
+// configuration actually being deployed.
+
+const PILOT      = { uid: "pilot1",   email: "pilot@ucar.edu" };
+const OFFLIST    = { uid: "offlist1", email: "offlist@ucar.edu" };
+const PILOT_MGR  = { uid: "pmgr1",    email: "pilotmgr@ucar.edu" };
+const OFFLIST_MGR = { uid: "omgr1",   email: "offlistmgr@ucar.edu" };
+
+let pilotEnv;
+
+function pilotCtx(user) {
+  return pilotEnv.authenticatedContext(user.uid, { email: user.email }).firestore();
+}
+
+test.before(async () => {
+  if (!EMULATOR) return;
+  const [host, port] = EMULATOR.split(":");
+  pilotEnv = await initializeTestEnvironment({
+    projectId: "demo-cafe-connection-allowlist",
+    firestore: {
+      rules: rulesWithAllowlist([PILOT.email, PILOT_MGR.email]),
+      host,
+      port: Number(port),
+    },
+  });
+});
+
+test.after(async () => {
+  if (pilotEnv) await pilotEnv.cleanup();
+});
+
+async function seedPilot() {
+  await pilotEnv.clearFirestore();
+  await pilotEnv.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "user_roles", PILOT.uid),       { role: "requester", email: PILOT.email });
+    await setDoc(doc(db, "user_roles", OFFLIST.uid),     { role: "requester", email: OFFLIST.email });
+    await setDoc(doc(db, "user_roles", PILOT_MGR.uid),   { role: "manager",   email: PILOT_MGR.email });
+    await setDoc(doc(db, "user_roles", OFFLIST_MGR.uid), { role: "manager",   email: OFFLIST_MGR.email });
+    await setDoc(doc(db, "catering_events", EVENT_ID), validEvent(PILOT.uid));
+  });
+}
+
+test("allowlisted requester keeps normal access to their own event", suiteOpts, async () => {
+  await seedPilot();
+  await assertSucceeds(getDoc(doc(pilotCtx(PILOT), "catering_events", EVENT_ID)));
+  await assertSucceeds(
+    setDoc(doc(pilotCtx(PILOT), "catering_events", "pilot-new"), validEvent(PILOT.uid))
+  );
+});
+
+test("a UCAR user off the allowlist cannot self-provision as a requester", suiteOpts, async () => {
+  await seedPilot();
+  const newbie = { uid: "newbie-offlist", email: "newbie@ucar.edu" };
+  // This is the path that would otherwise let anyone at UCAR who finds
+  // /catering create an account and file real requests.
+  await assertFails(
+    setDoc(doc(pilotCtx(newbie), "user_roles", newbie.uid),
+      { role: "requester", email: newbie.email })
+  );
+});
+
+test("an allowlisted user can still self-provision", suiteOpts, async () => {
+  await seedPilot();
+  const joiner = { uid: "joiner1", email: PILOT.email };
+  await assertSucceeds(
+    setDoc(doc(pilotCtx(joiner), "user_roles", joiner.uid),
+      { role: "requester", email: joiner.email })
+  );
+});
+
+test("a requester off the allowlist cannot read or write catering events", suiteOpts, async () => {
+  await seedPilot();
+  await assertFails(
+    setDoc(doc(pilotCtx(OFFLIST), "catering_events", "offlist-new"), validEvent(OFFLIST.uid))
+  );
+  await assertFails(getDoc(doc(pilotCtx(OFFLIST), "catering_events", EVENT_ID)));
+});
+
+test("a manager off the allowlist gets no staff console access", suiteOpts, async () => {
+  await seedPilot();
+  // The role is sufficient; the allowlist is what denies them.
+  await assertFails(getDocs(collection(pilotCtx(OFFLIST_MGR), "catering_events")));
+  await assertFails(
+    updateDoc(doc(pilotCtx(OFFLIST_MGR), "catering_events", EVENT_ID), { requestStatus: "confirmed" })
+  );
+});
+
+test("an allowlisted manager keeps full staff console access", suiteOpts, async () => {
+  await seedPilot();
+  await assertSucceeds(getDocs(collection(pilotCtx(PILOT_MGR), "catering_events")));
+  await assertSucceeds(
+    updateDoc(doc(pilotCtx(PILOT_MGR), "catering_events", EVENT_ID), { requestStatus: "confirmed" })
+  );
+});
+
+test("the allowlist does not leak into non-catering collections", suiteOpts, async () => {
+  await seedPilot();
+  // A manager off the catering pilot must still be a normal manager elsewhere.
+  await assertSucceeds(getDocs(collection(pilotCtx(OFFLIST_MGR), "event_report_entries")));
 });

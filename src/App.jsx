@@ -21,7 +21,7 @@ import WeeklyOps    from "./WeeklyOps.jsx";
 import EventRevenuePage from "./pages/EventRevenuePage.jsx";
 import FpaPage from "./pages/FpaPage.jsx";
 import SplashScreen, { SHOW_SPLASH } from "./components/SplashScreen.jsx";
-import { CATERING_ENABLED } from "./config/features.js";
+import { CATERING_ENABLED, isCateringAllowed } from "./config/features.js";
 import { COLORS, SHADOWS } from "./theme.js";
 
 // Lazily imported so the catering console never enters the main bundle while
@@ -152,7 +152,7 @@ function AppShell() {
           {/* Tab navigation */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, zIndex: 1 }}>
             {TABS
-              .filter(tab => !tab.flagged || CATERING_ENABLED)
+              .filter(tab => !tab.flagged || (CATERING_ENABLED && isCateringAllowed(user?.email)))
               .filter(tab => canAccessPage(role, tab.pageKey))
               .map(tab => {
               const active = activeTab === tab.id;
@@ -224,7 +224,7 @@ function AppShell() {
         {activeTab === "eventrevenue" && <EventRevenuePage />}
         {activeTab === "fpa"        && <FpaPage />}
         {activeTab === "reports"    && <ReportsPage />}
-        {activeTab === "catering"   && CATERING_ENABLED && (
+        {activeTab === "catering"   && CATERING_ENABLED && isCateringAllowed(user?.email) && (
           <Suspense fallback={null}><CateringConsole /></Suspense>
         )}
         {activeTab === "admin"      && <AdminPage />}
