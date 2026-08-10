@@ -14,7 +14,7 @@ import { COLORS, FONT, RADIUS } from "../theme.js";
 import { MEAL_PERIODS, PAYMENT_METHOD } from "./schema.js";
 import {
   STEPS, emptyIntakeForm, emptyMeal, emptyRoomBooking, emptyScheduleDay,
-  browserStorage, clearDraft, loadDraft, saveDraft, validateStep,
+  browserStorage, capacityPlaceholder, clearDraft, loadDraft, saveDraft, validateStep,
 } from "./formState.js";
 import { fetchBuildings, fetchRooms, submitCateringRequest } from "./data.js";
 import {
@@ -390,16 +390,21 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
                         invalid={Boolean(visibleErrors[`rooms.${i}.roomId`])}
                         onChange={(e) => updateRoom(i, { roomId: e.target.value })}>
                         <option value="">Choose…</option>
+                        {/* Name only. Capacity appears as the Headcount
+                            placeholder once a room is picked, so repeating it
+                            here just made the list harder to scan. */}
                         {availableRooms.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}{r.capacity ? ` — seats ${r.capacity}` : ""}
-                          </option>
+                          <option key={r.id} value={r.id}>{r.name}</option>
                         ))}
                       </Select>
                     </Field>
                     <Field label="Headcount in this room"
                       error={visibleErrors[`rooms.${i}.expectedHeadcount`]}>
+                      {/* The selected room's capacity shows as the placeholder:
+                          grey guidance until the planner types, and never a
+                          submitted value. */}
                       <Input type="number" min="0" value={room.expectedHeadcount}
+                        placeholder={capacityPlaceholder(rooms, room.roomId)}
                         invalid={Boolean(visibleErrors[`rooms.${i}.expectedHeadcount`])}
                         onChange={(e) => updateRoom(i, { expectedHeadcount: e.target.value })} />
                     </Field>
