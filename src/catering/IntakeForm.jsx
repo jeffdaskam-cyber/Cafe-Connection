@@ -390,10 +390,11 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
                         invalid={Boolean(visibleErrors[`rooms.${i}.roomId`])}
                         onChange={(e) => updateRoom(i, { roomId: e.target.value })}>
                         <option value="">Choose…</option>
+                        {/* Name only. Capacity appears as the Headcount
+                            placeholder once a room is picked, so repeating it
+                            here just made the list harder to scan. */}
                         {availableRooms.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}{r.capacity ? ` — seats ${r.capacity}` : ""}
-                          </option>
+                          <option key={r.id} value={r.id}>{r.name}</option>
                         ))}
                       </Select>
                     </Field>
