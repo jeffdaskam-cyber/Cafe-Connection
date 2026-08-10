@@ -53,6 +53,16 @@ npm ci          # installs firebase-tools as a devDependency
 npm run sandbox # emulators + seed + dev server, one command
 ```
 
+**On a fresh Windows machine**, `setup-windows.cmd` in the repo root does the
+same thing and checks the prerequisites first, so a missing Node or Java is
+reported before the `npm ci` wait rather than after it:
+
+```
+git clone https://github.com/jeffdaskam-cyber/Cafe-Connection.git
+cd Cafe-Connection
+setup-windows.cmd
+```
+
 Without Java, firebase-tools fails with ``Could not spawn `java -version` `` and
 shuts the emulators down — which reads like a broken repo rather than a missing
 dependency. `npm run sandbox` checks for both prerequisites first and prints the
