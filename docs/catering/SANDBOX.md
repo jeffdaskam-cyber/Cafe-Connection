@@ -63,6 +63,21 @@ cd Cafe-Connection
 setup-windows.cmd
 ```
 
+### No admin rights on the machine
+
+Node and Java both ship as plain `.zip` archives with no installer, so neither
+needs administrator access. Extract them inside the repo and
+`setup-windows.cmd` finds them without touching your PATH:
+
+| Download | Extract so this path exists |
+|---|---|
+| [Node 22 Windows x64 ZIP](https://nodejs.org/en/download) | `tools\node\node.exe` |
+| [Temurin 21 Windows x64 **ZIP**](https://adoptium.net/temurin/releases/?version=21&package=jdk) | `tools\java\bin\java.exe` |
+
+Take the **.zip**, not the `.msi`/installer — the installer is the part that
+wants admin. `tools/` is git-ignored. Everything else works exactly as it does
+with a system-wide install.
+
 Without Java, firebase-tools fails with ``Could not spawn `java -version` `` and
 shuts the emulators down — which reads like a broken repo rather than a missing
 dependency. `npm run sandbox` checks for both prerequisites first and prints the
