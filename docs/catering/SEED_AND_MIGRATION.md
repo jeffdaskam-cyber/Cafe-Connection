@@ -10,24 +10,16 @@ spreadsheet backing the AppSheet app. Field mapping is in
 ## Seeding reference data without a terminal
 
 Buildings and rooms now live in `api/_lib/cateringReferenceData.mjs`, committed
-to the repo. An administrator can seed a live project from the browser console
-of the deployed app:
+to the repo. An administrator seeds a live project from the **Admin** tab: the *Catering
+Reference Data* panel at the bottom, then **Seed buildings & rooms**. It reports
+the counts written plus `orphanRooms` and `buildingsWithoutCampus` —
+any warnings. Administrator-only and idempotent: document IDs are the source
+sheet's room keys and every write is a merge, so re-running converges rather
+than duplicating.
 
-```js
-await fetch("/api/catering", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${await firebase.auth().currentUser.getIdToken()}`,
-  },
-  body: JSON.stringify({ action: "seed-reference" }),
-}).then((r) => r.json());
-```
-
-Returns the counts written plus `orphanRooms` and `buildingsWithoutCampus` —
-both empty is the healthy answer. Administrator-only and idempotent: document
-IDs are the source sheet's room keys and every write is a merge, so re-running
-converges rather than duplicating.
+The panel posts `{"action":"seed-reference"}` to `/api/catering`. Note there is
+no global `firebase` object on the page — the app uses the modular SDK — so a
+hand-written console snippet calling `firebase.auth()` will not work.
 
 `npm run catering:seed` does exactly the same thing from a terminal. Both share
 the document builders in `api/_lib/cateringReference.mjs` so the two paths
