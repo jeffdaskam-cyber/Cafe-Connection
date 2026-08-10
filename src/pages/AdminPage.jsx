@@ -5,6 +5,8 @@ import { useRole } from "../hooks/useRole.js";
 import Widget from "../components/Widget.jsx";
 import VendorManager from "../components/admin/VendorManager.jsx";
 import UserInvitations from "../components/admin/UserInvitations.jsx";
+import CateringReferenceData from "../components/admin/CateringReferenceData.jsx";
+import { CATERING_ENABLED, isCateringAllowed } from "../config/features.js";
 import { COLORS } from "../theme.js";
 
 const ROLES = ["user", "manager", "senior_leader", "administrator"];
@@ -231,6 +233,16 @@ export default function AdminPage() {
           <VendorManager />
         </Widget>
       </div>
+
+      {/* Same gate as the Catering tab: hidden entirely when the module is off
+          or the signed-in user is outside the pilot allowlist. */}
+      {CATERING_ENABLED && isCateringAllowed(auth.currentUser?.email) && (
+        <div style={{ maxWidth: 800, marginTop: 24 }}>
+          <Widget title="Catering Reference Data">
+            <CateringReferenceData />
+          </Widget>
+        </div>
+      )}
     </div>
   );
 }
