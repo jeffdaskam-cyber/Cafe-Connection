@@ -432,3 +432,19 @@ export function clearDraft(storage) {
     /* best effort */
   }
 }
+
+/**
+ * Placeholder text for the "Headcount in this room" field: the selected room's
+ * capacity, as guidance before the planner types their own number.
+ *
+ * Returns "" when no room is selected or the room has no recorded capacity —
+ * an empty placeholder renders as an empty field, which is the right nothing.
+ * Deliberately not a default *value*: capacity is what the room holds, not what
+ * the planner expects, and pre-filling it would submit a guess as a fact.
+ */
+export function capacityPlaceholder(rooms, roomId) {
+  if (!roomId || !Array.isArray(rooms)) return "";
+  const room = rooms.find((r) => r.id === roomId);
+  const capacity = room?.capacity;
+  return typeof capacity === "number" && capacity > 0 ? `Capacity ${capacity}` : "";
+}

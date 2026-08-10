@@ -7,6 +7,39 @@ Source of record: **"UCAR Summit Data Sheet"** in Google Drive — the
 spreadsheet backing the AppSheet app. Field mapping is in
 [`DATA_MODEL.md`](./DATA_MODEL.md).
 
+## Seeding reference data without a terminal
+
+Buildings and rooms now live in `api/_lib/cateringReferenceData.mjs`, committed
+to the repo. An administrator can seed a live project from the browser console
+of the deployed app:
+
+```js
+await fetch("/api/catering", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${await firebase.auth().currentUser.getIdToken()}`,
+  },
+  body: JSON.stringify({ action: "seed-reference" }),
+}).then((r) => r.json());
+```
+
+Returns the counts written plus `orphanRooms` and `buildingsWithoutCampus` —
+both empty is the healthy answer. Administrator-only and idempotent: document
+IDs are the source sheet's room keys and every write is a merge, so re-running
+converges rather than duplicating.
+
+`npm run catering:seed` does exactly the same thing from a terminal. Both share
+the document builders in `api/_lib/cateringReference.mjs` so the two paths
+cannot drift.
+
+### Regenerating from a new export
+
+Export the Rooms tab of the "UCAR Summit Data Sheet" as CSV, then rebuild the
+module from `Room Key, Room Name, Building, Capacity, Seating Notes, Fixed`.
+Keep the existing room keys: they are the Firestore document IDs, so changing
+one orphans anything already pointing at it.
+
 ---
 
 ## 1. Export the tabs

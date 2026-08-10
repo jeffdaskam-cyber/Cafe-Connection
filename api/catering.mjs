@@ -40,6 +40,9 @@ import {
 import { buildRecap, recapStoragePath } from "./_lib/cateringRecap.mjs";
 import { planWorkFor } from "./_lib/cateringReconcile.mjs";
 import { buildRevenueDoc, revenueDocId, shouldRemoveRevenue } from "./_lib/cateringRevenue.mjs";
+import {
+  buildBuildingDocs, buildRoomDocs, orphanRoomBuildings, unmappedBuildings,
+} from "./_lib/cateringReference.mjs";
 
 const SCOPE = "catering";
 const EVENT_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
@@ -48,7 +51,7 @@ const MAX_EVENTS = 500;
 const adminApp = initCateringAdmin(SCOPE, { storageBucketEnvVar: "FIREBASE_STORAGE_BUCKET" });
 const db = getFirestore(adminApp);
 
-export const ACTIONS = ["rollup", "notify", "recap", "reconcile"];
+export const ACTIONS = ["rollup", "notify", "recap", "reconcile", "seed-reference"];
 
 // ── Revenue rollup ───────────────────────────────────────────────────────────
 // The only writer of catering rows in event_revenue. The document ID is derived
@@ -360,6 +363,59 @@ async function runRecap(eventId) {
 // The backstop for every side effect the console fires optimistically. Calls
 // the actions above in process rather than over HTTP.
 
+/**
+ * True when `uid` holds the administrator role.
+ *
+ * verifyStaffOrCron() only establishes manager-or-above, which is the right bar
+ * for working requests but not for rewriting shared reference data.
+ */
+async function isAdministrator(uid) {
+  if (!uid) return false;
+  const snap = await db.collection("user_roles").doc(uid).get();
+  return snap.exists && snap.data()?.role === "administrator";
+}
+
+// ── Reference data seed ──────────────────────────────────────────────────────
+// Buildings and rooms for the intake form's Rooms step. Normally run from a
+// terminal (`npm run catering:seed`), but a live project may be administered by
+// someone with no local Node install, and an empty room list makes the form
+// unusable. Administrator-only, and idempotent: document IDs come from the
+// source sheet's room keys and every write is a merge, so re-running converges
+// rather than duplicating.
+
+async function runSeedReference(callerUid) {
+  const now = FieldValue.serverTimestamp();
+  const buildings = buildBuildingDocs(now);
+  const rooms = buildRoomDocs(now);
+
+  // Firestore caps a batch at 500 writes; 9 + 44 is comfortably inside one, but
+  // chunk anyway so growth in the source sheet cannot silently break this.
+  const writes = [
+    ...buildings.map((b) => ({ ref: db.collection("buildings").doc(b.id), data: b.data })),
+    ...rooms.map((r) => ({ ref: db.collection("rooms").doc(r.id), data: r.data })),
+  ];
+
+  for (let i = 0; i < writes.length; i += 400) {
+    const batch = db.batch();
+    for (const { ref, data } of writes.slice(i, i + 400)) batch.set(ref, data, { merge: true });
+    await batch.commit();
+  }
+
+  return {
+    status: 200,
+    body: {
+      action: "seeded",
+      buildings: buildings.length,
+      rooms: rooms.length,
+      // Surfaced rather than logged: a room pointing at an unknown building
+      // silently disappears from the form's building filter.
+      orphanRooms: orphanRoomBuildings(),
+      buildingsWithoutCampus: unmappedBuildings(),
+      seededBy: callerUid,
+    },
+  };
+}
+
 async function runReconcile(callerUid) {
   const summary = {
     scanned: 0, notified: 0, revenueRolled: 0, recapsGenerated: 0,
@@ -445,6 +501,16 @@ export default async function handler(req, res) {
   try {
     if (action === "reconcile") {
       const { status, body } = await runReconcile(caller.uid);
+      return res.status(status).json(body);
+    }
+
+    if (action === "seed-reference") {
+      // Stricter than the rest: this rewrites shared reference data, so
+      // manager-or-above is not enough, and the cron has no business doing it.
+      if (caller.viaCron || !(await isAdministrator(caller.uid))) {
+        return res.status(403).json({ error: "Administrator access required." });
+      }
+      const { status, body } = await runSeedReference(caller.uid);
       return res.status(status).json(body);
     }
 

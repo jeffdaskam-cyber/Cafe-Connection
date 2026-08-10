@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  STEP_IDS, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal, emptyRoomBooking,
+  STEP_IDS, capacityPlaceholder, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal,
+  emptyRoomBooking,
   emptyScheduleDay, isStepValid, loadDraft, parseProjectIdsText, primaryRoomBooking,
   saveDraft, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
 } from "../src/catering/formState.js";
@@ -330,4 +331,32 @@ test("toRoomBookingDocs skips incomplete rows and marks one primary", () => {
   const docs = toRoomBookingDocs(form);
   assert.equal(docs.length, 2, "the row with no room is dropped");
   assert.deepEqual(docs.map((d) => d.data.isPrimary), [false, true]);
+});
+
+// ── Room capacity placeholder ───────────────────────────────────────────────
+
+test("capacityPlaceholder shows the selected room's capacity", () => {
+  const rooms = [
+    { id: "CG1-1212-Center-Auditorium", capacity: 160 },
+    { id: "CG2-2130", capacity: 6 },
+  ];
+  assert.equal(capacityPlaceholder(rooms, "CG1-1212-Center-Auditorium"), "Capacity 160");
+  assert.equal(capacityPlaceholder(rooms, "CG2-2130"), "Capacity 6");
+});
+
+test("capacityPlaceholder is empty when there is nothing useful to show", () => {
+  const rooms = [{ id: "A", capacity: 10 }, { id: "B", capacity: null }, { id: "C" }];
+  assert.equal(capacityPlaceholder(rooms, ""), "", "no room selected");
+  assert.equal(capacityPlaceholder(rooms, "unknown"), "", "room not in the list");
+  assert.equal(capacityPlaceholder(rooms, "B"), "", "capacity null");
+  assert.equal(capacityPlaceholder(rooms, "C"), "", "capacity missing");
+  assert.equal(capacityPlaceholder(undefined, "A"), "", "rooms not loaded yet");
+});
+
+test("capacityPlaceholder never becomes a submitted value", () => {
+  // A placeholder is guidance, not data: the form must still treat the field as
+  // empty so an untouched headcount is not recorded as the room's capacity.
+  const form = emptyIntakeForm();
+  const [room] = form.rooms;
+  assert.equal(room.expectedHeadcount, "", "a new room booking starts with no headcount");
 });
