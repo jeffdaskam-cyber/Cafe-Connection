@@ -11,7 +11,7 @@ import { AuthProvider, useAuth } from "../contexts/AuthContext.jsx";
 import { useRole } from "../hooks/useRole.js";
 import LoginPage from "../pages/LoginPage.jsx";
 import { COLORS, FONT, RADIUS, SHADOWS } from "../theme.js";
-import { SANDBOX_MODE } from "../config/features.js";
+import { SANDBOX_MODE, isCateringAllowed } from "../config/features.js";
 import { hasDraft } from "./formState.js";
 import IntakeForm from "./IntakeForm.jsx";
 import MyRequests from "./MyRequests.jsx";
@@ -43,6 +43,20 @@ function CateringShell() {
         productName="Catering Companion"
         tagline="Event Services"
         description="Sign in with your UCAR Google account to request catering for an event."
+      />
+    );
+  }
+
+  // During the pilot the module is limited to named people. Say so plainly:
+  // without this the rules deny self-provisioning and AuthContext reports
+  // "We couldn't verify your account", which reads as a broken sign-in rather
+  // than an intentional limit. The rules are the boundary; this is the message.
+  if (!isCateringAllowed(user.email)) {
+    return (
+      <NoticeScreen
+        title="Not open yet"
+        body={`The Catering Companion is in a limited pilot and ${user.email} is not on the list yet. Event Services can add you.`}
+        onSignOut={logout}
       />
     );
   }
@@ -128,6 +142,42 @@ function SandboxBanner() {
       letterSpacing: "0.04em", textAlign: "center",
     }}>
       SANDBOX — connected to the local Firebase Emulator Suite. No production data is reachable.
+    </div>
+  );
+}
+
+/** Full-page message for a signed-in user who cannot use the module yet. */
+function NoticeScreen({ title, body, onSignOut }) {
+  return (
+    <div style={{
+      minHeight: "100vh", background: COLORS.BG_PAGE,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONT.FAMILY, padding: 24,
+    }}>
+      <div style={{
+        background: COLORS.BG_CARD, border: `1px solid ${COLORS.BORDER}`,
+        borderRadius: RADIUS.LG, boxShadow: SHADOWS.SM,
+        padding: "32px 36px", maxWidth: 460,
+      }}>
+        <div style={{
+          fontSize: 18, fontWeight: 800, color: COLORS.TEXT_PRIMARY, marginBottom: 10,
+        }}>
+          {title}
+        </div>
+        <p style={{
+          fontSize: 13, color: COLORS.TEXT_SECONDARY, lineHeight: 1.65, marginBottom: 22,
+        }}>
+          {body}
+        </p>
+        <button onClick={onSignOut} style={{
+          background: "transparent", border: `1px solid ${COLORS.BORDER}`,
+          borderRadius: RADIUS.MD, padding: "7px 16px", cursor: "pointer",
+          fontFamily: FONT.FAMILY, fontWeight: 600, fontSize: 11,
+          color: COLORS.TEXT_SECONDARY,
+        }}>
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }
