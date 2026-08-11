@@ -19,7 +19,7 @@ import {
   setLifecycleStatus, setRequestStatus, updateEventFields, updateRoomBooking,
 } from "../staffData.js";
 import {
-  Banner, Button, Card, Field, Input, SectionTitle, Select, StatusBadge, Textarea,
+  Banner, Button, Card, Field, Input, SectionTitle, Select, StatusBadge, Textarea, TimeSelect,
 } from "../ui.jsx";
 
 const MEAL_PERIOD_LABELS = {
@@ -491,10 +491,10 @@ function RoomEditor({ room, rooms, buildings, onSave, onDelete }) {
                 onChange={(e) => setDraft({ ...draft, expectedHeadcount: e.target.value })} />
             </Field>
             <Field label="Start time">
-              <Input type="time" step={900} value={draft.startTime} onChange={(e) => setDraft({ ...draft, startTime: e.target.value })} />
+              <TimeSelect value={draft.startTime} onChange={(e) => setDraft({ ...draft, startTime: e.target.value })} />
             </Field>
             <Field label="End time">
-              <Input type="time" step={900} value={draft.endTime} onChange={(e) => setDraft({ ...draft, endTime: e.target.value })} />
+              <TimeSelect value={draft.endTime} onChange={(e) => setDraft({ ...draft, endTime: e.target.value })} />
             </Field>
             <Field label="Setup style">
               <Input value={draft.setupType} onChange={(e) => setDraft({ ...draft, setupType: e.target.value })} />

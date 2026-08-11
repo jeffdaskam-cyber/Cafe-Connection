@@ -95,6 +95,41 @@ export function Select({ invalid, children, ...props }) {
   );
 }
 
+// 15-minute increments across a full day, "HH:MM" (24h) values with
+// "H:MM AM/PM" labels. Native <input type="time" step> only snaps the spinner
+// and still lets you type any minute, so catering times use this dropdown to
+// truly constrain selection to quarter-hour marks.
+const TIME_OPTIONS = (() => {
+  const opts = [];
+  for (let mins = 0; mins < 24 * 60; mins += 15) {
+    const h24 = Math.floor(mins / 60);
+    const m = mins % 60;
+    const value = `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    const ampm = h24 < 12 ? "AM" : "PM";
+    opts.push({ value, label: `${h12}:${String(m).padStart(2, "0")} ${ampm}` });
+  }
+  return opts;
+})();
+
+/**
+ * A time picker restricted to 15-minute intervals.
+ *
+ * Drop-in replacement for <Input type="time"> — same value shape ("HH:MM" 24h)
+ * and onChange contract (event with `target.value`), so callers reading
+ * `e.target.value` keep working unchanged.
+ */
+export function TimeSelect({ invalid, placeholder = "Select time", ...props }) {
+  return (
+    <Select invalid={invalid} {...props}>
+      <option value="">{placeholder}</option>
+      {TIME_OPTIONS.map((o) => (
+        <option key={o.value} value={o.value}>{o.label}</option>
+      ))}
+    </Select>
+  );
+}
+
 export function Checkbox({ label, checked, onChange, ...props }) {
   return (
     <label style={{

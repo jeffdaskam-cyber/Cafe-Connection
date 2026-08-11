@@ -18,7 +18,7 @@ import {
 } from "./formState.js";
 import { fetchBuildings, fetchRooms, submitCateringRequest } from "./data.js";
 import {
-  Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea,
+  Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
 
 const MEAL_PERIOD_LABELS = {
@@ -143,7 +143,7 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
                   onChange={(e) => set({ endDate: e.target.value })} />
               </Field>
               <Field label="Start time">
-                <Input type="time" step={900} value={form.startTime}
+                <TimeSelect value={form.startTime}
                   onChange={(e) => set({ startTime: e.target.value })} />
               </Field>
             </Row>
@@ -238,11 +238,11 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
                       onChange={(e) => updateDay(i, { date: e.target.value })} />
                   </Field>
                   <Field label="Start time">
-                    <Input type="time" step={900} value={day.startTime}
+                    <TimeSelect value={day.startTime}
                       onChange={(e) => updateDay(i, { startTime: e.target.value })} />
                   </Field>
                   <Field label="End time" error={visibleErrors[`scheduleDays.${i}.endTime`]}>
-                    <Input type="time" step={900} value={day.endTime}
+                    <TimeSelect value={day.endTime}
                       invalid={Boolean(visibleErrors[`scheduleDays.${i}.endTime`])}
                       onChange={(e) => updateDay(i, { endTime: e.target.value })} />
                   </Field>
@@ -322,7 +322,7 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
                         </Select>
                       </Field>
                       <Field label="Time">
-                        <Input type="time" step={900} value={meal.time}
+                        <TimeSelect value={meal.time}
                           onChange={(e) => updateMeal(i, j, { time: e.target.value })} />
                       </Field>
                       <Field label="Headcount"
@@ -412,11 +412,11 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
 
                   <Row>
                     <Field label="Room start time">
-                      <Input type="time" step={900} value={room.startTime}
+                      <TimeSelect value={room.startTime}
                         onChange={(e) => updateRoom(i, { startTime: e.target.value })} />
                     </Field>
                     <Field label="Room end time" error={visibleErrors[`rooms.${i}.endTime`]}>
-                      <Input type="time" step={900} value={room.endTime}
+                      <TimeSelect value={room.endTime}
                         invalid={Boolean(visibleErrors[`rooms.${i}.endTime`])}
                         onChange={(e) => updateRoom(i, { endTime: e.target.value })} />
                     </Field>
