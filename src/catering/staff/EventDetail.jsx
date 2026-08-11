@@ -491,10 +491,10 @@ function RoomEditor({ room, rooms, buildings, onSave, onDelete }) {
                 onChange={(e) => setDraft({ ...draft, expectedHeadcount: e.target.value })} />
             </Field>
             <Field label="Start time">
-              <Input type="time" value={draft.startTime} onChange={(e) => setDraft({ ...draft, startTime: e.target.value })} />
+              <Input type="time" step={900} value={draft.startTime} onChange={(e) => setDraft({ ...draft, startTime: e.target.value })} />
             </Field>
             <Field label="End time">
-              <Input type="time" value={draft.endTime} onChange={(e) => setDraft({ ...draft, endTime: e.target.value })} />
+              <Input type="time" step={900} value={draft.endTime} onChange={(e) => setDraft({ ...draft, endTime: e.target.value })} />
             </Field>
             <Field label="Setup style">
               <Input value={draft.setupType} onChange={(e) => setDraft({ ...draft, setupType: e.target.value })} />
