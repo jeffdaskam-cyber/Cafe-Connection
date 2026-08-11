@@ -15,8 +15,8 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../firebase.js";
-import { COLLECTIONS } from "./schema.js";
-import { toEventDoc, toRoomBookingDocs, toScheduleDayDocs } from "./formState.js";
+import { COLLECTIONS, REQUEST_STATUS, REQUESTER_CREATE_STATUS } from "./schema.js";
+import { eventToForm, toEventDoc, toRoomBookingDocs, toScheduleDayDocs } from "./formState.js";
 
 // ── Reference data ───────────────────────────────────────────────────────────
 
@@ -34,66 +34,109 @@ export async function fetchRooms() {
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-// ── Submitting a request ─────────────────────────────────────────────────────
+// ── Saving a request ─────────────────────────────────────────────────────────
+
+/** Queue the schedule-day, meal, and room subcollection writes onto a batch. */
+function writeChildren(batch, eventRef, form) {
+  for (const day of toScheduleDayDocs(form)) {
+    const dayRef = doc(collection(eventRef, COLLECTIONS.SCHEDULE_DAYS));
+    batch.set(dayRef, { ...day.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    for (const meal of day.meals) {
+      const mealRef = doc(collection(dayRef, COLLECTIONS.MEAL_SELECTIONS));
+      batch.set(mealRef, { ...meal.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    }
+  }
+  // Rooms are already booked externally, so the requester records them here
+  // rather than waiting for staff to assign one.
+  for (const room of toRoomBookingDocs(form)) {
+    const roomRef = doc(collection(eventRef, COLLECTIONS.EVENT_ROOMS));
+    batch.set(roomRef, { ...room.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  }
+}
 
 /**
- * Create a catering event with its schedule days and nested meal selections.
+ * Queue deletes for every existing schedule day (with its meals) and room.
  *
- * The parent document is written first — the subcollection rules resolve the
- * owner via a get() on it, so it has to exist before the children are written.
- * Children then go in a single batch.
+ * Editing replaces the subcollections wholesale rather than diffing them: the
+ * rows carry only client-side localIds, so there is no stable key to match a
+ * form row back to an existing document. A full replace keeps the stored data
+ * an exact mirror of the form.
+ */
+async function clearChildren(batch, eventRef) {
+  const daysSnap = await getDocs(collection(eventRef, COLLECTIONS.SCHEDULE_DAYS));
+  for (const dayDoc of daysSnap.docs) {
+    const mealsSnap = await getDocs(collection(dayDoc.ref, COLLECTIONS.MEAL_SELECTIONS));
+    for (const mealDoc of mealsSnap.docs) batch.delete(mealDoc.ref);
+    batch.delete(dayDoc.ref);
+  }
+  const roomsSnap = await getDocs(collection(eventRef, COLLECTIONS.EVENT_ROOMS));
+  for (const roomDoc of roomsSnap.docs) batch.delete(roomDoc.ref);
+}
+
+/**
+ * Create a new catering event with its schedule days, meals, and rooms.
+ *
+ * `status` is 'submitted' for a finished request or 'draft' for a
+ * save-and-leave. The parent document is written first — the subcollection
+ * rules resolve the owner via a get() on it, so it has to exist before the
+ * children are written. Children then go in a single batch.
  *
  * Returns the new event ID.
  */
-export async function submitCateringRequest(form, user) {
-  const eventData = toEventDoc(form, user.uid);
-
+export async function createCateringEvent(form, user, { status = REQUESTER_CREATE_STATUS } = {}) {
   const eventRef = await addDoc(collection(db, COLLECTIONS.EVENTS), {
-    ...eventData,
+    ...toEventDoc(form, user.uid, { status }),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    submittedAt: serverTimestamp(),
+    ...(status === REQUEST_STATUS.SUBMITTED ? { submittedAt: serverTimestamp() } : {}),
   });
 
-  const days = toScheduleDayDocs(form);
-  const rooms = toRoomBookingDocs(form);
-
-  if (days.length || rooms.length) {
-    const batch = writeBatch(db);
-
-    for (const day of days) {
-      const dayRef = doc(collection(eventRef, COLLECTIONS.SCHEDULE_DAYS));
-      batch.set(dayRef, { ...day.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      for (const meal of day.meals) {
-        const mealRef = doc(collection(dayRef, COLLECTIONS.MEAL_SELECTIONS));
-        batch.set(mealRef, { ...meal.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      }
-    }
-
-    // Rooms are already booked externally, so the requester records them here
-    // rather than waiting for staff to assign one.
-    for (const room of rooms) {
-      const roomRef = doc(collection(eventRef, COLLECTIONS.EVENT_ROOMS));
-      batch.set(roomRef, { ...room.data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-    }
-
-    await batch.commit();
-  }
+  const batch = writeBatch(db);
+  writeChildren(batch, eventRef, form);
+  await batch.commit();
 
   return eventRef.id;
 }
 
 /**
- * Update an existing request. Only allowlisted fields are sent, so this is
- * rejected by the rules once staff have confirmed the event.
+ * Update an existing event and re-sync its subcollections. Only allowlisted
+ * fields are sent, so the rules accept this from the owner at any point —
+ * including after staff confirm the event. Set `submit` to move the owner's
+ * own draft to 'submitted' in the same write.
  */
-export async function updateCateringRequest(eventId, form, user) {
+export async function updateCateringEvent(eventId, form, user, { submit = false } = {}) {
+  const eventRef = doc(db, COLLECTIONS.EVENTS, eventId);
   const { createdBy: _createdBy, requestStatus: _rs, lifecycleStatus: _ls, ...editable } =
     toEventDoc(form, user.uid);
-  await updateDoc(doc(db, COLLECTIONS.EVENTS, eventId), {
+
+  // Note: submittedAt is not on the requester allowlist, so submitting a draft
+  // only moves requestStatus — the rules reject any other status-adjacent field.
+  await updateDoc(eventRef, {
     ...editable,
+    ...(submit ? { requestStatus: REQUEST_STATUS.SUBMITTED } : {}),
     updatedAt: serverTimestamp(),
   });
+
+  const batch = writeBatch(db);
+  await clearChildren(batch, eventRef);
+  writeChildren(batch, eventRef, form);
+  await batch.commit();
+}
+
+/**
+ * Load one event and its subcollections, shaped for the intake form so it can
+ * be reopened for editing.
+ */
+export async function fetchEventForEditing(event) {
+  const [days, rooms] = await Promise.all([
+    fetchScheduleDays(event.id),
+    fetchBookedRooms(event.id),
+  ]);
+  return {
+    id: event.id,
+    requestStatus: event.requestStatus,
+    form: eventToForm(event, days, rooms),
+  };
 }
 
 // ── Reading ──────────────────────────────────────────────────────────────────

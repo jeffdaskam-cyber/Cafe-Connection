@@ -11,12 +11,15 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../theme.js";
-import { MEAL_PERIODS, PAYMENT_METHOD } from "./schema.js";
+import { MEAL_PERIODS, PAYMENT_METHOD, REQUEST_STATUS } from "./schema.js";
 import {
-  STEPS, emptyIntakeForm, emptyMeal, emptyRoomBooking, emptyScheduleDay,
-  browserStorage, capacityPlaceholder, clearDraft, loadDraft, saveDraft, validateStep,
+  STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyRoomBooking, emptyScheduleDay,
+  browserStorage, capacityPlaceholder, clearDraft, loadDraft, saveDraft,
+  validateAll, validateStep,
 } from "./formState.js";
-import { fetchBuildings, fetchRooms, submitCateringRequest } from "./data.js";
+import {
+  createCateringEvent, fetchBuildings, fetchRooms, updateCateringEvent,
+} from "./data.js";
 import {
   Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
@@ -26,15 +29,30 @@ const MEAL_PERIOD_LABELS = {
   dinner: "Dinner", reception: "Reception", other: "Other",
 };
 
-export default function IntakeForm({ user, onSubmitted, onCancel }) {
+export default function IntakeForm({ user, existing = null, onDone, onCancel }) {
+  // Editing an already-submitted or confirmed event changes its content in
+  // place — the approval status is staff-owned and stays put. A brand-new
+  // request or a saved draft can still be submitted from here.
+  const editing = Boolean(existing);
+  const alreadySubmitted = [
+    REQUEST_STATUS.SUBMITTED, REQUEST_STATUS.CONFIRMED, REQUEST_STATUS.CANCELLED,
+  ].includes(existing?.requestStatus);
+  // localStorage only backs a brand-new request; an edit works against the
+  // stored event, so it must not read or clobber the new-request draft.
+  const storageEnabled = !editing;
+
   const [stepIndex, setStepIndex] = useState(0);
-  const [form, setForm] = useState(() => loadDraft(browserStorage()) ?? emptyIntakeForm(user));
+  const [form, setForm] = useState(() =>
+    existing?.form ?? loadDraft(browserStorage()) ?? emptyIntakeForm(user));
+  const [eventId, setEventId] = useState(existing?.id ?? null);
   const [showErrors, setShowErrors] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [restoredDraft] = useState(() => loadDraft(browserStorage()) !== null);
+  const [restoredDraft] = useState(() => storageEnabled && loadDraft(browserStorage()) !== null);
+  const busy = saving || submitting;
 
   const step = STEPS[stepIndex];
   const errors = useMemo(() => validateStep(step.id, form), [step.id, form]);
@@ -46,7 +64,9 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
       .catch((err) => console.error("[catering] reference data load failed:", err));
   }, []);
 
-  useEffect(() => { saveDraft(form, browserStorage()); }, [form]);
+  useEffect(() => {
+    if (storageEnabled) saveDraft(form, browserStorage());
+  }, [form, storageEnabled]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
 
@@ -78,25 +98,72 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
   }
 
   function handleCancel() {
-    // Discard the in-progress request, otherwise the next visit would reopen it.
-    clearDraft(browserStorage());
+    // Discard the in-progress new request, otherwise the next visit would
+    // reopen it. Editing an existing event has nothing to discard.
+    if (storageEnabled) clearDraft(browserStorage());
     onCancel?.();
   }
 
+  function failed(err, verb) {
+    console.error(`[catering] ${verb} failed:`, err);
+    setSubmitError(
+      err?.code === "permission-denied"
+        ? "The server rejected the change. Refresh and try again — if this continues, contact Event Services."
+        : err?.message || `Something went wrong ${verb} your request.`
+    );
+  }
+
+  // Persist the current form. `submit` finishes a request (or saves changes to
+  // one already submitted); otherwise it saves a draft. Returns the event ID.
+  async function persist({ submit }) {
+    if (eventId) {
+      await updateCateringEvent(eventId, form, user, { submit: submit && !alreadySubmitted });
+      return eventId;
+    }
+    const status = submit ? REQUEST_STATUS.SUBMITTED : REQUEST_STATUS.DRAFT;
+    const id = await createCateringEvent(form, user, { status });
+    setEventId(id);
+    return id;
+  }
+
+  // Save progress and leave — from any step, with only a light check so an
+  // in-progress request is never lost to a validation wall.
+  async function handleSaveAndLeave() {
+    if (!form.eventName.trim()) {
+      setShowErrors(true);
+      setSubmitError("Add an event name before saving.");
+      if (stepIndex !== 0) setStepIndex(0);
+      return;
+    }
+    setSaving(true);
+    setSubmitError("");
+    try {
+      const id = await persist({ submit: false });
+      if (storageEnabled) clearDraft(browserStorage());
+      onDone?.(id, alreadySubmitted ? "saved" : "draft");
+    } catch (err) {
+      failed(err, "saving");
+      setSaving(false);
+    }
+  }
+
   async function handleSubmit() {
+    const allErrors = validateAll(form);
+    if (Object.keys(allErrors).length) {
+      const firstBad = STEP_IDS.findIndex((id) => Object.keys(validateStep(id, form)).length);
+      if (firstBad >= 0) setStepIndex(firstBad);
+      setShowErrors(true);
+      setSubmitError(`Please fix the highlighted fields before ${alreadySubmitted ? "saving" : "submitting"}.`);
+      return;
+    }
     setSubmitting(true);
     setSubmitError("");
     try {
-      const eventId = await submitCateringRequest(form, user);
-      clearDraft(browserStorage());
-      onSubmitted?.(eventId);
+      const id = await persist({ submit: true });
+      if (storageEnabled) clearDraft(browserStorage());
+      onDone?.(id, alreadySubmitted ? "saved" : "submitted");
     } catch (err) {
-      console.error("[catering] submit failed:", err);
-      setSubmitError(
-        err?.code === "permission-denied"
-          ? "Your request was rejected by the server. Refresh and try again — if this continues, contact Event Services."
-          : err?.message || "Something went wrong submitting your request."
-      );
+      failed(err, alreadySubmitted ? "saving" : "submitting");
       setSubmitting(false);
     }
   }
@@ -119,6 +186,14 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
       {restoredDraft && stepIndex === 0 && (
         <Banner tone="info" title="Draft restored">
           We picked up where you left off. Nothing has been submitted yet.
+        </Banner>
+      )}
+
+      {editing && stepIndex === 0 && (
+        <Banner tone="info" title={alreadySubmitted ? "Editing your event" : "Continuing your draft"}>
+          {alreadySubmitted
+            ? "You can update this event at any time — even after Event Services confirm it. Save your changes when you're done."
+            : "Pick up where you left off. Save a draft to keep working later, or submit when you're ready."}
         </Banner>
       )}
 
@@ -543,20 +618,29 @@ export default function IntakeForm({ user, onSubmitted, onCancel }) {
         {submitError && <Banner tone="error" title="Submission failed">{submitError}</Banner>}
 
         <div style={{
-          display: "flex", justifyContent: "space-between", gap: 12,
+          display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
           marginTop: 28, paddingTop: 20, borderTop: `1px solid ${COLORS.BORDER}`,
         }}>
           <Button variant="ghost"
-            onClick={stepIndex === 0 ? handleCancel : goBack} disabled={submitting}>
+            onClick={stepIndex === 0 ? handleCancel : goBack} disabled={busy}>
             {stepIndex === 0 ? "Cancel" : "← Back"}
           </Button>
-          {step.id === "review" ? (
-            <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Submitting…" : "Submit request"}
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {/* Save progress and leave, available from any step. */}
+            <Button variant="ghost" onClick={handleSaveAndLeave} disabled={busy}>
+              {saving ? "Saving…" : alreadySubmitted ? "Save & leave" : "Save draft & leave"}
             </Button>
-          ) : (
-            <Button onClick={goNext}>Next →</Button>
-          )}
+            {step.id === "review" ? (
+              <Button onClick={handleSubmit} disabled={busy}>
+                {submitting
+                  ? (alreadySubmitted ? "Saving…" : "Submitting…")
+                  : (alreadySubmitted ? "Save changes" : "Submit request")}
+              </Button>
+            ) : (
+              <Button onClick={goNext} disabled={busy}>Next →</Button>
+            )}
+          </div>
         </div>
       </Card>
     </div>
@@ -638,7 +722,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
       <SectionTitle>Review your request</SectionTitle>
       <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
         Event Services will confirm details and assign the final room. You can
-        still edit this request until they confirm it.
+        keep editing this request at any time — even after it&apos;s confirmed.
       </p>
 
       <ReviewBlock title="Event basics" onEdit={() => onEdit(0)} rows={[
