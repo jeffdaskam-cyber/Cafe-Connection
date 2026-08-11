@@ -1,0 +1,79 @@
+# Deploys Firestore security rules, Firestore indexes, and Storage rules to the
+# live Firebase project whenever any of them change on `main`. This closes the
+# gap where the frontend auto-deploys but rules had to be pushed by hand, so a
+# rules change merged to `main` can silently lag behind the shipped app.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   FIREBASE_PROJECT_ID       Your production Firebase project id (the real id,
+#                             not the `your-firebase-project-id` placeholder in
+#                             .firebaserc).
+#   FIREBASE_SERVICE_ACCOUNT  The full JSON of a Google service account key with
+#                             permission to deploy rules (the "Firebase Rules
+#                             Admin" + "Cloud Datastore Index Admin" roles, or
+#                             "Firebase Admin"). Create one in the Google Cloud
+#                             console under IAM & Admin → Service Accounts → Keys,
+#                             then paste the downloaded JSON as the secret value.
+#
+# The job fails with a clear message if either secret is missing, so a
+# misconfigured deploy is loud rather than silent.
+
+name: Deploy Firestore & Storage rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - firestore.indexes.json
+      - storage.rules
+      - firebase.json
+      - .github/workflows/deploy-firestore-rules.yml
+  # Allow a manual run from the Actions tab (e.g. to redeploy without a change).
+  workflow_dispatch:
+
+# Never let two rule deploys race each other.
+concurrency:
+  group: firebase-rules-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the Firebase CLI
+        run: npm install -g firebase-tools@^15
+
+      - name: Write the service account credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::FIREBASE_SERVICE_ACCOUNT secret is not set. Add a Firebase service account JSON key as a repository secret."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+
+      - name: Deploy rules and indexes
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            echo "::error::FIREBASE_PROJECT_ID secret is not set. Add your production Firebase project id as a repository secret."
+            exit 1
+          fi
+          firebase deploy \
+            --only firestore:rules,firestore:indexes,storage \
+            --project "$FIREBASE_PROJECT_ID" \
+            --non-interactive
