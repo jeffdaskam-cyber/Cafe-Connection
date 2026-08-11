@@ -79,7 +79,9 @@ rather than requesting one.
 
 - [ ] A requester cannot see another planner's request
 - [ ] A requester has no Catering tab and cannot reach the staff console
-- [ ] A requester cannot edit a request once it is confirmed
+- [ ] A requester can save a draft, leave, and reopen it to keep working
+- [ ] A requester can still edit a request after it is confirmed, but cannot
+      change its approval status
 - [ ] Internal staff notes are never visible to the requester
 - [ ] A non-`@ucar.edu` account cannot sign in at all
 

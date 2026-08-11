@@ -28,12 +28,15 @@ export default function CateringApp() {
 function CateringShell() {
   const { user, loading, logout } = useAuth();
   const { role, roleLoading } = useRole();
-  // "list" | "new" — the form is a mode of the same page rather than a route,
+  // "list" | "form" — the form is a mode of the same page rather than a route,
   // matching the tab-state navigation the staff shell already uses.
-  // An unfinished request reopens itself, so a refresh mid-form lands the user
-  // back in their work rather than on an empty list.
-  const [view, setView] = useState(() => (hasDraft() ? "new" : "list"));
-  const [justSubmittedId, setJustSubmittedId] = useState(null);
+  // An unfinished new request reopens itself, so a refresh mid-form lands the
+  // user back in their work rather than on an empty list.
+  const [view, setView] = useState(() => (hasDraft() ? "form" : "list"));
+  // Set when reopening a saved event for editing; null for a brand-new request.
+  const [editing, setEditing] = useState(null);
+  // { id, kind } after a save/submit, to highlight and confirm on the list.
+  const [justDone, setJustDone] = useState(null);
 
   if (loading) return <Splash label="Loading…" />;
 
@@ -82,7 +85,7 @@ function CateringShell() {
         boxShadow: SHADOWS.SM,
       }}>
         <button
-          onClick={() => { setView("list"); setJustSubmittedId(null); }}
+          onClick={() => { setView("list"); setEditing(null); setJustDone(null); }}
           style={{
             background: "none", border: "none", cursor: "pointer", padding: "12px 0",
             fontFamily: FONT.FAMILY, fontWeight: 800, fontSize: 20,
@@ -116,17 +119,23 @@ function CateringShell() {
           </Banner>
         )}
 
-        {view === "new" ? (
+        {view === "form" ? (
           <IntakeForm
             user={user}
-            onCancel={() => setView("list")}
-            onSubmitted={(eventId) => { setJustSubmittedId(eventId); setView("list"); }}
+            existing={editing}
+            onCancel={() => { setEditing(null); setView("list"); }}
+            onDone={(eventId, kind) => {
+              setJustDone(eventId ? { id: eventId, kind } : null);
+              setEditing(null);
+              setView("list");
+            }}
           />
         ) : (
           <MyRequests
             user={user}
-            highlightId={justSubmittedId}
-            onNewRequest={() => { setJustSubmittedId(null); setView("new"); }}
+            justDone={justDone}
+            onNewRequest={() => { setJustDone(null); setEditing(null); setView("form"); }}
+            onEdit={(loaded) => { setJustDone(null); setEditing(loaded); setView("form"); }}
           />
         )}
       </main>

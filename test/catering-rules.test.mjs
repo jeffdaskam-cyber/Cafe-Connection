@@ -151,6 +151,13 @@ test("a requester cannot create an event owned by someone else", suiteOpts, asyn
   );
 });
 
+test("a requester can create their own event as a draft", suiteOpts, async () => {
+  await assertSucceeds(
+    setDoc(doc(ctxFor(REQUESTER), "catering_events", "draft1"),
+      validEvent(REQUESTER.uid, { requestStatus: "draft" }))
+  );
+});
+
 test("a requester cannot self-confirm on create", suiteOpts, async () => {
   await assertFails(
     setDoc(doc(ctxFor(REQUESTER), "catering_events", "new3"),
@@ -198,19 +205,47 @@ test("a requester cannot advance their own request status", suiteOpts, async () 
   );
 });
 
+test("a requester can submit their own draft", suiteOpts, async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "catering_events", EVENT_ID),
+      validEvent(REQUESTER.uid, { requestStatus: "draft" }));
+  });
+  await assertSucceeds(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), {
+      requestStatus: "submitted",
+      plannerName: "Ready To Go",
+    })
+  );
+});
+
+test("a requester cannot jump a draft straight to confirmed", suiteOpts, async () => {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), "catering_events", EVENT_ID),
+      validEvent(REQUESTER.uid, { requestStatus: "draft" }));
+  });
+  await assertFails(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { requestStatus: "confirmed" })
+  );
+});
+
 test("a requester cannot reassign ownership", suiteOpts, async () => {
   await assertFails(
     updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { createdBy: OTHER.uid })
   );
 });
 
-test("a requester cannot edit once staff have confirmed", suiteOpts, async () => {
+test("a requester can edit content after staff confirm, but not move the status", suiteOpts, async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), "catering_events", EVENT_ID),
       validEvent(REQUESTER.uid, { requestStatus: "confirmed" }));
   });
+  // The event stays editable after confirmation.
+  await assertSucceeds(
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { plannerName: "Still Editable" })
+  );
+  // But the requester still cannot roll the approval status back or forward.
   await assertFails(
-    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { plannerName: "Too Late" })
+    updateDoc(doc(ctxFor(REQUESTER), "catering_events", EVENT_ID), { requestStatus: "draft" })
   );
 });
 

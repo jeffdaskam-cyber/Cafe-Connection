@@ -130,9 +130,23 @@ service cloud.firestore {
       return !request.resource.data.keys().hasAny(['estimatedRevenue', 'actualRevenue']);
     }
 
-    // A requester may only edit while the request is still theirs to change.
-    function isEditableByRequester() {
-      return resource.data.requestStatus in ['draft', 'submitted'];
+    // A requester may edit their own event's content at any point in its life —
+    // including after staff confirm it — but the approval and lifecycle statuses
+    // stay staff-owned and must not move on a content edit.
+    function requesterContentEdit() {
+      return onlyRequesterFieldsChanged() &&
+             request.resource.data.requestStatus == resource.data.requestStatus &&
+             request.resource.data.lifecycleStatus == resource.data.lifecycleStatus;
+    }
+
+    // The one status change a requester may make: submitting their own draft
+    // (draft -> submitted), optionally alongside content edits in the same write.
+    function requesterSubmitsDraft() {
+      return resource.data.requestStatus == 'draft' &&
+             request.resource.data.requestStatus == 'submitted' &&
+             request.resource.data.lifecycleStatus == resource.data.lifecycleStatus &&
+             request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(requesterEditableFields().concat(['requestStatus']));
     }
 
     function ownsCateringEvent(eventId) {
@@ -354,23 +368,25 @@ service cloud.firestore {
     // Catering Companion (build plan §3, reconciled in docs/catering/).
     // Read:   own events, or manager-and-above
     // Create: requester creates their own, as requestStatus 'submitted'
-    // Update: requester may change only allowlisted fields, and only before
-    //         staff confirm; manager-and-above may change anything
+    // Update: requester may change only allowlisted fields, at any point in the
+    //         event's life (a confirmed event stays editable), and may submit
+    //         their own draft; manager-and-above may change anything
     // Delete: manager-and-above only
     match /catering_events/{eventId} {
       allow read: if cateringAllowed() &&
                      (resource.data.createdBy == request.auth.uid || isCateringStaff());
 
+      // A requester may create their own event as a draft (save and leave) or
+      // submit it outright.
       allow create: if cateringAllowed() &&
                        request.resource.data.createdBy == request.auth.uid &&
-                       request.resource.data.requestStatus == 'submitted' &&
+                       request.resource.data.requestStatus in ['draft', 'submitted'] &&
                        request.resource.data.lifecycleStatus == 'open' &&
                        noRevenueFields();
 
       allow update: if cateringAllowed() && (
                        (resource.data.createdBy == request.auth.uid &&
-                        isEditableByRequester() &&
-                        onlyRequesterFieldsChanged() &&
+                        (requesterContentEdit() || requesterSubmitsDraft()) &&
                         noRevenueFields())
                        || isCateringStaff()
                      );

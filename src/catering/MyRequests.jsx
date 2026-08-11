@@ -11,17 +11,33 @@ import { REQUEST_STATUS } from "./schema.js";
 import {
   fetchBookedRooms, fetchScheduleDays, subscribeMyRequests,
 } from "./data.js";
+import { eventToForm } from "./formState.js";
 import { Banner, Button, Card, EmptyState, SectionTitle, StatusBadge } from "./ui.jsx";
+
+const JUST_DONE_BANNER = {
+  submitted: {
+    tone: "success", title: "Request submitted",
+    body: "Event Services have received your request. You can keep editing it any time — even after they confirm it.",
+  },
+  draft: {
+    tone: "info", title: "Draft saved",
+    body: "Your progress is saved. Open it from the list to keep working and submit when you're ready.",
+  },
+  saved: {
+    tone: "success", title: "Changes saved",
+    body: "Your updates have been saved to the event.",
+  },
+};
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
   dinner: "Dinner", reception: "Reception", other: "Other",
 };
 
-export default function MyRequests({ user, onNewRequest, highlightId }) {
+export default function MyRequests({ user, onNewRequest, onEdit, justDone }) {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState("");
-  const [expandedId, setExpandedId] = useState(highlightId || null);
+  const [expandedId, setExpandedId] = useState(justDone?.id || null);
 
   useEffect(() => {
     const unsub = subscribeMyRequests(
@@ -62,16 +78,15 @@ export default function MyRequests({ user, onNewRequest, highlightId }) {
         <Button onClick={onNewRequest}>+ New request</Button>
       </div>
 
-      {highlightId && (
-        <Banner tone="success" title="Request submitted">
-          Event Services have received your request. You&apos;ll be notified as it moves along,
-          and you can keep editing it until they confirm it.
+      {justDone && JUST_DONE_BANNER[justDone.kind] && (
+        <Banner tone={JUST_DONE_BANNER[justDone.kind].tone} title={JUST_DONE_BANNER[justDone.kind].title}>
+          {JUST_DONE_BANNER[justDone.kind].body}
         </Banner>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {requests.map((req) => (
-          <RequestRow key={req.id} request={req}
+          <RequestRow key={req.id} request={req} onEdit={onEdit}
             expanded={expandedId === req.id}
             onToggle={() => setExpandedId(expandedId === req.id ? null : req.id)} />
         ))}
@@ -80,9 +95,7 @@ export default function MyRequests({ user, onNewRequest, highlightId }) {
   );
 }
 
-function RequestRow({ request, expanded, onToggle }) {
-  const editable = [REQUEST_STATUS.DRAFT, REQUEST_STATUS.SUBMITTED].includes(request.requestStatus);
-
+function RequestRow({ request, expanded, onToggle, onEdit }) {
   return (
     <Card style={{ padding: 0, overflow: "hidden" }}>
       <button onClick={onToggle} aria-expanded={expanded} style={{
@@ -112,12 +125,12 @@ function RequestRow({ request, expanded, onToggle }) {
         </div>
       </button>
 
-      {expanded && <RequestDetail request={request} editable={editable} />}
+      {expanded && <RequestDetail request={request} onEdit={onEdit} />}
     </Card>
   );
 }
 
-function RequestDetail({ request, editable }) {
+function RequestDetail({ request, onEdit }) {
   const [days, setDays] = useState(null);
   const [bookedRooms, setBookedRooms] = useState([]);
 
@@ -129,14 +142,25 @@ function RequestDetail({ request, editable }) {
     return () => { live = false; };
   }, [request.id]);
 
+  const isDraft = request.requestStatus === REQUEST_STATUS.DRAFT;
+  // The detail load already has everything the form needs, so editing reuses it
+  // rather than re-fetching. Disabled until the schedule days have loaded.
+  const openEditor = () => onEdit?.({
+    id: request.id,
+    requestStatus: request.requestStatus,
+    form: eventToForm(request, days || [], bookedRooms),
+  });
+
   return (
     <div style={{ padding: "0 20px 20px", borderTop: `1px solid ${COLORS.BORDER}` }}>
-      {!editable && (
-        <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED, padding: "14px 0 0" }}>
-          This request has been confirmed by Event Services and can no longer be
-          edited here. Contact them directly with any changes.
-        </div>
-      )}
+      <div style={{
+        display: "flex", justifyContent: "flex-end", alignItems: "center",
+        gap: 12, padding: "14px 0 0",
+      }}>
+        <Button onClick={openEditor} disabled={days === null}>
+          {isDraft ? "Continue editing" : "Edit event"}
+        </Button>
+      </div>
 
       <DetailSection title="Contacts" rows={[
         ["Planner", [request.plannerName, request.plannerEmail].filter(Boolean).join(" · ")],

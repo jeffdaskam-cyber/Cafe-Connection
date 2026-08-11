@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   STEP_IDS, capacityPlaceholder, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal,
-  emptyRoomBooking,
+  emptyRoomBooking, eventToForm,
   emptyScheduleDay, isStepValid, loadDraft, parseProjectIdsText, primaryRoomBooking,
   saveDraft, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
 } from "../src/catering/formState.js";
@@ -186,6 +186,40 @@ test("toScheduleDayDocs nests meals under their day", () => {
   assert.equal(days[0].meals.length, 1);
   assert.equal(days[0].meals[0].data.mealPeriod, "lunch");
   assert.equal(days[0].meals[0].data.headcount, 60);
+});
+
+test("eventToForm rebuilds editable form state from a saved event", () => {
+  const form = completeForm();
+  const doc = toEventDoc(form, USER.uid);
+  const days = toScheduleDayDocs(form).map((d) => ({
+    ...d.data, meals: d.meals.map((m) => m.data),
+  }));
+  const rooms = toRoomBookingDocs(form).map((r) => r.data);
+
+  const rebuilt = eventToForm(doc, days, rooms);
+
+  // Numbers come back as strings for the inputs; project IDs re-join to text.
+  assert.equal(rebuilt.eventName, "CESM Working Group");
+  assert.equal(rebuilt.expectedAttendance, "60");
+  assert.equal(rebuilt.projectIdsText, "PRJ000000001, PRJ000000002");
+  assert.equal(rebuilt.scheduleDays.length, 1);
+  assert.deepEqual(rebuilt.scheduleDays[0].cateringServicesNeeded, ["coffee_break", "lunch"]);
+  assert.equal(rebuilt.scheduleDays[0].meals[0].mealPeriod, "lunch");
+  assert.equal(rebuilt.scheduleDays[0].meals[0].headcount, "60");
+  assert.equal(rebuilt.rooms[0].roomId, "CG1-2122");
+  assert.equal(rebuilt.rooms[0].isPrimary, true);
+
+  // A saved event round-trips: re-mapping the rebuilt form reproduces the doc.
+  assert.deepEqual(toEventDoc(rebuilt, USER.uid), doc);
+});
+
+test("eventToForm falls back to one empty day and room for a bare event", () => {
+  const rebuilt = eventToForm({ eventName: "Sparse" }, [], []);
+  assert.equal(rebuilt.scheduleDays.length, 1);
+  assert.equal(rebuilt.rooms.length, 1);
+  assert.equal(rebuilt.rooms[0].isPrimary, true);
+  assert.equal(rebuilt.organization, "UCAR");
+  assert.equal(rebuilt.needsCatering, true);
 });
 
 test("parseProjectIdsText and deriveFlag handle edge input", () => {

@@ -273,12 +273,12 @@ export function primaryRoomBooking(form) {
   return rooms.find((r) => r.isPrimary) ?? rooms[0];
 }
 
-export function toEventDoc(form, uid) {
+export function toEventDoc(form, uid, { status = REQUESTER_CREATE_STATUS } = {}) {
   const primary = primaryRoomBooking(form);
   const buildingId = trimmed(primary?.buildingId);
   const doc = {
     createdBy: uid,
-    requestStatus:   REQUESTER_CREATE_STATUS,
+    requestStatus:   status,
     lifecycleStatus: LIFECYCLE_STATUS.OPEN,
 
     eventName:    trimmed(form.eventName),
@@ -380,6 +380,89 @@ export function toRoomBookingDocs(form) {
       notes:             trimmed(room.notes),
     },
   }));
+}
+
+// ── Mapping from Firestore back into form state ───────────────────────────────
+// The inverse of toEventDoc / toScheduleDayDocs / toRoomBookingDocs, so a saved
+// event (a draft, or one already submitted or confirmed) can be reopened and
+// edited. Numbers become strings because the inputs are text/number controls,
+// and fresh localIds are minted for every repeatable row.
+
+const str = (v) => (v === null || v === undefined ? "" : String(v));
+const numStr = (v) => (v === null || v === undefined || v === "" ? "" : String(v));
+
+export function eventToForm(event = {}, days = [], rooms = []) {
+  const scheduleDays = (days || []).map((d) => ({
+    localId: nextLocalId("day"),
+    date:      str(d.date),
+    startTime: str(d.startTime),
+    endTime:   str(d.endTime),
+    cateringServicesNeeded: [...(d.cateringServicesNeeded || [])],
+    notes:     str(d.notes),
+    meals: (d.meals || []).map((m) => ({
+      localId: nextLocalId("meal"),
+      mealPeriod:    str(m.mealPeriod),
+      time:          str(m.time),
+      menuSelection: str(m.menuSelection),
+      location:      str(m.location),
+      headcount:     numStr(m.headcount),
+    })),
+  }));
+
+  const roomRows = (rooms || []).map((r) => ({
+    localId: nextLocalId("room"),
+    buildingId: str(r.buildingId),
+    roomId:     str(r.roomId),
+    setupType:  str(r.setupType),
+    startTime:  str(r.startTime),
+    endTime:    str(r.endTime),
+    expectedHeadcount: numStr(r.expectedHeadcount),
+    isPrimary:  Boolean(r.isPrimary),
+    notes:      str(r.notes),
+  }));
+  // Exactly one booking must be primary, matching the intake form's invariant.
+  if (roomRows.length && !roomRows.some((r) => r.isPrimary)) roomRows[0].isPrimary = true;
+
+  return {
+    eventName:    str(event.eventName),
+    startDate:    str(event.startDate),
+    endDate:      str(event.endDate),
+    startTime:    str(event.startTime),
+    organization: str(event.organization) || "UCAR",
+    lcpo:         str(event.lcpo),
+    expectedAttendance: numStr(event.expectedAttendance),
+
+    plannerName:           str(event.plannerName),
+    plannerEmail:          str(event.plannerEmail),
+    plannerPhone:          str(event.plannerPhone),
+    onsiteContactName:     str(event.onsiteContactName),
+    onsiteContactEmail:    str(event.onsiteContactEmail),
+    onsiteContactPhone:    str(event.onsiteContactPhone),
+    secondaryContactName:  str(event.secondaryContactName),
+    secondaryContactEmail: str(event.secondaryContactEmail),
+    secondaryContactPhone: str(event.secondaryContactPhone),
+
+    scheduleDays: scheduleDays.length ? scheduleDays : [emptyScheduleDay()],
+    rooms:        roomRows.length ? roomRows : [emptyRoomBooking(true)],
+
+    setupNotes:      str(event.setupNotes),
+    needsCatering:   event.needsCatering === undefined ? true : Boolean(event.needsCatering),
+    needsAlcohol:    Boolean(event.needsAlcohol),
+    deliveryMethod:  str(event.deliveryMethod),
+    lunchOnOwnCount: str(event.lunchOnOwnCount),
+    airwallClosureTimeline: str(event.airwallClosureTimeline),
+    agendaType:      str(event.agendaType),
+    agendaLink:      str(event.agendaLink),
+    specialRequests: str(event.specialRequests),
+    securityNotes:       str(event.securityNotes),
+    custodialNotes:      str(event.custodialNotes),
+    accessDoorsNotes:    str(event.accessDoorsNotes),
+    sustainabilityNotes: str(event.sustainabilityNotes),
+
+    paymentMethod: str(event.paymentMethod),
+    projectIdsText: (event.projectIds || []).join(", "),
+    paymentNotes:  str(event.paymentNotes),
+  };
 }
 
 // ── Draft persistence ────────────────────────────────────────────────────────
