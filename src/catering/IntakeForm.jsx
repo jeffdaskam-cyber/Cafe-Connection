@@ -42,6 +42,11 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const storageEnabled = !editing;
 
   const [stepIndex, setStepIndex] = useState(0);
+  // The furthest step the planner has advanced to, so already-visited tabs stay
+  // clickable — you can jump back to review a tab and then straight forward to
+  // where you left off. An existing event is fully filled in, so every tab is
+  // reachable from the start.
+  const [maxStepReached, setMaxStepReached] = useState(editing ? STEPS.length - 1 : 0);
   const [form, setForm] = useState(() =>
     existing?.form ?? loadDraft(browserStorage()) ?? emptyIntakeForm(user));
   const [eventId, setEventId] = useState(existing?.id ?? null);
@@ -87,13 +92,25 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   function goNext() {
     if (Object.keys(errors).length) { setShowErrors(true); return; }
     setShowErrors(false);
-    setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
+    const next = Math.min(stepIndex + 1, STEPS.length - 1);
+    setStepIndex(next);
+    setMaxStepReached((m) => Math.max(m, next));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goBack() {
     setShowErrors(false);
     setStepIndex((i) => Math.max(i - 1, 0));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Jump straight to an already-reached tab from the step bar. Navigation
+  // between visited tabs is free — no validation wall — so a planner can revisit
+  // and tweak an earlier tab, then click back to where they were.
+  function goToStep(index) {
+    if (index === stepIndex || index > maxStepReached) return;
+    setShowErrors(false);
+    setStepIndex(index);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -181,7 +198,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
   return (
     <div>
-      <StepBar stepIndex={stepIndex} />
+      <StepBar stepIndex={stepIndex} maxStepReached={maxStepReached} onStepClick={goToStep} />
 
       {restoredDraft && stepIndex === 0 && (
         <Banner tone="info" title="Draft restored">
@@ -612,7 +629,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
         )}
 
         {step.id === "review" && (
-          <ReviewStep form={form} buildings={buildings} rooms={rooms} onEdit={setStepIndex} />
+          <ReviewStep form={form} buildings={buildings} rooms={rooms} onEdit={goToStep} />
         )}
 
         {submitError && <Banner tone="error" title="Submission failed">{submitError}</Banner>}
@@ -687,24 +704,36 @@ function RepeatRow({ title, onRemove, children }) {
   );
 }
 
-function StepBar({ stepIndex }) {
+function StepBar({ stepIndex, maxStepReached, onStepClick }) {
   return (
     <ol style={{ display: "flex", gap: 8, listStyle: "none", marginBottom: 20, flexWrap: "wrap" }}>
       {STEPS.map((s, i) => {
-        const state = i === stepIndex ? "current" : i < stepIndex ? "done" : "todo";
+        // A visited tab (current, or anything up to the furthest reached) reads
+        // as "done"; tabs past that point are still to come.
+        const state = i === stepIndex ? "current"
+          : i <= maxStepReached ? "done" : "todo";
         const color = state === "current" ? COLORS.AQUA
           : state === "done" ? COLORS.SUCCESS : COLORS.TEXT_DISABLED;
+        // Any reached tab other than the current one can be clicked to jump to.
+        const clickable = i !== stepIndex && i <= maxStepReached;
         return (
-          <li key={s.id} aria-current={state === "current" ? "step" : undefined}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              fontSize: 11, fontWeight: FONT.WEIGHT_BOLD, color,
-              border: `1px solid ${color}55`, borderRadius: RADIUS.PILL,
-              padding: "5px 12px",
-              background: state === "current" ? `${COLORS.AQUA}10` : "transparent",
-            }}>
-            <span>{state === "done" ? "✓" : i + 1}</span>
-            {s.label}
+          <li key={s.id} aria-current={state === "current" ? "step" : undefined}>
+            <button type="button"
+              onClick={clickable ? () => onStepClick(i) : undefined}
+              disabled={!clickable}
+              aria-label={`Step ${i + 1}: ${s.label}`}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 11, fontWeight: FONT.WEIGHT_BOLD, color,
+                border: `1px solid ${color}55`, borderRadius: RADIUS.PILL,
+                padding: "5px 12px",
+                background: state === "current" ? `${COLORS.AQUA}10` : "transparent",
+                fontFamily: FONT.FAMILY,
+                cursor: clickable ? "pointer" : "default",
+              }}>
+              <span>{state === "done" ? "✓" : i + 1}</span>
+              {s.label}
+            </button>
           </li>
         );
       })}
