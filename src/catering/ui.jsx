@@ -95,13 +95,14 @@ export function Select({ invalid, children, ...props }) {
   );
 }
 
-// 15-minute increments across a full day, "HH:MM" (24h) values with
-// "H:MM AM/PM" labels. Native <input type="time" step> only snaps the spinner
-// and still lets you type any minute, so catering times use this dropdown to
-// truly constrain selection to quarter-hour marks.
+// 15-minute increments from 7:00 AM through 9:00 PM inclusive (no 24-hour
+// service), "HH:MM" (24h) values with "H:MM AM/PM" labels. Native
+// <input type="time" step> only snaps the spinner and still lets you type any
+// minute, so catering times use this dropdown to truly constrain selection to
+// quarter-hour marks within the offered range.
 const TIME_OPTIONS = (() => {
   const opts = [];
-  for (let mins = 0; mins < 24 * 60; mins += 15) {
+  for (let mins = 7 * 60; mins <= 21 * 60; mins += 15) {
     const h24 = Math.floor(mins / 60);
     const m = mins % 60;
     const value = `${String(h24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
