@@ -550,7 +550,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                       <input type="radio" name="primaryRoom" checked={Boolean(room.isPrimary)}
                         onChange={() => setPrimaryRoom(i)}
                         style={{ accentColor: COLORS.AQUA, cursor: "pointer" }} />
-                      Primary space for this event
+                      Room Reserved in Google Calendar
                     </label>
                   )}
                 </RepeatRow>
@@ -863,6 +863,18 @@ function describeProjectIds(form) {
   }).join(", ");
 }
 
+/**
+ * Formats a `YYYY-MM-DD` schedule date as "Weekday M/D" (e.g. "Tuesday 8/25").
+ * Parses the parts directly so the label doesn't drift a day across time zones.
+ */
+function formatMealDayLabel(dateStr) {
+  if (!dateStr) return "—";
+  const [y, mo, dy] = dateStr.split("-").map(Number);
+  if (!y || !mo || !dy) return dateStr;
+  const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
+  return `${weekday} ${mo}/${dy}`;
+}
+
 function ReviewStep({ form, buildings, rooms, onEdit }) {
   const totalMeals = form.scheduleDays.reduce((n, d) => n + (d.meals?.length || 0), 0);
   const bookedRooms = (form.rooms || []).filter((r) => r.roomId);
@@ -892,10 +904,14 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         ])} />
 
       <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(3)}
-        rows={form.scheduleDays.flatMap((d, i) =>
+        rows={form.scheduleDays.flatMap((d) =>
           (d.meals || []).map((m) => [
-            `Day ${i + 1} · ${MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—"}`,
-            [m.time, m.menuSelection].filter(Boolean).join(" · ") || "—",
+            formatMealDayLabel(d.date),
+            [
+              [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
+              m.location,
+            ].filter(Boolean).join(" - ")
+              + (m.menuSelection ? ` · ${m.menuSelection}` : ""),
           ])
         )} />
 
