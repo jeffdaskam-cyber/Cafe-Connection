@@ -17,9 +17,9 @@ import {
 
 export const STEPS = [
   { id: "basics",    label: "Event basics" },
+  { id: "rooms",     label: "Rooms"        },
   { id: "schedule",  label: "Schedule"     },
   { id: "meals",     label: "Meals"        },
-  { id: "rooms",     label: "Rooms"        },
   { id: "logistics", label: "Logistics"    },
   { id: "review",    label: "Review"       },
 ];
