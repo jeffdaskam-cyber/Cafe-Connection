@@ -203,12 +203,6 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
     rooms: f.rooms.map((r, i) => (i === index ? { ...r, ...patch } : r)),
   }));
 
-  // Exactly one booking is the primary space.
-  const setPrimaryRoom = (index) => setForm((f) => ({
-    ...f,
-    rooms: f.rooms.map((r, i) => ({ ...r, isPrimary: i === index })),
-  }));
-
   return (
     <div>
       <StepBar stepIndex={stepIndex} maxStepReached={maxStepReached} onStepClick={goToStep} />
@@ -542,17 +536,15 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                       onChange={(e) => updateRoom(i, { notes: e.target.value })} />
                   </Field>
 
-                  {form.rooms.length > 1 && (
-                    <label style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      fontSize: 12, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
-                    }}>
-                      <input type="radio" name="primaryRoom" checked={Boolean(room.isPrimary)}
-                        onChange={() => setPrimaryRoom(i)}
-                        style={{ accentColor: COLORS.AQUA, cursor: "pointer" }} />
-                      Room Reserved in Google Calendar
-                    </label>
-                  )}
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    fontSize: 12, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
+                  }}>
+                    <input type="checkbox" checked={Boolean(room.calendarReserved)}
+                      onChange={(e) => updateRoom(i, { calendarReserved: e.target.checked })}
+                      style={{ accentColor: COLORS.AQUA, cursor: "pointer" }} />
+                    Room Reserved in Google Calendar
+                  </label>
                 </RepeatRow>
               );
             })}

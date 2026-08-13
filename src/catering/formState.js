@@ -85,6 +85,7 @@ export function emptyRoomBooking(isPrimary = false) {
     endTime: "",
     expectedHeadcount: "",
     isPrimary,
+    calendarReserved: false,
     notes: "",
   };
 }
@@ -429,6 +430,7 @@ export function toRoomBookingDocs(form) {
       endTime:           trimmed(room.endTime),
       expectedHeadcount: numberOrNull(room.expectedHeadcount),
       isPrimary:         room.localId === primary?.localId,
+      calendarReserved:  Boolean(room.calendarReserved),
       notes:             trimmed(room.notes),
     },
   }));
@@ -470,6 +472,7 @@ export function eventToForm(event = {}, days = [], rooms = []) {
     endTime:    str(r.endTime),
     expectedHeadcount: numStr(r.expectedHeadcount),
     isPrimary:  Boolean(r.isPrimary),
+    calendarReserved: Boolean(r.calendarReserved),
     notes:      str(r.notes),
   }));
   // Exactly one booking must be primary, matching the intake form's invariant.
