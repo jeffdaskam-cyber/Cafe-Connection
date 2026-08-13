@@ -464,8 +464,8 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
             <SectionTitle>Booked rooms</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
               Add the room (or rooms) you have already reserved for this event.
-              Rooms are booked through the room calendar system — recording them
-              here tells Event Services where to deliver and set up.
+              Rooms are booked through the Google calendar system. Please ensure
+              you have your meeting space reserved before proceeding with this form.
             </p>
 
             {visibleErrors.rooms && <Banner tone="error">{visibleErrors.rooms}</Banner>}
