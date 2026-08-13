@@ -79,6 +79,16 @@ export const MEAL_PERIODS = [
   "other",
 ];
 
+// ── Organizations ────────────────────────────────────────────────────────────
+// The parent organization requesting the event. "External" is reserved for
+// Event Services staff use only.
+export const ORGANIZATIONS = [
+  "NCAR",
+  "UCAR",
+  "UCP",
+  "External (Event Services use only)",
+];
+
 // ── Campuses ─────────────────────────────────────────────────────────────────
 // Must match the values the existing firestore.rules isValidCampus() accepts,
 // because Phase 4 rolls catering revenue into event_revenue.

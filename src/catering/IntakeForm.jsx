@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../theme.js";
 import {
-  MEAL_PERIODS, PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
+  MEAL_PERIODS, ORGANIZATIONS, PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
 } from "./schema.js";
 import {
   STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
@@ -255,7 +255,12 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
             <Row>
               <Field label="Organization">
-                <Input value={form.organization} onChange={(e) => set({ organization: e.target.value })} />
+                <Select value={form.organization} onChange={(e) => set({ organization: e.target.value })}>
+                  <option value="">Choose…</option>
+                  {ORGANIZATIONS.map((org) => (
+                    <option key={org} value={org}>{org}</option>
+                  ))}
+                </Select>
               </Field>
               <Field label="Lab / Program">
                 <Input value={form.lcpo} onChange={(e) => set({ lcpo: e.target.value })}
