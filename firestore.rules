@@ -122,7 +122,7 @@ service cloud.firestore {
         'accessDoorsNotes', 'needsAccessDoors',
         'sustainabilityNotes', 'needsSustainability',
         'buildingId', 'primaryRoomId', 'roomIds', 'campus',
-        'paymentMethod', 'projectIds', 'paymentNotes',
+        'paymentMethod', 'projectIds', 'projectAllocations', 'paymentNotes',
         'updatedAt'
       ];
     }

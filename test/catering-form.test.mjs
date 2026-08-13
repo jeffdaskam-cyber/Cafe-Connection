@@ -24,7 +24,11 @@ function completeForm() {
     expectedHeadcount: "60",
   }];
   form.paymentMethod = "project_id";
-  form.projectIdsText = "PRJ000000001, PRJ000000002";
+  form.projectIdRows = [
+    { localId: "pid_1", value: "PRJ000000001", amount: "50" },
+    { localId: "pid_2", value: "PRJ000000002", amount: "50" },
+  ];
+  form.projectAllocationUnit = "%";
   form.securityNotes = "Guard 8am-5pm";
   form.scheduleDays = [{
     ...emptyScheduleDay(),
@@ -103,11 +107,41 @@ test("a meal must have a recognized period", () => {
 
 test("choosing Project ID payment requires at least one project ID", () => {
   const form = completeForm();
-  form.projectIdsText = "";
-  assert.ok(validateStep("logistics", form).projectIdsText);
+  form.projectIdRows = [{ localId: "pid_1", value: "", amount: "" }];
+  assert.ok(validateStep("logistics", form).projectIdRows);
 
   form.paymentMethod = "ach_external";
-  assert.equal(validateStep("logistics", form).projectIdsText, undefined);
+  assert.equal(validateStep("logistics", form).projectIdRows, undefined);
+});
+
+test("a percentage split must add up to 100%", () => {
+  const form = completeForm();
+  form.projectAllocationUnit = "%";
+  form.projectIdRows = [
+    { localId: "pid_1", value: "PRJ000000001", amount: "60" },
+    { localId: "pid_2", value: "PRJ000000002", amount: "30" },
+  ];
+  assert.ok(validateStep("logistics", form).projectAllocations, "90% is short of 100%");
+
+  form.projectIdRows[1].amount = "40";
+  assert.equal(validateStep("logistics", form).projectAllocations, undefined, "now totals 100%");
+});
+
+test("a dollar split is captured without a total check", () => {
+  const form = completeForm();
+  form.projectAllocationUnit = "$";
+  form.projectIdRows = [
+    { localId: "pid_1", value: "PRJ000000001", amount: "500" },
+    { localId: "pid_2", value: "PRJ000000002", amount: "250" },
+  ];
+  assert.equal(validateStep("logistics", form).projectAllocations, undefined);
+});
+
+test("a single project ID needs no allocation", () => {
+  const form = completeForm();
+  form.projectIdRows = [{ localId: "pid_1", value: "PRJ000000001", amount: "" }];
+  assert.equal(validateStep("logistics", form).projectAllocations, undefined);
+  assert.equal(validateStep("logistics", form).projectIdRows, undefined);
 });
 
 test("an agenda link must be a full URL", () => {
@@ -165,6 +199,20 @@ test("toEventDoc splits project IDs and derives service flags", () => {
   assert.equal(doc.needsCustodial, false);
 });
 
+test("toEventDoc records a per-project split only when several projects share the charge", () => {
+  const doc = toEventDoc(completeForm(), USER.uid);
+  assert.deepEqual(doc.projectAllocations, [
+    { projectId: "PRJ000000001", unit: "%", amount: 50 },
+    { projectId: "PRJ000000002", unit: "%", amount: 50 },
+  ]);
+
+  const single = completeForm();
+  single.projectIdRows = [{ localId: "pid_1", value: "PRJ000000001", amount: "" }];
+  assert.deepEqual(toEventDoc(single, USER.uid).projectIds, ["PRJ000000001"]);
+  assert.deepEqual(toEventDoc(single, USER.uid).projectAllocations, [],
+    "a single project ID carries no split");
+});
+
 test("toEventDoc defaults a single-day event's end date to its start date", () => {
   const form = completeForm();
   form.endDate = "";
@@ -198,10 +246,14 @@ test("eventToForm rebuilds editable form state from a saved event", () => {
 
   const rebuilt = eventToForm(doc, days, rooms);
 
-  // Numbers come back as strings for the inputs; project IDs re-join to text.
+  // Numbers come back as strings for the inputs; project IDs rebuild into rows.
   assert.equal(rebuilt.eventName, "CESM Working Group");
   assert.equal(rebuilt.expectedAttendance, "60");
-  assert.equal(rebuilt.projectIdsText, "PRJ000000001, PRJ000000002");
+  assert.equal(rebuilt.projectAllocationUnit, "%");
+  assert.deepEqual(rebuilt.projectIdRows.map((r) => [r.value, r.amount]), [
+    ["PRJ000000001", "50"],
+    ["PRJ000000002", "50"],
+  ]);
   assert.equal(rebuilt.scheduleDays.length, 1);
   assert.deepEqual(rebuilt.scheduleDays[0].cateringServicesNeeded, ["coffee_break", "lunch"]);
   assert.equal(rebuilt.scheduleDays[0].meals[0].mealPeriod, "lunch");
