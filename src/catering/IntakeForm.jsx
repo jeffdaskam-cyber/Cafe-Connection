@@ -1,7 +1,7 @@
 /**
  * IntakeForm.jsx — the multi-step catering request form.
  *
- * Steps: Event basics → Schedule → Meals → Logistics → Review.
+ * Steps: Event basics → Rooms → Schedule → Meals → Logistics → Review.
  * Form state lives in one object here; the shape, validation, and Firestore
  * mapping are all in formState.js so they can be tested without React.
  *
@@ -880,13 +880,13 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         ["Planner", [form.plannerName, form.plannerEmail].filter(Boolean).join(" · ") || "—"],
       ]} />
 
-      <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => onEdit(1)}
+      <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => onEdit(2)}
         rows={form.scheduleDays.map((d, i) => [
           `Day ${i + 1}`,
           [d.date, [d.startTime, d.endTime].filter(Boolean).join("–")].filter(Boolean).join(" · ") || "—",
         ])} />
 
-      <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(2)}
+      <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(3)}
         rows={form.scheduleDays.flatMap((d, i) =>
           (d.meals || []).map((m) => [
             `Day ${i + 1} · ${MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—"}`,
@@ -894,7 +894,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
           ])
         )} />
 
-      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(3)}
+      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(1)}
         rows={bookedRooms.map((r) => [
           nameFor(buildings, r.buildingId),
           [
