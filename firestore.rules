@@ -79,7 +79,15 @@ service cloud.firestore {
     // Mirrored by CATERING_ALLOWLIST in src/config/features.js, which gates the
     // UI. That one is a convenience; this one is the boundary.
     function cateringAllowlist() {
-      return ['jdaskam@ucar.edu'];
+      return [
+        'jdaskam@ucar.edu',
+        'jjhenkels@ucar.edu',
+        'lsamide@ucar.edu',
+        'ccrescenzo@ucar.edu',
+        'angiewalker@ucar.edu',
+        'jessicam@ucar.edu',
+        'michaela@ucar.edu'
+      ];
     }
 
     function cateringAllowed() {
