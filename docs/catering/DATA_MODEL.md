@@ -69,6 +69,7 @@ AppSheet UI section dividers. 40 real fields remain.
 | 38 | *Financials Header* | — | — | UI divider, not modeled |
 | 39 | Payment Method | `paymentMethod` | enum | `Project ID` → `project_id`; `ACH (External)` → `ach_external`. Confirms plan §2.1. |
 | 40 | Project ID | `projectIds[]` | string[] | **Multi-valued** — see §4 |
+| 40a | Split allocation | `projectAllocations[]` | `{projectId, unit, amount}[]` | Present only when >1 project ID — see §4 |
 | 41 | Payment Notes | `paymentNotes` | string | **missing from plan**; e.g. "Split payment 50/50" |
 | 42 | Status | `lifecycleStatus` | enum | See §3 |
 
@@ -123,13 +124,23 @@ Each carries its own history array (`{status, changedBy, changedAt}`).
 Source: `"PRJ000565231 , PRJ00054123"` with `Payment Notes: "Split payment 50/50"`.
 
 The plan's `projectId` (single, nullable) cannot represent this. Modeled as
-`projectIds[]` (split on comma, trimmed) plus free-text `paymentNotes`.
+`projectIds[]` (one entry per project ID the planner adds) plus free-text
+`paymentNotes`.
 
-**This lands on Phase 4.** The `event_revenue` rollup attributes revenue to an
-event; a split-payment event has no single project to attribute to. The rollup
-will need an explicit rule — proportional split, primary-project-only, or a
-single rolled-up entry — and that decision is best made when Phase 4 starts,
-with the split semantics visible in `paymentNotes`.
+When a planner charges more than one project, the intake form also records a
+structured split in `projectAllocations[]`: one `{ projectId, unit, amount }`
+per project, where `unit` is a single shared `"%"` or `"$"` for the whole split.
+Percentage splits are validated to total 100% at intake; dollar splits are
+captured as entered (the event total is not known then). A single-project event
+records no allocation. `projectAllocations` is the planner's stated intent, not
+revenue — it is on the requester allowlist but carries no financial authority.
+
+**Revenue attribution lands on Phase 4.** The `event_revenue` rollup attributes
+revenue to an event; a split-payment event has no single project to attribute
+to. The rollup will need an explicit rule — proportional split,
+primary-project-only, or a single rolled-up entry — and that decision is best
+made when Phase 4 starts, now with `projectAllocations` available alongside the
+free-text `paymentNotes`.
 
 ---
 

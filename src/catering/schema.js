@@ -57,6 +57,16 @@ export const PAYMENT_METHOD = {
 };
 export const PAYMENT_METHODS = Object.values(PAYMENT_METHOD);
 
+// How a split across several project IDs is expressed. A single shared unit
+// applies to the whole split — planners cannot mix dollars and percentages in
+// one event. Percentage splits are enforced to total 100%; dollar splits are
+// captured as entered.
+export const PROJECT_ALLOCATION_UNIT = {
+  PERCENT: "%",
+  DOLLAR:  "$",
+};
+export const PROJECT_ALLOCATION_UNITS = Object.values(PROJECT_ALLOCATION_UNIT);
+
 // ── Meal periods ─────────────────────────────────────────────────────────────
 // "coffee_break" is a real period in the source data that the build plan's
 // enum omitted.
@@ -153,6 +163,10 @@ export const REQUESTER_EDITABLE_FIELDS = [
   // Payment intent — amounts are staff-only
   "paymentMethod",
   "projectIds",
+  // Per-project split: [{ projectId, unit, amount }]. Present only when an event
+  // charges more than one project. Amounts are the planner's intended split, not
+  // revenue — the finance rollup stays server-side.
+  "projectAllocations",
   "paymentNotes",
   // Audit
   "updatedAt",

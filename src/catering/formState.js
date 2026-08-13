@@ -12,7 +12,7 @@
 
 import {
   BUILDING_CAMPUS, LIFECYCLE_STATUS, MEAL_PERIODS,
-  PAYMENT_METHOD, REQUESTER_CREATE_STATUS, SERVICE_FIELDS,
+  PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUESTER_CREATE_STATUS, SERVICE_FIELDS,
 } from "./schema.js";
 
 export const STEPS = [
@@ -44,6 +44,19 @@ export function emptyScheduleDay() {
     cateringServicesNeeded: [],
     notes: "",
     meals: [],
+  };
+}
+
+/**
+ * One project ID the event is charged to. `amount` is the planner's split for
+ * this ID — a percentage or a dollar figure per the form's shared unit — and is
+ * only meaningful once a second project ID is added.
+ */
+export function emptyProjectId() {
+  return {
+    localId: nextLocalId("pid"),
+    value: "",
+    amount: "",
   };
 }
 
@@ -119,9 +132,15 @@ export function emptyIntakeForm(user = {}) {
 
     // Payment
     paymentMethod: "",
-    projectIdsText: "",
+    projectIdRows: [emptyProjectId()],
+    projectAllocationUnit: PROJECT_ALLOCATION_UNIT.PERCENT,
     paymentNotes: "",
   };
+}
+
+/** Non-blank project IDs entered on the form, trimmed and in order. */
+export function projectIdValues(form) {
+  return (form.projectIdRows || []).map((r) => trimmed(r.value)).filter(Boolean);
 }
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -214,8 +233,20 @@ export function validateStep(stepId, form) {
     if (!isBlank(form.paymentMethod) && !Object.values(PAYMENT_METHOD).includes(form.paymentMethod)) {
       errors.paymentMethod = "Choose a payment method.";
     }
-    if (form.paymentMethod === PAYMENT_METHOD.PROJECT_ID && isBlank(form.projectIdsText)) {
-      errors.projectIdsText = "Enter at least one project ID.";
+    if (form.paymentMethod === PAYMENT_METHOD.PROJECT_ID) {
+      const ids = projectIdValues(form);
+      if (ids.length === 0) {
+        errors.projectIdRows = "Enter at least one project ID.";
+      } else if (ids.length > 1 && form.projectAllocationUnit === PROJECT_ALLOCATION_UNIT.PERCENT) {
+        // A percentage split has to describe the whole charge. Dollar splits are
+        // captured as entered, since the event total is not known at intake.
+        const sum = (form.projectIdRows || [])
+          .filter((r) => !isBlank(r.value))
+          .reduce((total, r) => total + (Number(r.amount) || 0), 0);
+        if (Math.abs(sum - 100) > 0.01) {
+          errors.projectAllocations = "Percentage allocations must add up to 100%.";
+        }
+      }
     }
     if (!isBlank(form.agendaLink) && !/^https?:\/\//i.test(form.agendaLink.trim())) {
       errors.agendaLink = "Enter a full URL starting with http:// or https://";
@@ -249,9 +280,29 @@ function numberOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** "PRJ1, PRJ2" → ["PRJ1", "PRJ2"] */
+/** "PRJ1, PRJ2" → ["PRJ1", "PRJ2"]. Kept to migrate older comma-joined drafts. */
 export function parseProjectIdsText(text) {
   return trimmed(text).split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * The per-project split, or [] when there is no split to record.
+ *
+ * A split only exists once a second project ID is added, so a single-ID event
+ * emits no allocations. Every entry carries the form's shared unit, so a reader
+ * never has to reconcile mixed dollar and percentage rows.
+ */
+export function buildProjectAllocations(form) {
+  const rows = (form.projectIdRows || []).filter((r) => !isBlank(r.value));
+  if (rows.length <= 1) return [];
+  const unit = form.projectAllocationUnit === PROJECT_ALLOCATION_UNIT.DOLLAR
+    ? PROJECT_ALLOCATION_UNIT.DOLLAR
+    : PROJECT_ALLOCATION_UNIT.PERCENT;
+  return rows.map((r) => ({
+    projectId: trimmed(r.value),
+    unit,
+    amount: numberOrNull(r.amount),
+  }));
 }
 
 export function deriveFlag(text) {
@@ -321,7 +372,8 @@ export function toEventDoc(form, uid, { status = REQUESTER_CREATE_STATUS } = {})
     specialRequests: trimmed(form.specialRequests),
 
     paymentMethod: trimmed(form.paymentMethod) || null,
-    projectIds:    parseProjectIdsText(form.projectIdsText),
+    projectIds:    projectIdValues(form),
+    projectAllocations: buildProjectAllocations(form),
     paymentNotes:  trimmed(form.paymentNotes),
   };
 
@@ -423,6 +475,20 @@ export function eventToForm(event = {}, days = [], rooms = []) {
   // Exactly one booking must be primary, matching the intake form's invariant.
   if (roomRows.length && !roomRows.some((r) => r.isPrimary)) roomRows[0].isPrimary = true;
 
+  // Rebuild the project-ID rows from the flat projectIds plus any recorded
+  // split. The shared unit comes from the split (all entries carry the same one)
+  // and defaults to percentage when there is no split.
+  const allocations = Array.isArray(event.projectAllocations) ? event.projectAllocations : [];
+  const amountByProjectId = new Map(allocations.map((a) => [a.projectId, a.amount]));
+  const projectAllocationUnit = allocations[0]?.unit === PROJECT_ALLOCATION_UNIT.DOLLAR
+    ? PROJECT_ALLOCATION_UNIT.DOLLAR
+    : PROJECT_ALLOCATION_UNIT.PERCENT;
+  const projectIdRows = (event.projectIds || []).map((pid) => ({
+    localId: nextLocalId("pid"),
+    value:   str(pid),
+    amount:  amountByProjectId.has(pid) ? numStr(amountByProjectId.get(pid)) : "",
+  }));
+
   return {
     eventName:    str(event.eventName),
     startDate:    str(event.startDate),
@@ -460,7 +526,8 @@ export function eventToForm(event = {}, days = [], rooms = []) {
     sustainabilityNotes: str(event.sustainabilityNotes),
 
     paymentMethod: str(event.paymentMethod),
-    projectIdsText: (event.projectIds || []).join(", "),
+    projectIdRows: projectIdRows.length ? projectIdRows : [emptyProjectId()],
+    projectAllocationUnit,
     paymentNotes:  str(event.paymentNotes),
   };
 }
@@ -502,6 +569,18 @@ export function loadDraft(storage) {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     // Guard against a stored shape from an older version of the form.
     if (!Array.isArray(parsed.scheduleDays)) return null;
+    // Migrate a draft saved before project IDs became individual rows: the old
+    // shape stored them comma-joined in `projectIdsText`.
+    if (!Array.isArray(parsed.projectIdRows)) {
+      const ids = parseProjectIdsText(parsed.projectIdsText || "");
+      parsed.projectIdRows = ids.length
+        ? ids.map((value) => ({ localId: nextLocalId("pid"), value, amount: "" }))
+        : [emptyProjectId()];
+    }
+    if (!parsed.projectAllocationUnit) {
+      parsed.projectAllocationUnit = PROJECT_ALLOCATION_UNIT.PERCENT;
+    }
+    delete parsed.projectIdsText;
     return parsed;
   } catch {
     return null;

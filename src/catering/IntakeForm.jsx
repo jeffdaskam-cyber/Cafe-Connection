@@ -11,11 +11,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../theme.js";
-import { MEAL_PERIODS, PAYMENT_METHOD, REQUEST_STATUS } from "./schema.js";
 import {
-  STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyRoomBooking, emptyScheduleDay,
-  browserStorage, capacityPlaceholder, clearDraft, loadDraft, saveDraft,
-  validateAll, validateStep,
+  MEAL_PERIODS, PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
+} from "./schema.js";
+import {
+  STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
+  emptyScheduleDay, browserStorage, capacityPlaceholder, clearDraft, loadDraft,
+  saveDraft, validateAll, validateStep,
 } from "./formState.js";
 import {
   createCateringEvent, fetchBuildings, fetchRooms, updateCateringEvent,
@@ -74,6 +76,17 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   }, [form, storageEnabled]);
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const updateProjectId = (localId, patch) => setForm((f) => ({
+    ...f,
+    projectIdRows: f.projectIdRows.map((r) => (r.localId === localId ? { ...r, ...patch } : r)),
+  }));
+  const addProjectId = () => setForm((f) => ({
+    ...f, projectIdRows: [...f.projectIdRows, emptyProjectId()],
+  }));
+  const removeProjectId = (localId) => setForm((f) => ({
+    ...f, projectIdRows: f.projectIdRows.filter((r) => r.localId !== localId),
+  }));
 
   const updateDay = (index, patch) => setForm((f) => ({
     ...f,
@@ -606,22 +619,28 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
             </Field>
 
             <SectionTitle style={{ marginTop: 28 }}>Payment</SectionTitle>
-            <Row>
-              <Field label="Payment method" error={visibleErrors.paymentMethod}>
-                <Select value={form.paymentMethod} invalid={Boolean(visibleErrors.paymentMethod)}
-                  onChange={(e) => set({ paymentMethod: e.target.value })}>
-                  <option value="">Choose…</option>
-                  <option value={PAYMENT_METHOD.PROJECT_ID}>Project ID</option>
-                  <option value={PAYMENT_METHOD.ACH_EXTERNAL}>ACH (External)</option>
-                </Select>
-              </Field>
-              <Field label="Project ID(s)" error={visibleErrors.projectIdsText}
-                hint="Separate multiple project IDs with commas.">
-                <Input value={form.projectIdsText} invalid={Boolean(visibleErrors.projectIdsText)}
-                  onChange={(e) => set({ projectIdsText: e.target.value })}
-                  placeholder="PRJ000000001, PRJ000000002" />
-              </Field>
-            </Row>
+            <Field label="Payment method" error={visibleErrors.paymentMethod}>
+              <Select value={form.paymentMethod} invalid={Boolean(visibleErrors.paymentMethod)}
+                onChange={(e) => set({ paymentMethod: e.target.value })}>
+                <option value="">Choose…</option>
+                <option value={PAYMENT_METHOD.PROJECT_ID}>Project ID</option>
+                <option value={PAYMENT_METHOD.ACH_EXTERNAL}>ACH (External)</option>
+              </Select>
+            </Field>
+
+            {form.paymentMethod === PAYMENT_METHOD.PROJECT_ID && (
+              <ProjectIdFields
+                rows={form.projectIdRows}
+                unit={form.projectAllocationUnit}
+                error={visibleErrors.projectIdRows}
+                allocationError={visibleErrors.projectAllocations}
+                onChangeRow={updateProjectId}
+                onAdd={addProjectId}
+                onRemove={removeProjectId}
+                onUnitChange={(unit) => set({ projectAllocationUnit: unit })}
+              />
+            )}
+
             <Field label="Payment notes" hint="e.g. how a split payment should be divided.">
               <Input value={form.paymentNotes} onChange={(e) => set({ paymentNotes: e.target.value })} />
             </Field>
@@ -704,6 +723,86 @@ function RepeatRow({ title, onRemove, children }) {
   );
 }
 
+/**
+ * Project-ID entry for the Payment section.
+ *
+ * One input per project ID with an "Add" button beneath, matching how a single
+ * charge is usually attributed to a single project. Adding a second ID turns the
+ * charge into a split: a shared %/$ unit appears and every row gains an amount
+ * field to its right, so the planner can say how the charge divides.
+ */
+function ProjectIdFields({
+  rows, unit, error, allocationError,
+  onChangeRow, onAdd, onRemove, onUnitChange,
+}) {
+  const multiple = rows.length > 1;
+  return (
+    <Field label="Project ID(s)" error={error}
+      hint={multiple ? undefined : "Add another project ID to split the charge across projects."}>
+      {multiple && (
+        <div style={{
+          display: "flex", justifyContent: "flex-end", alignItems: "center",
+          gap: 8, marginBottom: 8,
+        }}>
+          <span style={{ fontSize: 11, color: COLORS.TEXT_MUTED }}>Split by</span>
+          <Select value={unit} onChange={(e) => onUnitChange(e.target.value)}
+            style={{ width: "auto" }} aria-label="Split unit">
+            <option value={PROJECT_ALLOCATION_UNIT.PERCENT}>Percent (%)</option>
+            <option value={PROJECT_ALLOCATION_UNIT.DOLLAR}>Dollar ($)</option>
+          </Select>
+        </div>
+      )}
+
+      {rows.map((row, i) => (
+        <div key={row.localId}
+          style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+          <Input value={row.value} invalid={Boolean(error)}
+            onChange={(e) => onChangeRow(row.localId, { value: e.target.value })}
+            placeholder="PRJ000000001" style={{ flex: 1 }}
+            aria-label={`Project ID ${i + 1}`} />
+
+          {multiple && (
+            <div style={{ position: "relative", width: 140, flexShrink: 0 }}>
+              <span aria-hidden="true" style={{
+                position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+                fontSize: 13, color: COLORS.TEXT_MUTED, pointerEvents: "none",
+              }}>{unit}</span>
+              <Input type="number" min="0" step="any" value={row.amount}
+                invalid={Boolean(allocationError)}
+                onChange={(e) => onChangeRow(row.localId, { amount: e.target.value })}
+                placeholder={unit === PROJECT_ALLOCATION_UNIT.PERCENT ? "0" : "0.00"}
+                style={{ paddingLeft: 22 }}
+                aria-label={`Amount for project ID ${i + 1}`} />
+            </div>
+          )}
+
+          {rows.length > 1 && (
+            <button type="button" onClick={() => onRemove(row.localId)}
+              aria-label={`Remove project ID ${i + 1}`}
+              style={{
+                background: "none", border: "none", color: COLORS.ERROR,
+                fontSize: 11, fontWeight: FONT.WEIGHT_BOLD, cursor: "pointer",
+                fontFamily: FONT.FAMILY, flexShrink: 0,
+              }}>
+              Remove
+            </button>
+          )}
+        </div>
+      ))}
+
+      {allocationError && (
+        <span role="alert" style={{
+          display: "block", fontSize: 11, color: COLORS.ERROR, marginTop: 4, marginBottom: 4,
+        }}>
+          {allocationError}
+        </span>
+      )}
+
+      <Button variant="ghost" onClick={onAdd}>+ Add project ID</Button>
+    </Field>
+  );
+}
+
 function StepBar({ stepIndex, maxStepReached, onStepClick }) {
   return (
     <ol style={{ display: "flex", gap: 8, listStyle: "none", marginBottom: 20, flexWrap: "wrap" }}>
@@ -741,10 +840,29 @@ function StepBar({ stepIndex, maxStepReached, onStepClick }) {
   );
 }
 
+/**
+ * Review-line summary of the project IDs: a plain list, or, for a split, each ID
+ * with its share, e.g. "PRJ1 (50%), PRJ2 (50%)".
+ */
+function describeProjectIds(form) {
+  const filled = (form.projectIdRows || []).filter((r) => String(r.value).trim());
+  if (filled.length === 0) return "—";
+  if (filled.length === 1) return filled[0].value.trim();
+  return filled.map((r) => {
+    const id = r.value.trim();
+    const amount = String(r.amount ?? "").trim();
+    if (!amount) return id;
+    const share = form.projectAllocationUnit === PROJECT_ALLOCATION_UNIT.DOLLAR
+      ? `$${amount}` : `${amount}%`;
+    return `${id} (${share})`;
+  }).join(", ");
+}
+
 function ReviewStep({ form, buildings, rooms, onEdit }) {
   const totalMeals = form.scheduleDays.reduce((n, d) => n + (d.meals?.length || 0), 0);
   const bookedRooms = (form.rooms || []).filter((r) => r.roomId);
   const nameFor = (list, id) => list.find((x) => x.id === id)?.name || id;
+  const projectIdsDisplay = describeProjectIds(form);
 
   return (
     <>
@@ -791,7 +909,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
         ["Payment", form.paymentMethod === PAYMENT_METHOD.PROJECT_ID ? "Project ID"
           : form.paymentMethod === PAYMENT_METHOD.ACH_EXTERNAL ? "ACH (External)" : "—"],
-        ["Project ID(s)", form.projectIdsText || "—"],
+        ["Project ID(s)", projectIdsDisplay],
       ]} />
     </>
   );
