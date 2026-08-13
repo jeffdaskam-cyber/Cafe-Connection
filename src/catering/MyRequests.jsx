@@ -30,9 +30,28 @@ const JUST_DONE_BANNER = {
 };
 
 const MEAL_PERIOD_LABELS = {
-  breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
+  breakfast: "Breakfast", coffee_break: "Coffee Break", lunch: "Lunch",
   dinner: "Dinner", reception: "Reception", other: "Other",
 };
+
+/** "10:00" → "10:00 am", "14:00" → "2:00 pm". Leaves unparseable input as-is. */
+function fmtTime12(t) {
+  if (!t) return "";
+  const [h, m] = String(t).split(":").map(Number);
+  if (Number.isNaN(h)) return String(t);
+  const period = h < 12 ? "am" : "pm";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(Number.isNaN(m) ? 0 : m).padStart(2, "0")} ${period}`;
+}
+
+/** "2026-08-25" → "Tuesday 8-25-26". Parsed by parts so it can't drift a day. */
+function fmtDayHeader(dateStr) {
+  if (!dateStr) return "—";
+  const [y, mo, dy] = String(dateStr).split("-").map(Number);
+  if (!y || !mo || !dy) return String(dateStr);
+  const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
+  return `${weekday} ${mo}-${dy}-${String(y).slice(-2)}`;
+}
 
 export default function MyRequests({ user, onNewRequest, onEdit, justDone }) {
   const [requests, setRequests] = useState(null);
@@ -187,19 +206,7 @@ function RequestDetail({ request, onEdit }) {
         ["Overall notes", request.setupNotes],
       ]} />
 
-      <DetailSection title="Schedule" rows={
-        days === null ? [["", "Loading…"]]
-          : days.length === 0 ? []
-          : days.map((d) => [
-              d.date || "—",
-              [
-                [d.startTime, d.endTime].filter(Boolean).join("–"),
-                (d.meals || []).map((m) =>
-                  `${MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod}${m.time ? ` ${m.time}` : ""}`
-                ).join(", "),
-              ].filter(Boolean).join(" · "),
-            ])
-      } />
+      <ScheduleSection days={days} rooms={bookedRooms} />
 
       <DetailSection title="Services" rows={[
         ["Catering", request.needsCatering ? "Yes" : "No"],
@@ -216,6 +223,65 @@ function RequestDetail({ request, onEdit }) {
         ["Project ID(s)", (request.projectIds || []).join(", ")],
         ["Notes", request.paymentNotes],
       ]} />
+    </div>
+  );
+}
+
+/**
+ * The schedule, grouped by day. Each day shows a "Weekday M-D-YY" header, then
+ * one line per booked room: "<room> <start> - <end> | <meals>". When no rooms
+ * are recorded the line falls back to the day's own start/end times.
+ */
+function ScheduleSection({ days, rooms }) {
+  const boxStyle = {
+    background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+    borderRadius: RADIUS.MD, padding: 14, fontSize: 12,
+  };
+  const titleStyle = {
+    fontSize: 10, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_MUTED,
+    textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8,
+  };
+
+  if (days === null) {
+    return (
+      <div style={{ marginTop: 18 }}>
+        <div style={titleStyle}>Schedule</div>
+        <div style={{ ...boxStyle, color: COLORS.TEXT_MUTED }}>Loading…</div>
+      </div>
+    );
+  }
+  if (days.length === 0) return null;
+
+  const timeRange = (start, end) => [fmtTime12(start), fmtTime12(end)].filter(Boolean).join(" - ");
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div style={titleStyle}>Schedule</div>
+      <div style={{ ...boxStyle, display: "flex", flexDirection: "column", gap: 16 }}>
+        {days.map((d, di) => {
+          const mealsText = (d.meals || []).map((m) =>
+            `${MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod}${m.time ? ` ${fmtTime12(m.time)}` : ""}`
+          ).join(", ");
+          const roomLines = rooms.length
+            ? rooms.map((r) => [
+                r.roomId || r.rawRoom || "—",
+                timeRange(r.startTime || d.startTime, r.endTime || d.endTime),
+              ].filter(Boolean).join(" "))
+            : [timeRange(d.startTime, d.endTime)];
+          return (
+            <div key={di}>
+              <div style={{ fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_PRIMARY, marginBottom: 4 }}>
+                {fmtDayHeader(d.date)}
+              </div>
+              {roomLines.map((line, li) => (
+                <div key={li} style={{ color: COLORS.TEXT_PRIMARY, lineHeight: 1.7 }}>
+                  {[line, mealsText].filter(Boolean).join(" | ")}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
