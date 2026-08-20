@@ -283,6 +283,7 @@ export default function EventRevenuePage() {
   const canSeeExternalDropbox = canSeeWidget(role, "event_revenue_external_dropbox");
   const [period, setPeriod]       = useState("Monthly");
   const [fiscalYear, setFiscalYear] = useState(null);
+  const [statMonth, setStatMonth] = useState(new Date().getMonth() + 1);
 
   // Catering rollups are hidden by default — see the comment on safeDocs below.
   const [includeCatering, setIncludeCatering] = useState(false);
@@ -355,7 +356,8 @@ export default function EventRevenuePage() {
 
   // ── Stat card totals (per campus, for current view) ───────────────────────
   const statSource = period === "Monthly"
-    ? safeDocs.filter(d => getFiscalYearLabel(d.year, d.month) === fiscalYear)
+    ? safeDocs.filter(d =>
+        getFiscalYearLabel(d.year, d.month) === fiscalYear && d.month === statMonth)
     : safeDocs;
 
   function campusTotal(campus) {
@@ -439,19 +441,41 @@ export default function EventRevenuePage() {
             </select>
           </div>
         )}
+
+        {/* Month selector (monthly mode only) */}
+        {period === "Monthly" && fiscalYears.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, color: COLORS.TEXT_MUTED, fontWeight: 600, letterSpacing: "1.5px",
+              textTransform: "uppercase", marginBottom: 10 }}>Month</div>
+            <select value={statMonth} onChange={e => setStatMonth(Number(e.target.value))}
+              style={{ background: COLORS.BG_SURFACE_ALT, border: `1px solid ${COLORS.BORDER}`,
+                borderRadius: RADIUS.SM, color: COLORS.TEXT_PRIMARY,
+                fontFamily: "'Poppins',sans-serif", fontWeight: 600, fontSize: 12,
+                padding: "9px 32px 9px 14px", cursor: "pointer",
+                appearance: "none", WebkitAppearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235A7A91'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}>
+              {MONTH_NAMES.map((name, i) => (
+                <option key={i + 1} value={i + 1}>{name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* ── Stat cards ── */}
       <div style={{ display: "flex", gap: 18, marginBottom: 24,
         animation: "ucar-fadein .5s ease both" }}>
-        <StatCard label="Center Green YTD" value={fmtK(campusTotal("Center Green"))}
-          accentColor={COLORS.AQUA} />
-        <StatCard label="Foothills YTD" value={fmtK(campusTotal("Foothills"))}
-          accentColor={COLORS.AQUA} />
-        <StatCard label="Mesa Lab YTD" value={fmtK(campusTotal("Mesa Lab"))}
-          accentColor={COLORS.AQUA} />
+        <StatCard label={period === "Monthly" ? "Center Green MTD" : "Center Green YTD"}
+          value={fmtK(campusTotal("Center Green"))} accentColor={COLORS.AQUA} />
+        <StatCard label={period === "Monthly" ? "Foothills MTD" : "Foothills YTD"}
+          value={fmtK(campusTotal("Foothills"))} accentColor={COLORS.AQUA} />
+        <StatCard label={period === "Monthly" ? "Mesa Lab MTD" : "Mesa Lab YTD"}
+          value={fmtK(campusTotal("Mesa Lab"))} accentColor={COLORS.AQUA} />
         <StatCard
-          label={period === "Annual" ? "Total Event Revenue YTD" : `Total Event Revenue ${fiscalYear || ""}`}
+          label={period === "Annual"
+            ? "Total Event Revenue YTD"
+            : `Total Event Revenue · ${MONTH_NAMES[statMonth - 1]} (${fiscalYear || ""})`}
           value={fmtK(totalRevenue)}
           accentColor={COLORS.AQUA}
         />
