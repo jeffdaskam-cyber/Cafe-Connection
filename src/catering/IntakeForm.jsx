@@ -68,9 +68,19 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const visibleErrors = showErrors ? errors : {};
 
   useEffect(() => {
-    Promise.all([fetchBuildings(), fetchRooms(), fetchMenuItems()])
-      .then(([b, r, m]) => { setBuildings(b); setRooms(r); setMenuItems(m); })
-      .catch((err) => console.error("[catering] reference data load failed:", err));
+    // Each fetch loads independently: a failure of one (e.g. the menu catalog
+    // read before its rule is deployed or it is seeded) must not blank out the
+    // others. Bundling these in a single Promise.all previously let the new
+    // menu fetch take the Rooms step's building/room lists down with it.
+    fetchBuildings()
+      .then(setBuildings)
+      .catch((err) => console.error("[catering] buildings load failed:", err));
+    fetchRooms()
+      .then(setRooms)
+      .catch((err) => console.error("[catering] rooms load failed:", err));
+    fetchMenuItems()
+      .then(setMenuItems)
+      .catch((err) => console.error("[catering] menu catalog load failed:", err));
   }, []);
 
   // Split the flat catalog into the three lists the Break picker offers, once.
