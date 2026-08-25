@@ -41,7 +41,7 @@ import { buildRecap, recapStoragePath } from "./_lib/cateringRecap.mjs";
 import { planWorkFor } from "./_lib/cateringReconcile.mjs";
 import { buildRevenueDoc, revenueDocId, shouldRemoveRevenue } from "./_lib/cateringRevenue.mjs";
 import {
-  buildBuildingDocs, buildRoomDocs, orphanRoomBuildings, unmappedBuildings,
+  buildBuildingDocs, buildMenuItemDocs, buildRoomDocs, orphanRoomBuildings, unmappedBuildings,
 } from "./_lib/cateringReference.mjs";
 
 const SCOPE = "catering";
@@ -51,7 +51,7 @@ const MAX_EVENTS = 500;
 const adminApp = initCateringAdmin(SCOPE, { storageBucketEnvVar: "FIREBASE_STORAGE_BUCKET" });
 const db = getFirestore(adminApp);
 
-export const ACTIONS = ["rollup", "notify", "recap", "reconcile", "seed-reference"];
+export const ACTIONS = ["rollup", "notify", "recap", "reconcile", "seed-reference", "seed-menu"];
 
 // ── Revenue rollup ───────────────────────────────────────────────────────────
 // The only writer of catering rows in event_revenue. The document ID is derived
@@ -416,6 +416,35 @@ async function runSeedReference(callerUid) {
   };
 }
 
+// ── Menu catalog seed ─────────────────────────────────────────────────────────
+// The structured menu pickers on the intake form's Meals step (Coffee Break to
+// start) read the catering_menu_items collection. Kept a separate action from
+// seed-reference: buildings/rooms almost never change, but the menu catalog
+// grows meal-period by meal-period as menus are handed off, so it needs to be
+// re-runnable on its own. Administrator-only, and idempotent — document IDs are
+// the source's stable slugs and every write is a merge, so a re-seed after a
+// price edit converges rather than duplicating.
+
+async function runSeedMenu(callerUid) {
+  const now = FieldValue.serverTimestamp();
+  const items = buildMenuItemDocs(now);
+
+  const writes = items.map((i) => ({
+    ref: db.collection("catering_menu_items").doc(i.id), data: i.data,
+  }));
+
+  for (let i = 0; i < writes.length; i += 400) {
+    const batch = db.batch();
+    for (const { ref, data } of writes.slice(i, i + 400)) batch.set(ref, data, { merge: true });
+    await batch.commit();
+  }
+
+  return {
+    status: 200,
+    body: { action: "seeded", menuItems: items.length, seededBy: callerUid },
+  };
+}
+
 async function runReconcile(callerUid) {
   const summary = {
     scanned: 0, notified: 0, revenueRolled: 0, recapsGenerated: 0,
@@ -504,13 +533,15 @@ export default async function handler(req, res) {
       return res.status(status).json(body);
     }
 
-    if (action === "seed-reference") {
-      // Stricter than the rest: this rewrites shared reference data, so
+    if (action === "seed-reference" || action === "seed-menu") {
+      // Stricter than the rest: these rewrite shared reference data, so
       // manager-or-above is not enough, and the cron has no business doing it.
       if (caller.viaCron || !(await isAdministrator(caller.uid))) {
         return res.status(403).json({ error: "Administrator access required." });
       }
-      const { status, body } = await runSeedReference(caller.uid);
+      const { status, body } = action === "seed-menu"
+        ? await runSeedMenu(caller.uid)
+        : await runSeedReference(caller.uid);
       return res.status(status).json(body);
     }
 

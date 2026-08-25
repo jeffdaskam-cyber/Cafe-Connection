@@ -274,6 +274,85 @@ test("eventToForm falls back to one empty day and room for a bare event", () => 
   assert.equal(rebuilt.needsCatering, true);
 });
 
+// ── Coffee Break structured menu selections ──────────────────────────────────
+
+function coffeeBreakForm() {
+  const form = completeForm();
+  form.scheduleDays[0].meals = [{
+    ...emptyMeal(),
+    mealPeriod: "coffee_break",
+    time: "10:00",
+    headcount: "40",
+    menuItems: [
+      {
+        localId: "mi_1", itemId: "cb-pkg-mediterranean", category: "package",
+        subcategory: "", name: "Mediterranean", price: "11.25", quantity: "40",
+        beverage: "Coffee, Tea, & Water",
+      },
+      {
+        localId: "mi_2", itemId: "cb-am-bagels-spreads", category: "a_la_carte",
+        subcategory: "morning", name: "Assorted Bagels with Spreads", price: "4.5",
+        quantity: "20", beverage: "",
+      },
+    ],
+  }];
+  return form;
+}
+
+test("toScheduleDayDocs writes structured menuItems and derives menuSelection", () => {
+  const days = toScheduleDayDocs(coffeeBreakForm());
+  const meal = days[0].meals[0].data;
+
+  assert.equal(meal.menuItems.length, 2);
+  assert.equal(meal.menuItems[0].itemId, "cb-pkg-mediterranean");
+  assert.equal(meal.menuItems[0].price, 11.25);
+  assert.equal(meal.menuItems[0].quantity, 40);
+  assert.equal(meal.menuItems[0].beverage, "Coffee, Tea, & Water");
+  // à la carte carries a subcategory and no beverage.
+  assert.equal(meal.menuItems[1].subcategory, "morning");
+  assert.equal(meal.menuItems[1].beverage, null);
+  // menuSelection is derived so downstream readers (recap, schedule) still work.
+  assert.equal(
+    meal.menuSelection,
+    "Mediterranean (Coffee, Tea, & Water) × 40; Assorted Bagels with Spreads × 20",
+  );
+});
+
+test("a Coffee Break meal round-trips through eventToForm exactly", () => {
+  const form = coffeeBreakForm();
+  const doc = toEventDoc(form, USER.uid);
+  const days = toScheduleDayDocs(form).map((d) => ({
+    ...d.data, meals: d.meals.map((m) => m.data),
+  }));
+  const rooms = toRoomBookingDocs(form).map((r) => r.data);
+
+  const rebuilt = eventToForm(doc, days, rooms);
+  const meal = rebuilt.scheduleDays[0].meals[0];
+
+  assert.equal(meal.mealPeriod, "coffee_break");
+  assert.equal(meal.menuItems.length, 2);
+  assert.deepEqual(
+    meal.menuItems.map((i) => [i.itemId, i.category, i.subcategory, i.name, i.price, i.quantity, i.beverage]),
+    [
+      ["cb-pkg-mediterranean", "package", "", "Mediterranean", "11.25", "40", "Coffee, Tea, & Water"],
+      ["cb-am-bagels-spreads", "a_la_carte", "morning", "Assorted Bagels with Spreads", "4.5", "20", ""],
+    ],
+  );
+
+  // Re-mapping the rebuilt form reproduces the stored schedule-day docs.
+  const rebuiltDays = toScheduleDayDocs(rebuilt).map((d) => ({
+    ...d.data, meals: d.meals.map((m) => m.data),
+  }));
+  assert.deepEqual(rebuiltDays, days);
+});
+
+test("a meal with no menuItems keeps its free-text menuSelection", () => {
+  const days = toScheduleDayDocs(completeForm());
+  const meal = days[0].meals[0].data;
+  assert.equal(meal.menuSelection, "Taco bar");
+  assert.deepEqual(meal.menuItems, []);
+});
+
 test("parseProjectIdsText and deriveFlag handle edge input", () => {
   assert.deepEqual(parseProjectIdsText(" A , B ,, "), ["A", "B"]);
   assert.deepEqual(parseProjectIdsText(""), []);

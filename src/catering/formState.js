@@ -60,15 +60,52 @@ export function emptyProjectId() {
   };
 }
 
+/**
+ * One structured menu selection — a package or à la carte item chosen from the
+ * catering_menu_items catalog for a meal that has a priced menu (Coffee Break
+ * to start). `name`/`price` are snapshotted from the catalog at selection time,
+ * not looked up live: a later price edit must not silently reprice an event
+ * booked before it, the same stored-not-derived rule the recap module follows.
+ */
+export function emptyMenuItemSelection() {
+  return {
+    localId: nextLocalId("mi"),
+    itemId: "",       // catalog doc id, e.g. "cb-pkg-mediterranean"
+    category: "",     // "package" | "a_la_carte"
+    subcategory: "",  // "morning" | "afternoon" | ""
+    name: "",         // snapshotted from the catalog at selection time
+    price: "",        // snapshotted, string for the input
+    quantity: "",     // defaults to the meal's headcount, editable per row
+    beverage: "",     // only set when category === "package"
+  };
+}
+
 export function emptyMeal() {
   return {
     localId: nextLocalId("meal"),
     mealPeriod: "",
     time: "",
     menuSelection: "",
+    menuItems: [],    // structured selections; only populated for periods with a catalog
     location: "",
     headcount: "",
   };
+}
+
+/**
+ * Split the flat catalog into the three lists the Break picker offers. Done
+ * once at the call site rather than re-filtering on every render.
+ */
+export function groupMenuItems(items = []) {
+  const packages = [];
+  const morning = [];
+  const afternoon = [];
+  for (const item of items) {
+    if (item.category === "package") packages.push(item);
+    else if (item.subcategory === "afternoon") afternoon.push(item);
+    else morning.push(item);
+  }
+  return { packages, morning, afternoon };
 }
 
 /**
@@ -387,6 +424,24 @@ export function toEventDoc(form, uid, { status = REQUESTER_CREATE_STATUS } = {})
   return doc;
 }
 
+/**
+ * A one-line "Menu selection" string derived from structured menu selections.
+ *
+ * Keeps every existing reader of `menuSelection` (the recap PDF, MyRequests,
+ * DailySchedule) working unchanged for a Coffee Break meal — they display the
+ * string and nothing more, so a break's picks show up there with no code change.
+ */
+export function summarizeMenuItems(menuItems) {
+  return (menuItems || [])
+    .filter((item) => item.name)
+    .map((item) => {
+      const bev = item.beverage ? ` (${item.beverage})` : "";
+      const qty = item.quantity ? ` × ${item.quantity}` : "";
+      return `${item.name}${bev}${qty}`;
+    })
+    .join("; ");
+}
+
 /** Schedule day subcollection documents, each with its nested meals. */
 export function toScheduleDayDocs(form) {
   return (form.scheduleDays || []).map((day) => ({
@@ -403,7 +458,21 @@ export function toScheduleDayDocs(form) {
       data: {
         mealPeriod:    trimmed(meal.mealPeriod),
         time:          trimmed(meal.time),
-        menuSelection: trimmed(meal.menuSelection),
+        // Derived from the structured selections when present, so every
+        // downstream reader of menuSelection keeps working; falls back to the
+        // free-text field for meal periods without a catalog yet.
+        menuSelection: (meal.menuItems && meal.menuItems.length)
+          ? summarizeMenuItems(meal.menuItems)
+          : trimmed(meal.menuSelection),
+        menuItems: (meal.menuItems || []).map((item) => ({
+          itemId:      trimmed(item.itemId),
+          category:    trimmed(item.category),
+          subcategory: trimmed(item.subcategory) || null,
+          name:        trimmed(item.name),
+          price:       numberOrNull(item.price),
+          quantity:    numberOrNull(item.quantity),
+          beverage:    trimmed(item.beverage) || null,
+        })),
         location:      trimmed(meal.location),
         headcount:     numberOrNull(meal.headcount),
       },
@@ -458,6 +527,16 @@ export function eventToForm(event = {}, days = [], rooms = []) {
       mealPeriod:    str(m.mealPeriod),
       time:          str(m.time),
       menuSelection: str(m.menuSelection),
+      menuItems: (m.menuItems || []).map((item) => ({
+        localId: nextLocalId("mi"),
+        itemId:      str(item.itemId),
+        category:    str(item.category),
+        subcategory: str(item.subcategory),
+        name:        str(item.name),
+        price:       numStr(item.price),
+        quantity:    numStr(item.quantity),
+        beverage:    str(item.beverage),
+      })),
       location:      str(m.location),
       headcount:     numStr(m.headcount),
     })),

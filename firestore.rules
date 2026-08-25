@@ -446,6 +446,16 @@ service cloud.firestore {
       allow write: if isAdministratorRole();
     }
 
+    // ── catering_menu_items ────────────────────────────────────────────────
+    // Priced menu catalog for the intake form's structured menu pickers. Same
+    // shape as rooms/buildings: any signed-in UCAR user reads it (the form
+    // needs it), administrator-only to change (the "Seed menu catalog" action
+    // and future in-app editing).
+    match /catering_menu_items/{itemId} {
+      allow read:  if isAuthedUCAR();
+      allow write: if isAdministratorRole();
+    }
+
     // ── Catch-all: deny everything not explicitly matched ──────────────────
     match /{document=**} {
       allow read, write: if false;
