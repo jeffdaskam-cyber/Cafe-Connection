@@ -890,11 +890,29 @@ function formatMealDayLabel(dateStr) {
   return `${weekday} ${mo}/${dy}`;
 }
 
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+function formatMoney(value) {
+  return money.format(Number.isFinite(Number(value)) ? Number(value) : 0);
+}
+
 function ReviewStep({ form, buildings, rooms, onEdit }) {
   const totalMeals = form.scheduleDays.reduce((n, d) => n + (d.meals?.length || 0), 0);
   const bookedRooms = (form.rooms || []).filter((r) => r.roomId);
   const nameFor = (list, id) => list.find((x) => x.id === id)?.name || id;
   const projectIdsDisplay = describeProjectIds(form);
+
+  // Prices/quantities are snapshotted onto each meal's menuItems at selection
+  // time, so the estimate here matches what the meal picker showed.
+  const cateringEstimate = form.scheduleDays.reduce(
+    (total, d) => total + (d.meals || []).reduce(
+      (mealSum, m) => mealSum + (m.menuItems || []).reduce(
+        (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
+        0,
+      ),
+      0,
+    ),
+    0,
+  );
 
   return (
     <>
@@ -912,6 +930,17 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         ["Planner", [form.plannerName, form.plannerEmail].filter(Boolean).join(" · ") || "—"],
       ]} />
 
+      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(1)}
+        rows={bookedRooms.map((r) => [
+          nameFor(buildings, r.buildingId),
+          [
+            nameFor(rooms, r.roomId),
+            [r.startTime, r.endTime].filter(Boolean).join("–"),
+            r.setupType,
+            r.isPrimary && bookedRooms.length > 1 ? "(primary)" : "",
+          ].filter(Boolean).join(" · "),
+        ])} />
+
       <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => onEdit(2)}
         rows={form.scheduleDays.map((d, i) => [
           `Day ${i + 1}`,
@@ -919,6 +948,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         ])} />
 
       <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(3)}
+        footer={["Catering estimate", formatMoney(cateringEstimate)]}
         rows={form.scheduleDays.flatMap((d) =>
           (d.meals || []).map((m) => {
             // Coffee Break stores structured selections; menuSelection is only
@@ -937,17 +967,6 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
           })
         )} />
 
-      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(1)}
-        rows={bookedRooms.map((r) => [
-          nameFor(buildings, r.buildingId),
-          [
-            nameFor(rooms, r.roomId),
-            [r.startTime, r.endTime].filter(Boolean).join("–"),
-            r.setupType,
-            r.isPrimary && bookedRooms.length > 1 ? "(primary)" : "",
-          ].filter(Boolean).join(" · "),
-        ])} />
-
       <ReviewBlock title="Logistics" onEdit={() => onEdit(4)} rows={[
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
         ["Payment", form.paymentMethod === PAYMENT_METHOD.PROJECT_ID ? "Project ID"
@@ -958,7 +977,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
   );
 }
 
-function ReviewBlock({ title, rows, onEdit }) {
+function ReviewBlock({ title, rows, onEdit, footer }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{
@@ -987,6 +1006,16 @@ function ReviewBlock({ title, rows, onEdit }) {
             </div>
           ))}
         </dl>
+      )}
+      {footer && (
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          borderTop: `1px solid ${COLORS.BORDER}`, marginTop: 10, paddingTop: 8,
+          fontSize: 12, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_PRIMARY,
+        }}>
+          <span>{footer[0]}</span>
+          <span>{footer[1]}</span>
+        </div>
       )}
     </div>
   );
