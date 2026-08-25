@@ -14,6 +14,7 @@
 
 import { campusForBuilding } from "../../scripts/lib/cateringTransforms.mjs";
 import { BUILDINGS, ROOMS } from "./cateringReferenceData.mjs";
+import { MENU_ITEMS } from "./cateringMenuData.mjs";
 
 /** "Yes"/"No" from the source sheet. Blank is unknown, not false. */
 function parseFixed(value) {
@@ -54,6 +55,30 @@ export function buildRoomDocs(now) {
       // meaning unambiguous. See docs/catering/DATA_MODEL.md §5.
       isFixed:      parseFixed(room.fixed),
       updatedAt:    now,
+    },
+  }));
+}
+
+/**
+ * Menu-item documents for the intake form's structured menu pickers.
+ *
+ * Stable slug IDs (item.key) so a re-seed after a price edit updates in place
+ * rather than duplicating. `active` is always seeded true here; retiring an item
+ * is an admin edit (active:false), not a source-file change.
+ */
+export function buildMenuItemDocs(now) {
+  return MENU_ITEMS.map((item) => ({
+    id: item.key,
+    data: {
+      mealPeriod:  item.mealPeriod,
+      category:    item.category,
+      subcategory: item.subcategory,
+      name:        item.name,
+      price:       item.price,
+      description: item.description || "",
+      sortOrder:   item.sortOrder,
+      active:      true,
+      updatedAt:   now,
     },
   }));
 }

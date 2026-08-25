@@ -18,6 +18,7 @@ export const COLLECTIONS = {
   EVENT_ROOMS:      "catering_event_rooms",     // subcollection of an event
   ROOMS:            "rooms",
   BUILDINGS:        "buildings",
+  MENU_ITEMS:       "catering_menu_items", // shared reference data, like rooms/buildings
 };
 
 // ── Status enums ─────────────────────────────────────────────────────────────

@@ -16,15 +16,16 @@ import {
 } from "./schema.js";
 import {
   STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
-  emptyScheduleDay, browserStorage, capacityPlaceholder, clearDraft, loadDraft,
-  saveDraft, validateAll, validateStep,
+  emptyScheduleDay, browserStorage, capacityPlaceholder, clearDraft, groupMenuItems, loadDraft,
+  saveDraft, summarizeMenuItems, validateAll, validateStep,
 } from "./formState.js";
 import {
-  createCateringEvent, fetchBuildings, fetchRooms, updateCateringEvent,
+  createCateringEvent, fetchBuildings, fetchMenuItems, fetchRooms, updateCateringEvent,
 } from "./data.js";
 import {
   Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
+import BreakMenuPicker from "./BreakMenuPicker.jsx";
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
@@ -58,6 +59,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const [submitError, setSubmitError] = useState("");
   const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
   const [restoredDraft] = useState(() => storageEnabled && loadDraft(browserStorage()) !== null);
   const busy = saving || submitting;
 
@@ -66,10 +68,13 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const visibleErrors = showErrors ? errors : {};
 
   useEffect(() => {
-    Promise.all([fetchBuildings(), fetchRooms()])
-      .then(([b, r]) => { setBuildings(b); setRooms(r); })
+    Promise.all([fetchBuildings(), fetchRooms(), fetchMenuItems()])
+      .then(([b, r, m]) => { setBuildings(b); setRooms(r); setMenuItems(m); })
       .catch((err) => console.error("[catering] reference data load failed:", err));
   }, []);
+
+  // Split the flat catalog into the three lists the Break picker offers, once.
+  const menuCatalog = useMemo(() => groupMenuItems(menuItems), [menuItems]);
 
   useEffect(() => {
     if (storageEnabled) saveDraft(form, browserStorage());
@@ -436,11 +441,19 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                           onChange={(e) => updateMeal(i, j, { headcount: e.target.value })} />
                       </Field>
                     </Row>
-                    <Field label="Menu selection">
-                      <Textarea rows={2} value={meal.menuSelection}
-                        onChange={(e) => updateMeal(i, j, { menuSelection: e.target.value })}
-                        placeholder="e.g. Continental breakfast, coffee and tea" />
-                    </Field>
+                    {meal.mealPeriod === "coffee_break" ? (
+                      <BreakMenuPicker
+                        menuItems={meal.menuItems || []}
+                        headcount={meal.headcount}
+                        catalog={menuCatalog}
+                        onChange={(menuItems) => updateMeal(i, j, { menuItems })} />
+                    ) : (
+                      <Field label="Menu selection">
+                        <Textarea rows={2} value={meal.menuSelection}
+                          onChange={(e) => updateMeal(i, j, { menuSelection: e.target.value })}
+                          placeholder="e.g. Continental breakfast, coffee and tea" />
+                      </Field>
+                    )}
                     <Field label="Service location">
                       <Input value={meal.location}
                         onChange={(e) => updateMeal(i, j, { location: e.target.value })}
@@ -897,14 +910,21 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
 
       <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(3)}
         rows={form.scheduleDays.flatMap((d) =>
-          (d.meals || []).map((m) => [
-            formatMealDayLabel(d.date),
-            [
-              [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
-              m.location,
-            ].filter(Boolean).join(" - ")
-              + (m.menuSelection ? ` · ${m.menuSelection}` : ""),
-          ])
+          (d.meals || []).map((m) => {
+            // Coffee Break stores structured selections; menuSelection is only
+            // derived from them on save, so summarize here for the live preview.
+            const menu = (m.menuItems && m.menuItems.length)
+              ? summarizeMenuItems(m.menuItems)
+              : m.menuSelection;
+            return [
+              formatMealDayLabel(d.date),
+              [
+                [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
+                m.location,
+              ].filter(Boolean).join(" - ")
+                + (menu ? ` · ${menu}` : ""),
+            ];
+          })
         )} />
 
       <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(1)}

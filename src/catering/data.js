@@ -34,6 +34,21 @@ export async function fetchRooms() {
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
+/**
+ * The priced menu catalog for the intake form's structured menu pickers.
+ *
+ * Small enough (~39 docs) to fetch whole and group client-side, same as
+ * fetchBuildings()/fetchRooms(). Retired items (active:false) are dropped so
+ * they never appear in a new selection; sorted by the source menu's order.
+ */
+export async function fetchMenuItems() {
+  const snap = await getDocs(collection(db, COLLECTIONS.MENU_ITEMS));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((item) => item.active !== false)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
 // ── Saving a request ─────────────────────────────────────────────────────────
 
 /** Queue the schedule-day, meal, and room subcollection writes onto a batch. */
