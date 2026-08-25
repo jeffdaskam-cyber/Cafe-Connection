@@ -93,19 +93,28 @@ export function emptyMeal() {
 }
 
 /**
- * Split the flat catalog into the three lists the Break picker offers. Done
- * once at the call site rather than re-filtering on every render.
+ * Split the flat catalog into the per-meal-period lists each menu picker
+ * offers. Done once at the call site rather than re-filtering on every render.
+ *
+ * The catalog is one flat collection spanning every meal period, so each item
+ * carries its own `mealPeriod`; a picker reads only its own slice. Coffee Break
+ * groups into packages plus morning/afternoon à la carte; Breakfast groups into
+ * buffets plus a single à la carte list.
  */
 export function groupMenuItems(items = []) {
-  const packages = [];
-  const morning = [];
-  const afternoon = [];
+  const coffeeBreak = { packages: [], morning: [], afternoon: [] };
+  const breakfast = { buffets: [], items: [] };
   for (const item of items) {
-    if (item.category === "package") packages.push(item);
-    else if (item.subcategory === "afternoon") afternoon.push(item);
-    else morning.push(item);
+    if (item.mealPeriod === "breakfast") {
+      if (item.category === "buffet") breakfast.buffets.push(item);
+      else breakfast.items.push(item);
+    } else if (item.mealPeriod === "coffee_break") {
+      if (item.category === "package") coffeeBreak.packages.push(item);
+      else if (item.subcategory === "afternoon") coffeeBreak.afternoon.push(item);
+      else coffeeBreak.morning.push(item);
+    }
   }
-  return { packages, morning, afternoon };
+  return { coffee_break: coffeeBreak, breakfast };
 }
 
 /**

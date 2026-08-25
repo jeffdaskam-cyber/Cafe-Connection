@@ -26,6 +26,7 @@ import {
   Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
 import BreakMenuPicker from "./BreakMenuPicker.jsx";
+import BreakfastMenuPicker from "./BreakfastMenuPicker.jsx";
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
@@ -455,7 +456,13 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                       <BreakMenuPicker
                         menuItems={meal.menuItems || []}
                         headcount={meal.headcount}
-                        catalog={menuCatalog}
+                        catalog={menuCatalog.coffee_break}
+                        onChange={(menuItems) => updateMeal(i, j, { menuItems })} />
+                    ) : meal.mealPeriod === "breakfast" ? (
+                      <BreakfastMenuPicker
+                        menuItems={meal.menuItems || []}
+                        headcount={meal.headcount}
+                        catalog={menuCatalog.breakfast}
                         onChange={(menuItems) => updateMeal(i, j, { menuItems })} />
                     ) : (
                       <Field label="Menu selection">

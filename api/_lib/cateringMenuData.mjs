@@ -1,13 +1,16 @@
 /**
- * Catering Companion — Coffee Break menu catalog.
+ * Catering Companion — menu catalog (Coffee Break + Breakfast).
  *
  * Committed on purpose, like cateringReferenceData.mjs — no personal data.
- * Source: "2026 Breaks Menu.md" (Jeff, 2026-08-25). Regenerate this file
- * whenever the Breaks menu changes, then re-run the "Seed menu catalog"
- * admin action; writes are idempotent (stable slug IDs), so a re-seed after
- * a price change updates existing docs rather than duplicating them. Retire
- * an item by setting active:false rather than deleting it — past events
- * that selected it keep their own snapshotted name/price regardless.
+ * Sources: "2026 Breaks Menu.md" and "2026 Breakfast Menu.md" (Jeff,
+ * 2026-08-25). The catalog grows meal-period by meal-period as menus are
+ * handed off; every item carries its `mealPeriod`, and the intake pickers
+ * filter on it. Regenerate this file whenever a menu changes, then re-run the
+ * "Seed menu catalog" admin action; writes are idempotent (stable slug IDs),
+ * so a re-seed after a price change updates existing docs rather than
+ * duplicating them. Retire an item by setting active:false rather than
+ * deleting it — past events that selected it keep their own snapshotted
+ * name/price regardless.
  */
 
 export const PACKAGE_BEVERAGE_OPTIONS = [
@@ -108,4 +111,52 @@ export const MENU_ITEMS = [
     name: "Open Water", price: 3.75, sortOrder: 16, description: "" },
   { key: "cb-pm-coffee-tea-water", mealPeriod: "coffee_break", category: "a_la_carte", subcategory: "afternoon",
     name: "Coffee, Tea, and Water", price: 3.75, sortOrder: 17, description: "" },
+
+  // ── Breakfast — Buffets ──────────────────────────────────────────────
+  { key: "bf-buffet-continental", mealPeriod: "breakfast", category: "buffet", subcategory: null,
+    name: "Continental Breakfast", price: 17.00, sortOrder: 1,
+    description: "Coffee, Tea, and Water; Orange Juice Dispenser; Assorted Breakfast Pastries, Muffins, or Bagels with Spreads; Fresh Fruit Platter with Berries" },
+  { key: "bf-buffet-sunrise", mealPeriod: "breakfast", category: "buffet", subcategory: null,
+    name: "Sunrise Breakfast", price: 21.00, sortOrder: 2,
+    description: "Coffee, Tea, and Water; Orange Juice Dispenser; Mini Frittatas (gluten-friendly), Meat & Vegetarian Options; Choice of Breakfast Meats: Bacon, Sausage, or Ham; Breakfast Potatoes (vegan); Fresh Fruit Platter with Berries" },
+  { key: "bf-buffet-southwest-burritos", mealPeriod: "breakfast", category: "buffet", subcategory: null,
+    name: "Southwest Breakfast Burritos", price: 18.75, sortOrder: 3,
+    description: "Coffee, Tea, and Water; Orange Juice Dispenser; Prepared Breakfast Burritos, Meat or Vegetarian Options; Vegetarian Green Chili (vegetarian, gluten-friendly); Fresh Fruit Platter with Berries; Bottles of Hot Sauce. Can be turned into a Build Your Own Southwest Breakfast Burrito Bowls Buffet for an upcharge of $1.00 per person." },
+  { key: "bf-buffet-avocado-toast-bar", mealPeriod: "breakfast", category: "buffet", subcategory: null,
+    name: "Avocado Toast Bar", price: 20.00, sortOrder: 4,
+    description: "Build Your Own Avocado Toast Station: Coffee, Tea, and Water; Orange Juice Dispenser; Selection of Local Sliced Breads (GF Available); Smashed Avocado Spread; Hard-Boiled Eggs; Crumbled Bacon; Chopped Tomatoes; Pickled Red Onion; Crumbled Feta; Fresh Fruit Platter with Berries" },
+  { key: "bf-buffet-yogurt-parfait-bar", mealPeriod: "breakfast", category: "buffet", subcategory: null,
+    name: "Yogurt Parfait Bar", price: 18.25, sortOrder: 5,
+    description: "Build Your Own Yogurt Parfait Station: Coffee, Tea, and Water; Orange Juice Dispenser; Yogurt Bowl; Honey; Granola; Assorted Nuts, Seeds, Dried Fruit; Bowl of Berries" },
+
+  // ── Breakfast — À la carte ───────────────────────────────────────────
+  { key: "bf-ac-pastries-muffins", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Assorted Breakfast Pastries or Muffins", price: 4.50, sortOrder: 1, description: "" },
+  { key: "bf-ac-breakfast-breads", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Assorted Breakfast Breads", price: 4.50, sortOrder: 2, description: "" },
+  { key: "bf-ac-coffee-cake-kuchen-streusel", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Coffee Cake, Seasonal Kuchen, Apple Streusel Bars", price: 4.50, sortOrder: 3, description: "" },
+  { key: "bf-ac-bagels-spreads", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Assorted Bagels with Spreads", price: 4.50, sortOrder: 4, description: "" },
+  { key: "bf-ac-smoked-salmon-upgrade", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Smoked Salmon Upgrade", price: 4.50, sortOrder: 5,
+    description: "Add-on to Assorted Bagels with Spreads" },
+  { key: "bf-ac-mini-frittatas", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Mini Frittatas, Meat & Vegetarian Options (gluten-friendly)", price: 6.25, sortOrder: 6, description: "" },
+  { key: "bf-ac-fresh-fruit-salad", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Fresh Fruit Salad", price: 4.50, sortOrder: 7, description: "" },
+  { key: "bf-ac-fresh-fruit-platter-berries", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Fresh Fruit Platter with Berries", price: 5.00, sortOrder: 8, description: "" },
+  { key: "bf-ac-bowl-mixed-berries", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Bowl of Mixed Berries", price: 5.75, sortOrder: 9, description: "" },
+  { key: "bf-ac-yogurt-granola", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Yogurt with Granola", price: 5.00, sortOrder: 10, description: "" },
+  { key: "bf-ac-coconut-chia-pudding", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Coconut Chia Pudding Cups with Berries (vegan, gluten-friendly)", price: 5.00, sortOrder: 11, description: "" },
+  { key: "bf-ac-overnight-oat-cups", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Overnight Oat Cups with Berries (vegan)", price: 5.00, sortOrder: 12, description: "" },
+  { key: "bf-ac-coffee-tea-water", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Coffee, Tea, and Water", price: 3.75, sortOrder: 13, description: "" },
+  { key: "bf-ac-breakfast-juices", mealPeriod: "breakfast", category: "a_la_carte", subcategory: null,
+    name: "Assorted Breakfast Juices", price: 3.75, sortOrder: 14, description: "" },
 ];
