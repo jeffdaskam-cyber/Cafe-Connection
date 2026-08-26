@@ -2,10 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  STEP_IDS, capacityPlaceholder, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal,
+  STEP_IDS, capacityPlaceholder, clearDraft, dayMealPeriods, deriveFlag, emptyIntakeForm, emptyMeal,
   emptyRoomBooking, eventToForm,
   emptyScheduleDay, isStepValid, loadDraft, parseProjectIdsText, primaryRoomBooking,
-  saveDraft, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
+  saveDraft, stepsForForm, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
 } from "../src/catering/formState.js";
 import { REQUESTER_EDITABLE_FIELDS, STAFF_ONLY_FIELDS } from "../src/catering/schema.js";
 
@@ -35,11 +35,63 @@ function completeForm() {
     date: "2026-08-10",
     startTime: "08:00",
     endTime: "17:00",
-    cateringServicesNeeded: ["coffee_break", "lunch"],
     meals: [{ ...emptyMeal(), mealPeriod: "lunch", time: "12:00", menuSelection: "Taco bar", headcount: "60" }],
   }];
   return form;
 }
+
+// ── Catering toggle & the conditional Meals step ─────────────────────────────
+
+test("the Meals step is shown only when catering is requested", () => {
+  const form = completeForm();
+  assert.equal(form.needsCatering, true, "catering defaults to Yes");
+  assert.ok(stepsForForm(form).some((s) => s.id === "meals"), "Meals shows when Yes");
+
+  form.needsCatering = false;
+  assert.ok(!stepsForForm(form).some((s) => s.id === "meals"), "Meals is hidden when No");
+  // The other steps are unaffected and keep their order.
+  assert.deepEqual(
+    stepsForForm(form).map((s) => s.id),
+    ["basics", "rooms", "schedule", "logistics", "review"],
+  );
+});
+
+test("validateAll ignores the hidden Meals step when catering is off", () => {
+  const form = completeForm();
+  // A meal with a bad period would fail the Meals step…
+  form.scheduleDays[0].meals = [{ ...emptyMeal(), mealPeriod: "" }];
+  assert.ok(validateAll(form)["scheduleDays.0.meals.0.mealPeriod"], "fails while catering is Yes");
+
+  // …but with catering off the step is gone, so submit is not blocked by it.
+  form.needsCatering = false;
+  assert.equal(validateAll(form)["scheduleDays.0.meals.0.mealPeriod"], undefined);
+});
+
+test("dayMealPeriods dedupes and returns canonical order", () => {
+  assert.deepEqual(
+    dayMealPeriods([
+      { mealPeriod: "lunch" }, { mealPeriod: "breakfast" }, { mealPeriod: "lunch" },
+    ]),
+    ["breakfast", "lunch"],
+  );
+  assert.deepEqual(dayMealPeriods([{ mealPeriod: "" }, {}]), []);
+  assert.deepEqual(dayMealPeriods([]), []);
+  assert.deepEqual(dayMealPeriods(undefined), []);
+});
+
+test("toScheduleDayDocs derives services from meals and drops them when catering is off", () => {
+  const form = completeForm();
+  form.scheduleDays[0].meals = [
+    { ...emptyMeal(), mealPeriod: "coffee_break", headcount: "30" },
+    { ...emptyMeal(), mealPeriod: "lunch", headcount: "60" },
+  ];
+  assert.deepEqual(toScheduleDayDocs(form)[0].data.cateringServicesNeeded, ["coffee_break", "lunch"]);
+
+  form.needsCatering = false;
+  const day = toScheduleDayDocs(form)[0];
+  assert.deepEqual(day.data.cateringServicesNeeded, [], "no services when catering is off");
+  assert.deepEqual(day.meals, [], "leftover meals are not written when catering is off");
+});
 
 // ── Validation ───────────────────────────────────────────────────────────────
 
@@ -230,7 +282,8 @@ test("toScheduleDayDocs nests meals under their day", () => {
   const days = toScheduleDayDocs(completeForm());
   assert.equal(days.length, 1);
   assert.equal(days[0].data.date, "2026-08-10");
-  assert.deepEqual(days[0].data.cateringServicesNeeded, ["coffee_break", "lunch"]);
+  // cateringServicesNeeded is derived from the day's meals, not entered directly.
+  assert.deepEqual(days[0].data.cateringServicesNeeded, ["lunch"]);
   assert.equal(days[0].meals.length, 1);
   assert.equal(days[0].meals[0].data.mealPeriod, "lunch");
   assert.equal(days[0].meals[0].data.headcount, 60);
@@ -255,7 +308,6 @@ test("eventToForm rebuilds editable form state from a saved event", () => {
     ["PRJ000000002", "50"],
   ]);
   assert.equal(rebuilt.scheduleDays.length, 1);
-  assert.deepEqual(rebuilt.scheduleDays[0].cateringServicesNeeded, ["coffee_break", "lunch"]);
   assert.equal(rebuilt.scheduleDays[0].meals[0].mealPeriod, "lunch");
   assert.equal(rebuilt.scheduleDays[0].meals[0].headcount, "60");
   assert.equal(rebuilt.rooms[0].roomId, "CG1-2122");
