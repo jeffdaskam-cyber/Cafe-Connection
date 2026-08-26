@@ -24,7 +24,7 @@
     "docx": "^8.5.0",
     "exceljs": "^4.4.0",
     "firebase": "^12.17.0",
-    "firebase-admin": "^12.7.0",
+    "firebase-admin": "^14.3.0",
     "html2canvas": "^1.4.1",
     "jose": "^6.2.7",
     "jspdf": "^4.2.1",
