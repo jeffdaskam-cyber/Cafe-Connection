@@ -15,9 +15,9 @@ import {
   MEAL_PERIODS, ORGANIZATIONS, PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
 } from "./schema.js";
 import {
-  STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
+  STEPS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
   emptyScheduleDay, browserStorage, capacityPlaceholder, clearDraft, groupMenuItems, loadDraft,
-  saveDraft, summarizeMenuItems, validateAll, validateStep,
+  saveDraft, stepsForForm, summarizeMenuItems, validateAll, validateStep,
 } from "./formState.js";
 import {
   createCateringEvent, fetchBuildings, fetchMenuItems, fetchRooms, updateCateringEvent,
@@ -53,6 +53,11 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const [maxStepReached, setMaxStepReached] = useState(editing ? STEPS.length - 1 : 0);
   const [form, setForm] = useState(() =>
     existing?.form ?? loadDraft(browserStorage()) ?? emptyIntakeForm(user));
+
+  // The Meals step only exists when catering is requested (the Yes/No on the
+  // Schedule step), so the step list is derived from the form rather than fixed.
+  // Cheap enough (a filter of six) to recompute each render.
+  const steps = stepsForForm(form);
   const [eventId, setEventId] = useState(existing?.id ?? null);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -64,9 +69,16 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const [restoredDraft] = useState(() => storageEnabled && loadDraft(browserStorage()) !== null);
   const busy = saving || submitting;
 
-  const step = STEPS[stepIndex];
+  const step = steps[stepIndex];
   const errors = useMemo(() => validateStep(step.id, form), [step.id, form]);
   const visibleErrors = showErrors ? errors : {};
+
+  // Toggling catering off removes the Meals step; keep the current and furthest
+  // positions inside the (now shorter) list so navigation never lands off the end.
+  useEffect(() => {
+    setStepIndex((i) => Math.min(i, steps.length - 1));
+    setMaxStepReached((m) => Math.min(m, steps.length - 1));
+  }, [steps.length]);
 
   useEffect(() => {
     // Each fetch loads independently: a failure of one (e.g. the menu catalog
@@ -121,7 +133,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   function goNext() {
     if (Object.keys(errors).length) { setShowErrors(true); return; }
     setShowErrors(false);
-    const next = Math.min(stepIndex + 1, STEPS.length - 1);
+    const next = Math.min(stepIndex + 1, steps.length - 1);
     setStepIndex(next);
     setMaxStepReached((m) => Math.max(m, next));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -196,7 +208,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   async function handleSubmit() {
     const allErrors = validateAll(form);
     if (Object.keys(allErrors).length) {
-      const firstBad = STEP_IDS.findIndex((id) => Object.keys(validateStep(id, form)).length);
+      const firstBad = steps.findIndex((s) => Object.keys(validateStep(s.id, form)).length);
       if (firstBad >= 0) setStepIndex(firstBad);
       setShowErrors(true);
       setSubmitError(`Please fix the highlighted fields before ${alreadySubmitted ? "saving" : "submitting"}.`);
@@ -221,7 +233,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
   return (
     <div>
-      <StepBar stepIndex={stepIndex} maxStepReached={maxStepReached} onStepClick={goToStep} />
+      <StepBar steps={steps} stepIndex={stepIndex} maxStepReached={maxStepReached} onStepClick={goToStep} />
 
       {restoredDraft && stepIndex === 0 && (
         <Banner tone="info" title="Draft restored">
@@ -336,10 +348,28 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
         {step.id === "schedule" && (
           <>
-            <SectionTitle>Event days</SectionTitle>
+            <SectionTitle>Catering</SectionTitle>
+            <Field label="Catering services needed?" group
+              hint="Choose Yes to add meals for your event. The Meals step appears only when catering is requested.">
+              <div style={{ display: "flex", gap: 20, paddingTop: 4 }}>
+                {[["Yes", true], ["No", false]].map(([label, value]) => (
+                  <label key={label} style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontSize: 13, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
+                  }}>
+                    <input type="radio" name="needsCatering"
+                      checked={form.needsCatering === value}
+                      onChange={() => set({ needsCatering: value })}
+                      style={{ width: 15, height: 15, accentColor: COLORS.AQUA, cursor: "pointer" }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <SectionTitle style={{ marginTop: 28 }}>Event days</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
-              Add one row per day of your event, with the times the space is needed
-              and which catering services you expect that day.
+              Add one row per day of your event, with the times the space is needed.
             </p>
 
             {visibleErrors.scheduleDays && (
@@ -367,27 +397,6 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                       onChange={(e) => updateDay(i, { endTime: e.target.value })} />
                   </Field>
                 </Row>
-
-                <Field label="Catering services needed" group>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 14, paddingTop: 4 }}>
-                    {MEAL_PERIODS.filter((p) => p !== "other").map((period) => (
-                      <label key={period} style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        fontSize: 12, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
-                      }}>
-                        <input type="checkbox"
-                          checked={day.cateringServicesNeeded.includes(period)}
-                          onChange={(e) => updateDay(i, {
-                            cateringServicesNeeded: e.target.checked
-                              ? [...day.cateringServicesNeeded, period]
-                              : day.cateringServicesNeeded.filter((p) => p !== period),
-                          })}
-                          style={{ width: 14, height: 14, accentColor: COLORS.AQUA, cursor: "pointer" }} />
-                        {MEAL_PERIOD_LABELS[period]}
-                      </label>
-                    ))}
-                  </div>
-                </Field>
 
                 <Field label="Notes for this day">
                   <Textarea rows={2} value={day.notes}
@@ -596,8 +605,8 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
             </Field>
 
             <SectionTitle style={{ marginTop: 28 }}>Services</SectionTitle>
-            <Checkbox label="Catering needed" checked={form.needsCatering}
-              onChange={(e) => set({ needsCatering: e.target.checked })} />
+            {/* "Catering needed" is set as the Yes/No on the Schedule step, which
+                also gates whether the Meals step appears. */}
             <Checkbox label="Alcohol will be served" checked={form.needsAlcohol}
               onChange={(e) => set({ needsAlcohol: e.target.checked })} />
 
@@ -675,7 +684,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
         )}
 
         {step.id === "review" && (
-          <ReviewStep form={form} buildings={buildings} rooms={rooms} onEdit={goToStep} />
+          <ReviewStep form={form} buildings={buildings} rooms={rooms} steps={steps} onEdit={goToStep} />
         )}
 
         {submitError && <Banner tone="error" title="Submission failed">{submitError}</Banner>}
@@ -830,10 +839,10 @@ function ProjectIdFields({
   );
 }
 
-function StepBar({ stepIndex, maxStepReached, onStepClick }) {
+function StepBar({ steps, stepIndex, maxStepReached, onStepClick }) {
   return (
     <ol style={{ display: "flex", gap: 8, listStyle: "none", marginBottom: 20, flexWrap: "wrap" }}>
-      {STEPS.map((s, i) => {
+      {steps.map((s, i) => {
         // A visited tab (current, or anything up to the furthest reached) reads
         // as "done"; tabs past that point are still to come.
         const state = i === stepIndex ? "current"
@@ -902,11 +911,14 @@ function formatMoney(value) {
   return money.format(Number.isFinite(Number(value)) ? Number(value) : 0);
 }
 
-function ReviewStep({ form, buildings, rooms, onEdit }) {
+function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
   const totalMeals = form.scheduleDays.reduce((n, d) => n + (d.meals?.length || 0), 0);
   const bookedRooms = (form.rooms || []).filter((r) => r.roomId);
   const nameFor = (list, id) => list.find((x) => x.id === id)?.name || id;
   const projectIdsDisplay = describeProjectIds(form);
+  // Resolve a step's live index by id — positions shift when the Meals step is
+  // hidden, so the Edit links can't rely on fixed numbers.
+  const editStep = (id) => onEdit(steps.findIndex((s) => s.id === id));
 
   // Prices/quantities are snapshotted onto each meal's menuItems at selection
   // time, so the estimate here matches what the meal picker showed.
@@ -929,7 +941,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         keep editing this request at any time — even after it&apos;s confirmed.
       </p>
 
-      <ReviewBlock title="Event basics" onEdit={() => onEdit(0)} rows={[
+      <ReviewBlock title="Event basics" onEdit={() => editStep("basics")} rows={[
         ["Event", form.eventName],
         ["Dates", [form.startDate, form.endDate].filter(Boolean).join(" → ") || "—"],
         ["Attendance", form.expectedAttendance || "—"],
@@ -937,7 +949,7 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         ["Planner", [form.plannerName, form.plannerEmail].filter(Boolean).join(" · ") || "—"],
       ]} />
 
-      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(1)}
+      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => editStep("rooms")}
         rows={bookedRooms.map((r) => [
           nameFor(buildings, r.buildingId),
           [
@@ -948,33 +960,38 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
           ].filter(Boolean).join(" · "),
         ])} />
 
-      <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => onEdit(2)}
+      <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => editStep("schedule")}
         rows={form.scheduleDays.map((d, i) => [
           `Day ${i + 1}`,
           [d.date, [d.startTime, d.endTime].filter(Boolean).join("–")].filter(Boolean).join(" · ") || "—",
         ])} />
 
-      <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(3)}
-        footer={["Catering estimate", formatMoney(cateringEstimate)]}
-        rows={form.scheduleDays.flatMap((d) =>
-          (d.meals || []).map((m) => {
-            // Coffee Break stores structured selections; menuSelection is only
-            // derived from them on save, so summarize here for the live preview.
-            const menu = (m.menuItems && m.menuItems.length)
-              ? summarizeMenuItems(m.menuItems)
-              : m.menuSelection;
-            return [
-              formatMealDayLabel(d.date),
-              [
-                [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
-                m.location,
-              ].filter(Boolean).join(" - ")
-                + (menu ? ` · ${menu}` : ""),
-            ];
-          })
-        )} />
+      {form.needsCatering ? (
+        <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => editStep("meals")}
+          footer={["Catering estimate", formatMoney(cateringEstimate)]}
+          rows={form.scheduleDays.flatMap((d) =>
+            (d.meals || []).map((m) => {
+              // Coffee Break stores structured selections; menuSelection is only
+              // derived from them on save, so summarize here for the live preview.
+              const menu = (m.menuItems && m.menuItems.length)
+                ? summarizeMenuItems(m.menuItems)
+                : m.menuSelection;
+              return [
+                formatMealDayLabel(d.date),
+                [
+                  [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
+                  m.location,
+                ].filter(Boolean).join(" - ")
+                  + (menu ? ` · ${menu}` : ""),
+              ];
+            })
+          )} />
+      ) : (
+        <ReviewBlock title="Meals" onEdit={() => editStep("schedule")}
+          rows={[["Catering", "Not requested"]]} />
+      )}
 
-      <ReviewBlock title="Logistics" onEdit={() => onEdit(4)} rows={[
+      <ReviewBlock title="Logistics" onEdit={() => editStep("logistics")} rows={[
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
         ["Payment", form.paymentMethod === PAYMENT_METHOD.PROJECT_ID ? "Project ID"
           : form.paymentMethod === PAYMENT_METHOD.ACH_EXTERNAL ? "ACH (External)" : "—"],

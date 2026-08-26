@@ -26,6 +26,16 @@ export const STEPS = [
 
 export const STEP_IDS = STEPS.map((s) => s.id);
 
+/**
+ * The steps shown for a given form. The Meals step only appears when catering is
+ * requested (the Yes/No on the Schedule step), so a planner who isn't ordering
+ * food never sees it. Everything index-based — the step bar, next/back, and
+ * whole-form validation — reads this rather than STEPS directly.
+ */
+export function stepsForForm(form) {
+  return STEPS.filter((s) => s.id !== "meals" || Boolean(form?.needsCatering));
+}
+
 let seq = 0;
 /** Client-side key for repeatable rows. Not the Firestore document ID. */
 export function nextLocalId(prefix) {
@@ -41,7 +51,6 @@ export function emptyScheduleDay() {
     date: "",
     startTime: "",
     endTime: "",
-    cateringServicesNeeded: [],
     notes: "",
     meals: [],
   };
@@ -303,10 +312,14 @@ export function validateStep(stepId, form) {
   return errors;
 }
 
-/** Validate every step. Used before submit and to mark step completeness. */
+/**
+ * Validate every step shown for this form. Used before submit and to mark step
+ * completeness. When catering isn't requested the Meals step is hidden and its
+ * (unreachable) fields are not validated, so a leftover meal never blocks submit.
+ */
 export function validateAll(form) {
-  return STEP_IDS.reduce(
-    (acc, stepId) => Object.assign(acc, validateStep(stepId, form)),
+  return stepsForForm(form).reduce(
+    (acc, step) => Object.assign(acc, validateStep(step.id, form)),
     {}
   );
 }
@@ -451,18 +464,39 @@ export function summarizeMenuItems(menuItems) {
     .join("; ");
 }
 
+/**
+ * The meal periods a day serves, deduplicated and in canonical order, derived
+ * from the day's meals.
+ *
+ * This is what staff views, the console's meal-period filter, and the recap PDF
+ * read off each schedule-day document (`cateringServicesNeeded`). Deriving it
+ * from the meals the planner actually enters — rather than a separate checkbox —
+ * keeps meals the single source of truth while still denormalizing the per-day
+ * period list onto the day document, so the staff collection-group query doesn't
+ * have to descend into every meal subcollection to know what a day serves.
+ */
+export function dayMealPeriods(meals) {
+  const present = new Set((meals || []).map((m) => trimmed(m.mealPeriod)).filter(Boolean));
+  return MEAL_PERIODS.filter((p) => present.has(p));
+}
+
 /** Schedule day subcollection documents, each with its nested meals. */
 export function toScheduleDayDocs(form) {
-  return (form.scheduleDays || []).map((day) => ({
+  // No catering requested → the day carries no meals and serves no periods,
+  // regardless of any meal rows left over in form state from a Yes→No toggle.
+  const cateringRequested = Boolean(form.needsCatering);
+  return (form.scheduleDays || []).map((day) => {
+    const meals = cateringRequested ? (day.meals || []) : [];
+    return {
     localId: day.localId,
     data: {
       date:      trimmed(day.date),
       startTime: trimmed(day.startTime),
       endTime:   trimmed(day.endTime),
-      cateringServicesNeeded: [...(day.cateringServicesNeeded || [])],
+      cateringServicesNeeded: dayMealPeriods(meals),
       notes:     trimmed(day.notes),
     },
-    meals: (day.meals || []).map((meal) => ({
+    meals: meals.map((meal) => ({
       localId: meal.localId,
       data: {
         mealPeriod:    trimmed(meal.mealPeriod),
@@ -486,7 +520,8 @@ export function toScheduleDayDocs(form) {
         headcount:     numberOrNull(meal.headcount),
       },
     })),
-  }));
+    };
+  });
 }
 
 /**
@@ -529,7 +564,8 @@ export function eventToForm(event = {}, days = [], rooms = []) {
     date:      str(d.date),
     startTime: str(d.startTime),
     endTime:   str(d.endTime),
-    cateringServicesNeeded: [...(d.cateringServicesNeeded || [])],
+    // cateringServicesNeeded is no longer an editable field — it is derived from
+    // the day's meals on save (see dayMealPeriods / toScheduleDayDocs).
     notes:     str(d.notes),
     meals: (d.meals || []).map((m) => ({
       localId: nextLocalId("meal"),

@@ -178,6 +178,18 @@ plan's `legacyId` — those collapse into one field.
 | AppSheet table | Columns | Plan mapping |
 |---|---|---|
 | Daily Schedule | `Schedule ID`, `Event ID`, `Date`, `Start Time`, `End Time`, `Catering` | `catering_schedule_days` ✅ — `Catering` is multi-valued (`"Coffee Break , Lunch , Reception"`) → `cateringServicesNeeded[]` ✅ |
+
+> **`cateringServicesNeeded` is derived, not entered.** As of the conditional
+> Meals step, the intake form no longer has a per-day meal-period picker. The
+> Schedule step carries a single event-level **Catering services needed? Yes/No**
+> (`needsCatering`), which gates whether the Meals step appears. On save,
+> `cateringServicesNeeded[]` is derived from the meal periods the planner
+> actually enters on the Meals step (`dayMealPeriods` in `formState.js`), so it
+> stays denormalized onto each schedule-day document for the staff console's
+> meal-period filter, the daily schedule, and the recap — none of which had to
+> change. When catering is No, a day carries no meals and an empty
+> `cateringServicesNeeded[]`. The legacy `Catering` column above still feeds the
+> field on import via `scripts/migrateCateringEvents.mjs`.
 | Meal Selections | `Meal Selection ID`, `Schedule ID`, `Meal Period`, `Meal Start Time`, `Menu Selection`, `Location` | `catering_meal_selections` ✅ — keyed by `Schedule ID`, confirming the plan's nesting under schedule day ✅ |
 | Event Rooms | `Event Room ID`, `Event ID`, `Building ID`, `Room ID`, `Setup`, `Room Start Time`, `Room End Time`, `Expected Headcount`, `Is Primary Room`, `Room Notes` | `catering_event_rooms` ✅ — near-exact match, plus `Room Notes` |
 
