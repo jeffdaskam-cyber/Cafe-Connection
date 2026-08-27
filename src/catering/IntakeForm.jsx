@@ -23,7 +23,7 @@ import {
   createCateringEvent, fetchBuildings, fetchMenuItems, fetchRooms, updateCateringEvent,
 } from "./data.js";
 import {
-  Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
+  Banner, Button, Card, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
 import BreakMenuPicker from "./BreakMenuPicker.jsx";
 import BreakfastMenuPicker from "./BreakfastMenuPicker.jsx";
@@ -367,6 +367,23 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
               </div>
             </Field>
 
+            <Field label="Alcohol will be served?" group>
+              <div style={{ display: "flex", gap: 20, paddingTop: 4 }}>
+                {[["Yes", true], ["No", false]].map(([label, value]) => (
+                  <label key={label} style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontSize: 13, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
+                  }}>
+                    <input type="radio" name="needsAlcohol"
+                      checked={form.needsAlcohol === value}
+                      onChange={() => set({ needsAlcohol: value })}
+                      style={{ width: 15, height: 15, accentColor: COLORS.AQUA, cursor: "pointer" }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
             <SectionTitle style={{ marginTop: 28 }}>Event days</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
               Add one row per day of your event, with the times your group will be using the room.
@@ -494,6 +511,15 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                 </Button>
               </div>
             ))}
+
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              borderTop: `1px solid ${COLORS.BORDER}`, paddingTop: 14, marginTop: 8,
+              fontSize: 13, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_PRIMARY,
+            }}>
+              <span>Estimated catering total</span>
+              <span>{formatMoney(cateringEstimateFor(form.scheduleDays))}</span>
+            </div>
           </>
         )}
 
@@ -605,11 +631,8 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
             </Field>
 
             <SectionTitle style={{ marginTop: 28 }}>Services</SectionTitle>
-            {/* "Catering needed" is set as the Yes/No on the Schedule step, which
-                also gates whether the Meals step appears. */}
-            <Checkbox label="Alcohol will be served" checked={form.needsAlcohol}
-              onChange={(e) => set({ needsAlcohol: e.target.checked })} />
-
+            {/* "Catering needed" and "Alcohol will be served" are both set as
+                Yes/No questions on the Schedule step. */}
             <Field label="Security needs"
               hint="Describe what you need — hours, coverage, anything already arranged.">
               <Textarea rows={2} value={form.securityNotes}
@@ -895,7 +918,7 @@ function describeProjectIds(form) {
 }
 
 /**
- * Formats a `YYYY-MM-DD` schedule date as "Weekday M/D" (e.g. "Tuesday 8/25").
+ * Formats a `YYYY-MM-DD` schedule date as "Weekday MM/DD/YYYY" (e.g. "Tuesday 09/01/2026").
  * Parses the parts directly so the label doesn't drift a day across time zones.
  */
 function formatMealDayLabel(dateStr) {
@@ -903,12 +926,27 @@ function formatMealDayLabel(dateStr) {
   const [y, mo, dy] = dateStr.split("-").map(Number);
   if (!y || !mo || !dy) return dateStr;
   const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
-  return `${weekday} ${mo}/${dy}`;
+  return `${weekday} ${String(mo).padStart(2, "0")}/${String(dy).padStart(2, "0")}/${y}`;
 }
 
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 function formatMoney(value) {
   return money.format(Number.isFinite(Number(value)) ? Number(value) : 0);
+}
+
+// Prices/quantities are snapshotted onto each meal's menuItems at selection
+// time, so this estimate matches what the meal picker showed.
+function cateringEstimateFor(scheduleDays) {
+  return (scheduleDays || []).reduce(
+    (total, d) => total + (d.meals || []).reduce(
+      (mealSum, m) => mealSum + (m.menuItems || []).reduce(
+        (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
+        0,
+      ),
+      0,
+    ),
+    0,
+  );
 }
 
 function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
@@ -920,18 +958,7 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
   // hidden, so the Edit links can't rely on fixed numbers.
   const editStep = (id) => onEdit(steps.findIndex((s) => s.id === id));
 
-  // Prices/quantities are snapshotted onto each meal's menuItems at selection
-  // time, so the estimate here matches what the meal picker showed.
-  const cateringEstimate = form.scheduleDays.reduce(
-    (total, d) => total + (d.meals || []).reduce(
-      (mealSum, m) => mealSum + (m.menuItems || []).reduce(
-        (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
-        0,
-      ),
-      0,
-    ),
-    0,
-  );
+  const cateringEstimate = cateringEstimateFor(form.scheduleDays);
 
   return (
     <>
@@ -943,7 +970,7 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
 
       <ReviewBlock title="Event basics" onEdit={() => editStep("basics")} rows={[
         ["Event", form.eventName],
-        ["Dates", [form.startDate, form.endDate].filter(Boolean).join(" → ") || "—"],
+        ["Dates", [form.startDate, form.endDate].filter(Boolean).map(formatMealDayLabel).join(" → ") || "—"],
         ["Attendance", form.expectedAttendance || "—"],
         ["Organization", [form.organization, form.lcpo].filter(Boolean).join(" / ") || "—"],
         ["Planner", [form.plannerName, form.plannerEmail].filter(Boolean).join(" · ") || "—"],

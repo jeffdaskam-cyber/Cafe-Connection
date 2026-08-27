@@ -44,13 +44,13 @@ function fmtTime12(t) {
   return `${hour12}:${String(Number.isNaN(m) ? 0 : m).padStart(2, "0")} ${period}`;
 }
 
-/** "2026-08-25" → "Tuesday 8-25-26". Parsed by parts so it can't drift a day. */
+/** "2026-08-25" → "Tuesday 08/25/2026". Parsed by parts so it can't drift a day. */
 function fmtDayHeader(dateStr) {
   if (!dateStr) return "—";
   const [y, mo, dy] = String(dateStr).split("-").map(Number);
   if (!y || !mo || !dy) return String(dateStr);
   const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
-  return `${weekday} ${mo}-${dy}-${String(y).slice(-2)}`;
+  return `${weekday} ${String(mo).padStart(2, "0")}/${String(dy).padStart(2, "0")}/${y}`;
 }
 
 export default function MyRequests({ user, onNewRequest, onEdit, justDone }) {
