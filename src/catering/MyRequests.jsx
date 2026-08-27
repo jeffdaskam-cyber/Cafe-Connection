@@ -11,6 +11,7 @@ import { REQUEST_STATUS } from "./schema.js";
 import {
   fetchBookedRooms, fetchScheduleDays, subscribeMyRequests,
 } from "./data.js";
+import { formatEventDate, formatEventDateRange } from "./dates.js";
 import { eventToForm } from "./formState.js";
 import { Banner, Button, Card, EmptyState, SectionTitle, StatusBadge } from "./ui.jsx";
 
@@ -42,15 +43,6 @@ function fmtTime12(t) {
   const period = h < 12 ? "am" : "pm";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${String(Number.isNaN(m) ? 0 : m).padStart(2, "0")} ${period}`;
-}
-
-/** "2026-08-25" → "Tuesday 08/25/2026". Parsed by parts so it can't drift a day. */
-function fmtDayHeader(dateStr) {
-  if (!dateStr) return "—";
-  const [y, mo, dy] = String(dateStr).split("-").map(Number);
-  if (!y || !mo || !dy) return String(dateStr);
-  const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
-  return `${weekday} ${String(mo).padStart(2, "0")}/${String(dy).padStart(2, "0")}/${y}`;
 }
 
 export default function MyRequests({ user, onNewRequest, onEdit, justDone }) {
@@ -132,7 +124,9 @@ function RequestRow({ request, expanded, onToggle, onEdit }) {
           </div>
           <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED }}>
             {[
-              [request.startDate, request.endDate].filter(Boolean).join(" → "),
+              // Left blank when unset so the "No dates set" fallback below still applies.
+              (request.startDate || request.endDate)
+                ? formatEventDateRange(request.startDate, request.endDate) : null,
               request.expectedAttendance ? `${request.expectedAttendance} guests` : null,
               request.buildingId,
             ].filter(Boolean).join(" · ") || "No dates set"}
@@ -271,7 +265,7 @@ function ScheduleSection({ days, rooms }) {
           return (
             <div key={di}>
               <div style={{ fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_PRIMARY, marginBottom: 4 }}>
-                {fmtDayHeader(d.date)}
+                {formatEventDate(d.date)}
               </div>
               {roomLines.map((line, li) => (
                 <div key={li} style={{ color: COLORS.TEXT_PRIMARY, lineHeight: 1.7 }}>

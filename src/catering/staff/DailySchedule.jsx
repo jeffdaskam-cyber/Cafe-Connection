@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../../theme.js";
+import { formatEventDate } from "../dates.js";
 import { fetchScheduleDaysInRange } from "../staffData.js";
 import { groupScheduleByDate, isoDateOffset, mealTotalsForDay } from "../staffFilters.js";
 import { Banner, Card, EmptyState, Field, Input, SectionTitle, StatusBadge } from "../ui.jsx";
@@ -82,7 +83,7 @@ export default function DailySchedule({ events }) {
                 display: "flex", justifyContent: "space-between",
                 alignItems: "baseline", gap: 16, flexWrap: "wrap", marginBottom: 14,
               }}>
-                <SectionTitle style={{ marginBottom: 0 }}>{formatDate(date)}</SectionTitle>
+                <SectionTitle style={{ marginBottom: 0 }}>{formatEventDate(date)}</SectionTitle>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {totals.map((t) => (
                     <span key={t.period} style={{
@@ -148,12 +149,3 @@ export default function DailySchedule({ events }) {
 }
 
 const cell = { padding: "8px 12px", color: COLORS.TEXT_SECONDARY, verticalAlign: "top" };
-
-function formatDate(iso) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return iso;
-  const weekday = d.toLocaleDateString(undefined, { weekday: "long", timeZone: "UTC" });
-  const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dy = String(d.getUTCDate()).padStart(2, "0");
-  return `${weekday} ${mo}/${dy}/${d.getUTCFullYear()}`;
-}

@@ -16,6 +16,7 @@ import { useWidgetSubscription } from "../../hooks/useWidget.js";
 import { subscribeAllCateringEvents } from "../../catering/staffData.js";
 import { COLORS, FONT } from "../../theme.js";
 import { LIFECYCLE_STATUS, REQUEST_STATUS } from "../../catering/schema.js";
+import { formatEventDate } from "../../catering/dates.js";
 
 function money(n) {
   if (n == null) return "—";
@@ -88,7 +89,7 @@ export default function CateringWidget({ config = {} }) {
                 {event.eventName || "Untitled event"}
               </span>
               <span style={{ color: COLORS.TEXT_MUTED, whiteSpace: "nowrap" }}>
-                {event.startDate}
+                {formatEventDate(event.startDate)}
                 {event.expectedAttendance ? ` · ${event.expectedAttendance}` : ""}
               </span>
             </li>
