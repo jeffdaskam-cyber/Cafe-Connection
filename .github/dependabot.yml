@@ -5,6 +5,17 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    # Collapse routine updates into a single PR per ecosystem so the repo gets
+    # one Vercel preview build and one production deploy per batch, instead of
+    # one per dependency. Majors stay ungrouped: they get their own PR so a
+    # breaking change can be reviewed and reverted on its own.
+    groups:
+      npm-minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
       # eslint-plugin-react's latest release (7.37.5, April 2025) peer-requires
       # eslint "^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9.7" and has no published
