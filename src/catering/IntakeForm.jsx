@@ -369,7 +369,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
             <SectionTitle style={{ marginTop: 28 }}>Event days</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
-              Add one row per day of your event, with the times the space is needed.
+              Add one row per day of your event, with the times your group will be using the room.
             </p>
 
             {visibleErrors.scheduleDays && (
