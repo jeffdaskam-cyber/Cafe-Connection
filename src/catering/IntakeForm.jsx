@@ -25,6 +25,7 @@ import {
 import {
   Banner, Button, Card, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
+import { formatEventDate, formatEventDateRange } from "./dates.js";
 import BreakMenuPicker from "./BreakMenuPicker.jsx";
 import BreakfastMenuPicker from "./BreakfastMenuPicker.jsx";
 
@@ -443,7 +444,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                   fontSize: 12, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_SECONDARY,
                   borderBottom: `1px solid ${COLORS.BORDER}`, paddingBottom: 8, marginBottom: 14,
                 }}>
-                  Day {i + 1}{day.date ? ` — ${day.date}` : ""}
+                  Day {i + 1}{day.date ? ` — ${formatEventDate(day.date)}` : ""}
                 </div>
 
                 {day.meals.length === 0 && (
@@ -917,18 +918,6 @@ function describeProjectIds(form) {
   }).join(", ");
 }
 
-/**
- * Formats a `YYYY-MM-DD` schedule date as "Weekday MM/DD/YYYY" (e.g. "Tuesday 09/01/2026").
- * Parses the parts directly so the label doesn't drift a day across time zones.
- */
-function formatMealDayLabel(dateStr) {
-  if (!dateStr) return "—";
-  const [y, mo, dy] = dateStr.split("-").map(Number);
-  if (!y || !mo || !dy) return dateStr;
-  const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
-  return `${weekday} ${String(mo).padStart(2, "0")}/${String(dy).padStart(2, "0")}/${y}`;
-}
-
 const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 function formatMoney(value) {
   return money.format(Number.isFinite(Number(value)) ? Number(value) : 0);
@@ -970,7 +959,7 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
 
       <ReviewBlock title="Event basics" onEdit={() => editStep("basics")} rows={[
         ["Event", form.eventName],
-        ["Dates", [form.startDate, form.endDate].filter(Boolean).map(formatMealDayLabel).join(" → ") || "—"],
+        ["Dates", formatEventDateRange(form.startDate, form.endDate)],
         ["Attendance", form.expectedAttendance || "—"],
         ["Organization", [form.organization, form.lcpo].filter(Boolean).join(" / ") || "—"],
         ["Planner", [form.plannerName, form.plannerEmail].filter(Boolean).join(" · ") || "—"],
@@ -990,7 +979,10 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
       <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => editStep("schedule")}
         rows={form.scheduleDays.map((d, i) => [
           `Day ${i + 1}`,
-          [d.date, [d.startTime, d.endTime].filter(Boolean).join("–")].filter(Boolean).join(" · ") || "—",
+          [
+            d.date ? formatEventDate(d.date) : "",
+            [d.startTime, d.endTime].filter(Boolean).join("–"),
+          ].filter(Boolean).join(" · ") || "—",
         ])} />
 
       {form.needsCatering ? (
@@ -1004,7 +996,7 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
                 ? summarizeMenuItems(m.menuItems)
                 : m.menuSelection;
               return [
-                formatMealDayLabel(d.date),
+                formatEventDate(d.date),
                 [
                   [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
                   m.location,

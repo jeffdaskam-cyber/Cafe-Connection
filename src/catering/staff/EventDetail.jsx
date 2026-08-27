@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../../theme.js";
+import { formatEventDate, formatEventDateRange } from "../dates.js";
 import { LIFECYCLE_STATUS, PAYMENT_METHOD, REQUEST_STATUS } from "../schema.js";
 import {
   deleteRoomBooking, fetchEventRooms, fetchEventScheduleDays,
@@ -195,7 +196,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
             </h1>
             <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED }}>
               {[
-                [event.startDate, event.endDate].filter(Boolean).join(" → "),
+                (event.startDate || event.endDate)
+                  ? formatEventDateRange(event.startDate, event.endDate) : null,
                 event.plannerName,
                 event.expectedAttendance ? `${event.expectedAttendance} guests` : null,
               ].filter(Boolean).join(" · ")}
@@ -389,7 +391,7 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
               padding: 14, marginBottom: 12, background: COLORS.BG_SURFACE_ALT,
             }}>
               <div style={{ fontSize: 12, fontWeight: FONT.WEIGHT_BOLD, marginBottom: 6 }}>
-                {day.date} {[day.startTime, day.endTime].filter(Boolean).join("–")}
+                {formatEventDate(day.date)} {[day.startTime, day.endTime].filter(Boolean).join("–")}
               </div>
               {(day.cateringServicesNeeded || []).length > 0 && (
                 <div style={{ fontSize: 11, color: COLORS.TEXT_MUTED, marginBottom: 8 }}>
