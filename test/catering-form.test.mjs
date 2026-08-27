@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  STEP_IDS, capacityPlaceholder, clearDraft, deriveFlag, emptyIntakeForm, emptyMeal,
+  STEP_IDS, capacityPlaceholder, clearDraft, dayMealPeriods, deriveFlag, emptyIntakeForm, emptyMeal,
   emptyRoomBooking, eventToForm,
   emptyScheduleDay, isStepValid, loadDraft, parseProjectIdsText, primaryRoomBooking,
-  saveDraft, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
+  saveDraft, stepsForForm, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
 } from "../src/catering/formState.js";
-import { REQUESTER_EDITABLE_FIELDS, STAFF_ONLY_FIELDS } from "../src/catering/schema.js";
+import { MEAL_PERIODS, REQUESTER_EDITABLE_FIELDS, STAFF_ONLY_FIELDS } from "../src/catering/schema.js";
 
 const USER = { uid: "uid123", email: "planner@ucar.edu", displayName: "Test Planner" };
 
@@ -35,11 +35,63 @@ function completeForm() {
     date: "2026-08-10",
     startTime: "08:00",
     endTime: "17:00",
-    cateringServicesNeeded: ["coffee_break", "lunch"],
     meals: [{ ...emptyMeal(), mealPeriod: "lunch", time: "12:00", menuSelection: "Taco bar", headcount: "60" }],
   }];
   return form;
 }
+
+// ── Catering toggle & the conditional Meals step ─────────────────────────────
+
+test("the Meals step is shown only when catering is requested", () => {
+  const form = completeForm();
+  assert.equal(form.needsCatering, true, "catering defaults to Yes");
+  assert.ok(stepsForForm(form).some((s) => s.id === "meals"), "Meals shows when Yes");
+
+  form.needsCatering = false;
+  assert.ok(!stepsForForm(form).some((s) => s.id === "meals"), "Meals is hidden when No");
+  // The other steps are unaffected and keep their order.
+  assert.deepEqual(
+    stepsForForm(form).map((s) => s.id),
+    ["basics", "rooms", "schedule", "logistics", "payment", "review"],
+  );
+});
+
+test("validateAll ignores the hidden Meals step when catering is off", () => {
+  const form = completeForm();
+  // A meal with a bad period would fail the Meals step…
+  form.scheduleDays[0].meals = [{ ...emptyMeal(), mealPeriod: "" }];
+  assert.ok(validateAll(form)["scheduleDays.0.meals.0.mealPeriod"], "fails while catering is Yes");
+
+  // …but with catering off the step is gone, so submit is not blocked by it.
+  form.needsCatering = false;
+  assert.equal(validateAll(form)["scheduleDays.0.meals.0.mealPeriod"], undefined);
+});
+
+test("dayMealPeriods dedupes and returns canonical order", () => {
+  assert.deepEqual(
+    dayMealPeriods([
+      { mealPeriod: "lunch" }, { mealPeriod: "breakfast" }, { mealPeriod: "lunch" },
+    ]),
+    ["breakfast", "lunch"],
+  );
+  assert.deepEqual(dayMealPeriods([{ mealPeriod: "" }, {}]), []);
+  assert.deepEqual(dayMealPeriods([]), []);
+  assert.deepEqual(dayMealPeriods(undefined), []);
+});
+
+test("toScheduleDayDocs derives services from meals and drops them when catering is off", () => {
+  const form = completeForm();
+  form.scheduleDays[0].meals = [
+    { ...emptyMeal(), mealPeriod: "coffee_break", headcount: "30" },
+    { ...emptyMeal(), mealPeriod: "lunch", headcount: "60" },
+  ];
+  assert.deepEqual(toScheduleDayDocs(form)[0].data.cateringServicesNeeded, ["coffee_break", "lunch"]);
+
+  form.needsCatering = false;
+  const day = toScheduleDayDocs(form)[0];
+  assert.deepEqual(day.data.cateringServicesNeeded, [], "no services when catering is off");
+  assert.deepEqual(day.meals, [], "leftover meals are not written when catering is off");
+});
 
 // ── Validation ───────────────────────────────────────────────────────────────
 
@@ -108,10 +160,10 @@ test("a meal must have a recognized period", () => {
 test("choosing Project ID payment requires at least one project ID", () => {
   const form = completeForm();
   form.projectIdRows = [{ localId: "pid_1", value: "", amount: "" }];
-  assert.ok(validateStep("logistics", form).projectIdRows);
+  assert.ok(validateStep("payment", form).projectIdRows);
 
   form.paymentMethod = "ach_external";
-  assert.equal(validateStep("logistics", form).projectIdRows, undefined);
+  assert.equal(validateStep("payment", form).projectIdRows, undefined);
 });
 
 test("a percentage split must add up to 100%", () => {
@@ -121,10 +173,10 @@ test("a percentage split must add up to 100%", () => {
     { localId: "pid_1", value: "PRJ000000001", amount: "60" },
     { localId: "pid_2", value: "PRJ000000002", amount: "30" },
   ];
-  assert.ok(validateStep("logistics", form).projectAllocations, "90% is short of 100%");
+  assert.ok(validateStep("payment", form).projectAllocations, "90% is short of 100%");
 
   form.projectIdRows[1].amount = "40";
-  assert.equal(validateStep("logistics", form).projectAllocations, undefined, "now totals 100%");
+  assert.equal(validateStep("payment", form).projectAllocations, undefined, "now totals 100%");
 });
 
 test("a dollar split is captured without a total check", () => {
@@ -134,14 +186,29 @@ test("a dollar split is captured without a total check", () => {
     { localId: "pid_1", value: "PRJ000000001", amount: "500" },
     { localId: "pid_2", value: "PRJ000000002", amount: "250" },
   ];
-  assert.equal(validateStep("logistics", form).projectAllocations, undefined);
+  assert.equal(validateStep("payment", form).projectAllocations, undefined);
 });
 
 test("a single project ID needs no allocation", () => {
   const form = completeForm();
   form.projectIdRows = [{ localId: "pid_1", value: "PRJ000000001", amount: "" }];
-  assert.equal(validateStep("logistics", form).projectAllocations, undefined);
-  assert.equal(validateStep("logistics", form).projectIdRows, undefined);
+  assert.equal(validateStep("payment", form).projectAllocations, undefined);
+  assert.equal(validateStep("payment", form).projectIdRows, undefined);
+});
+
+test("Payment is its own step, between Logistics and Review", () => {
+  const ids = stepsForForm(completeForm()).map((s) => s.id);
+  assert.deepEqual(ids, ["basics", "rooms", "schedule", "meals", "logistics", "payment", "review"]);
+});
+
+test("Lunch on own and Count & call are meal periods, not a logistics field", () => {
+  assert.ok(MEAL_PERIODS.includes("lunch_on_own"));
+  assert.ok(MEAL_PERIODS.includes("count_and_call"));
+
+  const form = completeForm();
+  form.scheduleDays[0].meals[0].mealPeriod = "count_and_call";
+  assert.equal(validateStep("meals", form)["scheduleDays.0.meals.0.mealPeriod"], undefined);
+  assert.deepEqual(dayMealPeriods(form.scheduleDays[0].meals), ["count_and_call"]);
 });
 
 test("an agenda link must be a full URL", () => {
@@ -230,7 +297,8 @@ test("toScheduleDayDocs nests meals under their day", () => {
   const days = toScheduleDayDocs(completeForm());
   assert.equal(days.length, 1);
   assert.equal(days[0].data.date, "2026-08-10");
-  assert.deepEqual(days[0].data.cateringServicesNeeded, ["coffee_break", "lunch"]);
+  // cateringServicesNeeded is derived from the day's meals, not entered directly.
+  assert.deepEqual(days[0].data.cateringServicesNeeded, ["lunch"]);
   assert.equal(days[0].meals.length, 1);
   assert.equal(days[0].meals[0].data.mealPeriod, "lunch");
   assert.equal(days[0].meals[0].data.headcount, 60);
@@ -255,7 +323,6 @@ test("eventToForm rebuilds editable form state from a saved event", () => {
     ["PRJ000000002", "50"],
   ]);
   assert.equal(rebuilt.scheduleDays.length, 1);
-  assert.deepEqual(rebuilt.scheduleDays[0].cateringServicesNeeded, ["coffee_break", "lunch"]);
   assert.equal(rebuilt.scheduleDays[0].meals[0].mealPeriod, "lunch");
   assert.equal(rebuilt.scheduleDays[0].meals[0].headcount, "60");
   assert.equal(rebuilt.rooms[0].roomId, "CG1-2122");
@@ -272,6 +339,85 @@ test("eventToForm falls back to one empty day and room for a bare event", () => 
   assert.equal(rebuilt.rooms[0].isPrimary, true);
   assert.equal(rebuilt.organization, "UCAR");
   assert.equal(rebuilt.needsCatering, true);
+});
+
+// ── Coffee Break structured menu selections ──────────────────────────────────
+
+function coffeeBreakForm() {
+  const form = completeForm();
+  form.scheduleDays[0].meals = [{
+    ...emptyMeal(),
+    mealPeriod: "coffee_break",
+    time: "10:00",
+    headcount: "40",
+    menuItems: [
+      {
+        localId: "mi_1", itemId: "cb-pkg-mediterranean", category: "package",
+        subcategory: "", name: "Mediterranean", price: "11.25", quantity: "40",
+        beverage: "Coffee, Tea, & Water",
+      },
+      {
+        localId: "mi_2", itemId: "cb-am-bagels-spreads", category: "a_la_carte",
+        subcategory: "morning", name: "Assorted Bagels with Spreads", price: "4.5",
+        quantity: "20", beverage: "",
+      },
+    ],
+  }];
+  return form;
+}
+
+test("toScheduleDayDocs writes structured menuItems and derives menuSelection", () => {
+  const days = toScheduleDayDocs(coffeeBreakForm());
+  const meal = days[0].meals[0].data;
+
+  assert.equal(meal.menuItems.length, 2);
+  assert.equal(meal.menuItems[0].itemId, "cb-pkg-mediterranean");
+  assert.equal(meal.menuItems[0].price, 11.25);
+  assert.equal(meal.menuItems[0].quantity, 40);
+  assert.equal(meal.menuItems[0].beverage, "Coffee, Tea, & Water");
+  // à la carte carries a subcategory and no beverage.
+  assert.equal(meal.menuItems[1].subcategory, "morning");
+  assert.equal(meal.menuItems[1].beverage, null);
+  // menuSelection is derived so downstream readers (recap, schedule) still work.
+  assert.equal(
+    meal.menuSelection,
+    "Mediterranean (Coffee, Tea, & Water) × 40; Assorted Bagels with Spreads × 20",
+  );
+});
+
+test("a Coffee Break meal round-trips through eventToForm exactly", () => {
+  const form = coffeeBreakForm();
+  const doc = toEventDoc(form, USER.uid);
+  const days = toScheduleDayDocs(form).map((d) => ({
+    ...d.data, meals: d.meals.map((m) => m.data),
+  }));
+  const rooms = toRoomBookingDocs(form).map((r) => r.data);
+
+  const rebuilt = eventToForm(doc, days, rooms);
+  const meal = rebuilt.scheduleDays[0].meals[0];
+
+  assert.equal(meal.mealPeriod, "coffee_break");
+  assert.equal(meal.menuItems.length, 2);
+  assert.deepEqual(
+    meal.menuItems.map((i) => [i.itemId, i.category, i.subcategory, i.name, i.price, i.quantity, i.beverage]),
+    [
+      ["cb-pkg-mediterranean", "package", "", "Mediterranean", "11.25", "40", "Coffee, Tea, & Water"],
+      ["cb-am-bagels-spreads", "a_la_carte", "morning", "Assorted Bagels with Spreads", "4.5", "20", ""],
+    ],
+  );
+
+  // Re-mapping the rebuilt form reproduces the stored schedule-day docs.
+  const rebuiltDays = toScheduleDayDocs(rebuilt).map((d) => ({
+    ...d.data, meals: d.meals.map((m) => m.data),
+  }));
+  assert.deepEqual(rebuiltDays, days);
+});
+
+test("a meal with no menuItems keeps its free-text menuSelection", () => {
+  const days = toScheduleDayDocs(completeForm());
+  const meal = days[0].meals[0].data;
+  assert.equal(meal.menuSelection, "Taco bar");
+  assert.deepEqual(meal.menuItems, []);
 });
 
 test("parseProjectIdsText and deriveFlag handle edge input", () => {

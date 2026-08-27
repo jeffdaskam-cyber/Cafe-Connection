@@ -21,10 +21,21 @@ export const STEPS = [
   { id: "schedule",  label: "Schedule"     },
   { id: "meals",     label: "Meals"        },
   { id: "logistics", label: "Logistics"    },
+  { id: "payment",   label: "Payment"      },
   { id: "review",    label: "Review"       },
 ];
 
 export const STEP_IDS = STEPS.map((s) => s.id);
+
+/**
+ * The steps shown for a given form. The Meals step only appears when catering is
+ * requested (the Yes/No on the Schedule step), so a planner who isn't ordering
+ * food never sees it. Everything index-based — the step bar, next/back, and
+ * whole-form validation — reads this rather than STEPS directly.
+ */
+export function stepsForForm(form) {
+  return STEPS.filter((s) => s.id !== "meals" || Boolean(form?.needsCatering));
+}
 
 let seq = 0;
 /** Client-side key for repeatable rows. Not the Firestore document ID. */
@@ -41,7 +52,6 @@ export function emptyScheduleDay() {
     date: "",
     startTime: "",
     endTime: "",
-    cateringServicesNeeded: [],
     notes: "",
     meals: [],
   };
@@ -60,15 +70,61 @@ export function emptyProjectId() {
   };
 }
 
+/**
+ * One structured menu selection — a package or à la carte item chosen from the
+ * catering_menu_items catalog for a meal that has a priced menu (Coffee Break
+ * to start). `name`/`price` are snapshotted from the catalog at selection time,
+ * not looked up live: a later price edit must not silently reprice an event
+ * booked before it, the same stored-not-derived rule the recap module follows.
+ */
+export function emptyMenuItemSelection() {
+  return {
+    localId: nextLocalId("mi"),
+    itemId: "",       // catalog doc id, e.g. "cb-pkg-mediterranean"
+    category: "",     // "package" | "a_la_carte"
+    subcategory: "",  // "morning" | "afternoon" | ""
+    name: "",         // snapshotted from the catalog at selection time
+    price: "",        // snapshotted, string for the input
+    quantity: "",     // defaults to the meal's headcount, editable per row
+    beverage: "",     // only set when category === "package"
+  };
+}
+
 export function emptyMeal() {
   return {
     localId: nextLocalId("meal"),
     mealPeriod: "",
     time: "",
     menuSelection: "",
+    menuItems: [],    // structured selections; only populated for periods with a catalog
     location: "",
     headcount: "",
   };
+}
+
+/**
+ * Split the flat catalog into the per-meal-period lists each menu picker
+ * offers. Done once at the call site rather than re-filtering on every render.
+ *
+ * The catalog is one flat collection spanning every meal period, so each item
+ * carries its own `mealPeriod`; a picker reads only its own slice. Coffee Break
+ * groups into packages plus morning/afternoon à la carte; Breakfast groups into
+ * buffets plus a single à la carte list.
+ */
+export function groupMenuItems(items = []) {
+  const coffeeBreak = { packages: [], morning: [], afternoon: [] };
+  const breakfast = { buffets: [], items: [] };
+  for (const item of items) {
+    if (item.mealPeriod === "breakfast") {
+      if (item.category === "buffet") breakfast.buffets.push(item);
+      else breakfast.items.push(item);
+    } else if (item.mealPeriod === "coffee_break") {
+      if (item.category === "package") coffeeBreak.packages.push(item);
+      else if (item.subcategory === "afternoon") coffeeBreak.afternoon.push(item);
+      else coffeeBreak.morning.push(item);
+    }
+  }
+  return { coffee_break: coffeeBreak, breakfast };
 }
 
 /**
@@ -120,12 +176,18 @@ export function emptyIntakeForm(user = {}) {
     setupNotes: "",
     needsCatering: true,
     needsAlcohol: false,
-    deliveryMethod: "",
+    // Superseded by the Lunch on own / Count & call meal periods; kept so a
+    // migrated event's value survives an edit.
     lunchOnOwnCount: "",
     airwallClosureTimeline: "",
     agendaType: "",
     agendaLink: "",
     specialRequests: "",
+
+    // Event Services fields. Kept in form state so a requester's edit round-trips
+    // whatever staff have recorded, but they are authored only from the staff
+    // console — the intake form never renders them.
+    deliveryMethod: "",
     securityNotes: "",
     custodialNotes: "",
     accessDoorsNotes: "",
@@ -231,6 +293,12 @@ export function validateStep(stepId, form) {
   }
 
   if (stepId === "logistics") {
+    if (!isBlank(form.agendaLink) && !/^https?:\/\//i.test(form.agendaLink.trim())) {
+      errors.agendaLink = "Enter a full URL starting with http:// or https://";
+    }
+  }
+
+  if (stepId === "payment") {
     if (!isBlank(form.paymentMethod) && !Object.values(PAYMENT_METHOD).includes(form.paymentMethod)) {
       errors.paymentMethod = "Choose a payment method.";
     }
@@ -249,18 +317,19 @@ export function validateStep(stepId, form) {
         }
       }
     }
-    if (!isBlank(form.agendaLink) && !/^https?:\/\//i.test(form.agendaLink.trim())) {
-      errors.agendaLink = "Enter a full URL starting with http:// or https://";
-    }
   }
 
   return errors;
 }
 
-/** Validate every step. Used before submit and to mark step completeness. */
+/**
+ * Validate every step shown for this form. Used before submit and to mark step
+ * completeness. When catering isn't requested the Meals step is hidden and its
+ * (unreachable) fields are not validated, so a leftover meal never blocks submit.
+ */
 export function validateAll(form) {
-  return STEP_IDS.reduce(
-    (acc, stepId) => Object.assign(acc, validateStep(stepId, form)),
+  return stepsForForm(form).reduce(
+    (acc, step) => Object.assign(acc, validateStep(step.id, form)),
     {}
   );
 }
@@ -387,28 +456,82 @@ export function toEventDoc(form, uid, { status = REQUESTER_CREATE_STATUS } = {})
   return doc;
 }
 
+/**
+ * A one-line "Menu selection" string derived from structured menu selections.
+ *
+ * Keeps every existing reader of `menuSelection` (the recap PDF, MyRequests,
+ * DailySchedule) working unchanged for a Coffee Break meal — they display the
+ * string and nothing more, so a break's picks show up there with no code change.
+ */
+export function summarizeMenuItems(menuItems) {
+  return (menuItems || [])
+    .filter((item) => item.name)
+    .map((item) => {
+      const bev = item.beverage ? ` (${item.beverage})` : "";
+      const qty = item.quantity ? ` × ${item.quantity}` : "";
+      return `${item.name}${bev}${qty}`;
+    })
+    .join("; ");
+}
+
+/**
+ * The meal periods a day serves, deduplicated and in canonical order, derived
+ * from the day's meals.
+ *
+ * This is what staff views, the console's meal-period filter, and the recap PDF
+ * read off each schedule-day document (`cateringServicesNeeded`). Deriving it
+ * from the meals the planner actually enters — rather than a separate checkbox —
+ * keeps meals the single source of truth while still denormalizing the per-day
+ * period list onto the day document, so the staff collection-group query doesn't
+ * have to descend into every meal subcollection to know what a day serves.
+ */
+export function dayMealPeriods(meals) {
+  const present = new Set((meals || []).map((m) => trimmed(m.mealPeriod)).filter(Boolean));
+  return MEAL_PERIODS.filter((p) => present.has(p));
+}
+
 /** Schedule day subcollection documents, each with its nested meals. */
 export function toScheduleDayDocs(form) {
-  return (form.scheduleDays || []).map((day) => ({
+  // No catering requested → the day carries no meals and serves no periods,
+  // regardless of any meal rows left over in form state from a Yes→No toggle.
+  const cateringRequested = Boolean(form.needsCatering);
+  return (form.scheduleDays || []).map((day) => {
+    const meals = cateringRequested ? (day.meals || []) : [];
+    return {
     localId: day.localId,
     data: {
       date:      trimmed(day.date),
       startTime: trimmed(day.startTime),
       endTime:   trimmed(day.endTime),
-      cateringServicesNeeded: [...(day.cateringServicesNeeded || [])],
+      cateringServicesNeeded: dayMealPeriods(meals),
       notes:     trimmed(day.notes),
     },
-    meals: (day.meals || []).map((meal) => ({
+    meals: meals.map((meal) => ({
       localId: meal.localId,
       data: {
         mealPeriod:    trimmed(meal.mealPeriod),
         time:          trimmed(meal.time),
-        menuSelection: trimmed(meal.menuSelection),
+        // Derived from the structured selections when present, so every
+        // downstream reader of menuSelection keeps working; falls back to the
+        // free-text field for meal periods without a catalog yet.
+        menuSelection: (meal.menuItems && meal.menuItems.length)
+          ? summarizeMenuItems(meal.menuItems)
+          : trimmed(meal.menuSelection),
+        menuItems: (meal.menuItems || []).map((item) => ({
+          itemId:      trimmed(item.itemId),
+          category:    trimmed(item.category),
+          subcategory: trimmed(item.subcategory) || null,
+          name:        trimmed(item.name),
+          price:       numberOrNull(item.price),
+          quantity:    numberOrNull(item.quantity),
+          beverage:    trimmed(item.beverage) || null,
+        })),
         location:      trimmed(meal.location),
         headcount:     numberOrNull(meal.headcount),
       },
     })),
-  }));
+    };
+  });
 }
 
 /**
@@ -451,13 +574,24 @@ export function eventToForm(event = {}, days = [], rooms = []) {
     date:      str(d.date),
     startTime: str(d.startTime),
     endTime:   str(d.endTime),
-    cateringServicesNeeded: [...(d.cateringServicesNeeded || [])],
+    // cateringServicesNeeded is no longer an editable field — it is derived from
+    // the day's meals on save (see dayMealPeriods / toScheduleDayDocs).
     notes:     str(d.notes),
     meals: (d.meals || []).map((m) => ({
       localId: nextLocalId("meal"),
       mealPeriod:    str(m.mealPeriod),
       time:          str(m.time),
       menuSelection: str(m.menuSelection),
+      menuItems: (m.menuItems || []).map((item) => ({
+        localId: nextLocalId("mi"),
+        itemId:      str(item.itemId),
+        category:    str(item.category),
+        subcategory: str(item.subcategory),
+        name:        str(item.name),
+        price:       numStr(item.price),
+        quantity:    numStr(item.quantity),
+        beverage:    str(item.beverage),
+      })),
       location:      str(m.location),
       headcount:     numStr(m.headcount),
     })),

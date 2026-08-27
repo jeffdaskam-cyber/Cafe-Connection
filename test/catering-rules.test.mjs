@@ -91,6 +91,8 @@ test.beforeEach(async () => {
     await setDoc(doc(db, "catering_events", OTHER_EVENT_ID), validEvent(OTHER.uid));
     await setDoc(doc(db, "rooms", "CG1-2122"), { id: "CG1-2122", name: "CG1-2122" });
     await setDoc(doc(db, "buildings", "CG1"), { id: "CG1", name: "Center Green 1" });
+    await setDoc(doc(db, "catering_menu_items", "cb-pkg-mediterranean"),
+      { name: "Mediterranean", price: 11.25, category: "package", active: true });
   });
 });
 
@@ -344,6 +346,18 @@ test("rooms and buildings are readable by any UCAR user, writable by none below 
   await assertFails(setDoc(doc(ctxFor(REQUESTER), "rooms", "CG1-2122"), { capacity: 999 }));
   await assertFails(setDoc(doc(ctxFor(MANAGER), "buildings", "CG1"), { name: "Hijacked" }));
   await assertFails(getDoc(doc(ctxFor(OUTSIDER), "rooms", "CG1-2122")));
+});
+
+test("menu items are readable by any UCAR user, writable by none below admin", suiteOpts, async () => {
+  await assertSucceeds(getDoc(doc(ctxFor(REQUESTER), "catering_menu_items", "cb-pkg-mediterranean")));
+  await assertSucceeds(getDoc(doc(ctxFor(MANAGER), "catering_menu_items", "cb-pkg-mediterranean")));
+  await assertFails(
+    setDoc(doc(ctxFor(REQUESTER), "catering_menu_items", "cb-pkg-mediterranean"), { price: 999 })
+  );
+  await assertFails(
+    setDoc(doc(ctxFor(MANAGER), "catering_menu_items", "cb-pkg-mediterranean"), { price: 999 })
+  );
+  await assertFails(getDoc(doc(ctxFor(OUTSIDER), "catering_menu_items", "cb-pkg-mediterranean")));
 });
 
 // ── Requester self-provisioning ────────────────────────────────────────────

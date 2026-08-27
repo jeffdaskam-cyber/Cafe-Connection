@@ -1,7 +1,7 @@
 /**
  * IntakeForm.jsx — the multi-step catering request form.
  *
- * Steps: Event basics → Rooms → Schedule → Meals → Logistics → Review.
+ * Steps: Event basics → Rooms → Schedule → Meals → Logistics → Payment → Review.
  * Form state lives in one object here; the shape, validation, and Firestore
  * mapping are all in formState.js so they can be tested without React.
  *
@@ -12,23 +12,34 @@ import { useEffect, useMemo, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../theme.js";
 import {
-  MEAL_PERIODS, ORGANIZATIONS, PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
+  MEAL_PERIODS, MENULESS_MEAL_PERIODS, ORGANIZATIONS, PAYMENT_METHOD,
+  PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
 } from "./schema.js";
 import {
-  STEPS, STEP_IDS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
-  emptyScheduleDay, browserStorage, capacityPlaceholder, clearDraft, loadDraft,
-  saveDraft, validateAll, validateStep,
+  STEPS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
+  emptyScheduleDay, browserStorage, capacityPlaceholder, clearDraft, groupMenuItems, loadDraft,
+  saveDraft, stepsForForm, summarizeMenuItems, validateAll, validateStep,
 } from "./formState.js";
 import {
-  createCateringEvent, fetchBuildings, fetchRooms, updateCateringEvent,
+  createCateringEvent, fetchBuildings, fetchMenuItems, fetchRooms, updateCateringEvent,
 } from "./data.js";
 import {
-  Banner, Button, Card, Checkbox, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
+  Banner, Button, Card, Field, Input, SectionTitle, Select, Textarea, TimeSelect,
 } from "./ui.jsx";
+import { formatEventDate, formatEventDateRange } from "./dates.js";
+import BreakMenuPicker from "./BreakMenuPicker.jsx";
+import BreakfastMenuPicker from "./BreakfastMenuPicker.jsx";
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
+  lunch_on_own: "Lunch on own", count_and_call: "Count & call",
   dinner: "Dinner", reception: "Reception", other: "Other",
+};
+
+/** What a menu-less period means, shown in place of the menu field. */
+const MENULESS_MEAL_HINTS = {
+  lunch_on_own: "Guests arrange their own lunch — nothing is catered for this break.",
+  count_and_call: "Order placed on the day against the final headcount.",
 };
 
 export default function IntakeForm({ user, existing = null, onDone, onCancel }) {
@@ -51,6 +62,11 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const [maxStepReached, setMaxStepReached] = useState(editing ? STEPS.length - 1 : 0);
   const [form, setForm] = useState(() =>
     existing?.form ?? loadDraft(browserStorage()) ?? emptyIntakeForm(user));
+
+  // The Meals step only exists when catering is requested (the Yes/No on the
+  // Schedule step), so the step list is derived from the form rather than fixed.
+  // Cheap enough (a filter of six) to recompute each render.
+  const steps = stepsForForm(form);
   const [eventId, setEventId] = useState(existing?.id ?? null);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,18 +74,39 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   const [submitError, setSubmitError] = useState("");
   const [buildings, setBuildings] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
   const [restoredDraft] = useState(() => storageEnabled && loadDraft(browserStorage()) !== null);
   const busy = saving || submitting;
 
-  const step = STEPS[stepIndex];
+  const step = steps[stepIndex];
   const errors = useMemo(() => validateStep(step.id, form), [step.id, form]);
   const visibleErrors = showErrors ? errors : {};
 
+  // Toggling catering off removes the Meals step; keep the current and furthest
+  // positions inside the (now shorter) list so navigation never lands off the end.
   useEffect(() => {
-    Promise.all([fetchBuildings(), fetchRooms()])
-      .then(([b, r]) => { setBuildings(b); setRooms(r); })
-      .catch((err) => console.error("[catering] reference data load failed:", err));
+    setStepIndex((i) => Math.min(i, steps.length - 1));
+    setMaxStepReached((m) => Math.min(m, steps.length - 1));
+  }, [steps.length]);
+
+  useEffect(() => {
+    // Each fetch loads independently: a failure of one (e.g. the menu catalog
+    // read before its rule is deployed or it is seeded) must not blank out the
+    // others. Bundling these in a single Promise.all previously let the new
+    // menu fetch take the Rooms step's building/room lists down with it.
+    fetchBuildings()
+      .then(setBuildings)
+      .catch((err) => console.error("[catering] buildings load failed:", err));
+    fetchRooms()
+      .then(setRooms)
+      .catch((err) => console.error("[catering] rooms load failed:", err));
+    fetchMenuItems()
+      .then(setMenuItems)
+      .catch((err) => console.error("[catering] menu catalog load failed:", err));
   }, []);
+
+  // Split the flat catalog into the three lists the Break picker offers, once.
+  const menuCatalog = useMemo(() => groupMenuItems(menuItems), [menuItems]);
 
   useEffect(() => {
     if (storageEnabled) saveDraft(form, browserStorage());
@@ -105,7 +142,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   function goNext() {
     if (Object.keys(errors).length) { setShowErrors(true); return; }
     setShowErrors(false);
-    const next = Math.min(stepIndex + 1, STEPS.length - 1);
+    const next = Math.min(stepIndex + 1, steps.length - 1);
     setStepIndex(next);
     setMaxStepReached((m) => Math.max(m, next));
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -180,7 +217,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
   async function handleSubmit() {
     const allErrors = validateAll(form);
     if (Object.keys(allErrors).length) {
-      const firstBad = STEP_IDS.findIndex((id) => Object.keys(validateStep(id, form)).length);
+      const firstBad = steps.findIndex((s) => Object.keys(validateStep(s.id, form)).length);
       if (firstBad >= 0) setStepIndex(firstBad);
       setShowErrors(true);
       setSubmitError(`Please fix the highlighted fields before ${alreadySubmitted ? "saving" : "submitting"}.`);
@@ -205,7 +242,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
   return (
     <div>
-      <StepBar stepIndex={stepIndex} maxStepReached={maxStepReached} onStepClick={goToStep} />
+      <StepBar steps={steps} stepIndex={stepIndex} maxStepReached={maxStepReached} onStepClick={goToStep} />
 
       {restoredDraft && stepIndex === 0 && (
         <Banner tone="info" title="Draft restored">
@@ -320,10 +357,45 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
 
         {step.id === "schedule" && (
           <>
-            <SectionTitle>Event days</SectionTitle>
+            <SectionTitle>Catering</SectionTitle>
+            <Field label="Catering services needed?" group
+              hint="Choose Yes to add meals for your event. The Meals step appears only when catering is requested.">
+              <div style={{ display: "flex", gap: 20, paddingTop: 4 }}>
+                {[["Yes", true], ["No", false]].map(([label, value]) => (
+                  <label key={label} style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontSize: 13, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
+                  }}>
+                    <input type="radio" name="needsCatering"
+                      checked={form.needsCatering === value}
+                      onChange={() => set({ needsCatering: value })}
+                      style={{ width: 15, height: 15, accentColor: COLORS.AQUA, cursor: "pointer" }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Alcohol will be served?" group>
+              <div style={{ display: "flex", gap: 20, paddingTop: 4 }}>
+                {[["Yes", true], ["No", false]].map(([label, value]) => (
+                  <label key={label} style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    fontSize: 13, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
+                  }}>
+                    <input type="radio" name="needsAlcohol"
+                      checked={form.needsAlcohol === value}
+                      onChange={() => set({ needsAlcohol: value })}
+                      style={{ width: 15, height: 15, accentColor: COLORS.AQUA, cursor: "pointer" }} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <SectionTitle style={{ marginTop: 28 }}>Event days</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
-              Add one row per day of your event, with the times the space is needed
-              and which catering services you expect that day.
+              Add one row per day of your event, with the times your group will be using the room.
             </p>
 
             {visibleErrors.scheduleDays && (
@@ -352,27 +424,6 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                   </Field>
                 </Row>
 
-                <Field label="Catering services needed" group>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 14, paddingTop: 4 }}>
-                    {MEAL_PERIODS.filter((p) => p !== "other").map((period) => (
-                      <label key={period} style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        fontSize: 12, color: COLORS.TEXT_PRIMARY, cursor: "pointer",
-                      }}>
-                        <input type="checkbox"
-                          checked={day.cateringServicesNeeded.includes(period)}
-                          onChange={(e) => updateDay(i, {
-                            cateringServicesNeeded: e.target.checked
-                              ? [...day.cateringServicesNeeded, period]
-                              : day.cateringServicesNeeded.filter((p) => p !== period),
-                          })}
-                          style={{ width: 14, height: 14, accentColor: COLORS.AQUA, cursor: "pointer" }} />
-                        {MEAL_PERIOD_LABELS[period]}
-                      </label>
-                    ))}
-                  </div>
-                </Field>
-
                 <Field label="Notes for this day">
                   <Textarea rows={2} value={day.notes}
                     onChange={(e) => updateDay(i, { notes: e.target.value })} />
@@ -391,8 +442,8 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
           <>
             <SectionTitle>Meal selections</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
-              Add the specific meals you want for each day. Menus can be finalized
-              with Event Services later — a rough idea is enough to submit.
+              Add the specific meals you want for each day. You can update menus at
+              any time during the planning process, so a rough estimate is fine to get started.
             </p>
 
             {form.scheduleDays.map((day, i) => (
@@ -401,7 +452,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                   fontSize: 12, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_SECONDARY,
                   borderBottom: `1px solid ${COLORS.BORDER}`, paddingBottom: 8, marginBottom: 14,
                 }}>
-                  Day {i + 1}{day.date ? ` — ${day.date}` : ""}
+                  Day {i + 1}{day.date ? ` — ${formatEventDate(day.date)}` : ""}
                 </div>
 
                 {day.meals.length === 0 && (
@@ -436,16 +487,36 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                           onChange={(e) => updateMeal(i, j, { headcount: e.target.value })} />
                       </Field>
                     </Row>
-                    <Field label="Menu selection">
-                      <Textarea rows={2} value={meal.menuSelection}
-                        onChange={(e) => updateMeal(i, j, { menuSelection: e.target.value })}
-                        placeholder="e.g. Continental breakfast, coffee and tea" />
-                    </Field>
-                    <Field label="Service location">
-                      <Input value={meal.location}
-                        onChange={(e) => updateMeal(i, j, { location: e.target.value })}
-                        placeholder="e.g. Lobby" />
-                    </Field>
+                    {meal.mealPeriod === "coffee_break" ? (
+                      <BreakMenuPicker
+                        menuItems={meal.menuItems || []}
+                        headcount={meal.headcount}
+                        catalog={menuCatalog.coffee_break}
+                        onChange={(menuItems) => updateMeal(i, j, { menuItems })} />
+                    ) : meal.mealPeriod === "breakfast" ? (
+                      <BreakfastMenuPicker
+                        menuItems={meal.menuItems || []}
+                        headcount={meal.headcount}
+                        catalog={menuCatalog.breakfast}
+                        onChange={(menuItems) => updateMeal(i, j, { menuItems })} />
+                    ) : MENULESS_MEAL_PERIODS.includes(meal.mealPeriod) ? (
+                      <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, margin: "0 0 12px", lineHeight: 1.6 }}>
+                        {MENULESS_MEAL_HINTS[meal.mealPeriod]}
+                      </p>
+                    ) : (
+                      <Field label="Menu selection">
+                        <Textarea rows={2} value={meal.menuSelection}
+                          onChange={(e) => updateMeal(i, j, { menuSelection: e.target.value })}
+                          placeholder="e.g. Continental breakfast, coffee and tea" />
+                      </Field>
+                    )}
+                    {!MENULESS_MEAL_PERIODS.includes(meal.mealPeriod) && (
+                      <Field label="Service location">
+                        <Input value={meal.location}
+                          onChange={(e) => updateMeal(i, j, { location: e.target.value })}
+                          placeholder="e.g. Lobby" />
+                      </Field>
+                    )}
                   </RepeatRow>
                 ))}
 
@@ -455,6 +526,15 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                 </Button>
               </div>
             ))}
+
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              borderTop: `1px solid ${COLORS.BORDER}`, paddingTop: 14, marginTop: 8,
+              fontSize: 13, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_PRIMARY,
+            }}>
+              <span>Estimated catering total</span>
+              <span>{formatMoney(cateringEstimateFor(form.scheduleDays))}</span>
+            </div>
           </>
         )}
 
@@ -565,45 +645,17 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                 placeholder="e.g. Registration table in the lobby from 7:30am" />
             </Field>
 
-            <SectionTitle style={{ marginTop: 28 }}>Services</SectionTitle>
-            <Checkbox label="Catering needed" checked={form.needsCatering}
-              onChange={(e) => set({ needsCatering: e.target.checked })} />
-            <Checkbox label="Alcohol will be served" checked={form.needsAlcohol}
-              onChange={(e) => set({ needsAlcohol: e.target.checked })} />
+            {/* Security, custodial, access/doors, sustainability and delivery
+                method are Event Services' to record — they are edited from the
+                staff console, not requested here. "Catering needed" and
+                "Alcohol will be served" are both set as Yes/No questions on the
+                Schedule step. */}
 
-            <Field label="Security needs"
-              hint="Describe what you need — hours, coverage, anything already arranged.">
-              <Textarea rows={2} value={form.securityNotes}
-                onChange={(e) => set({ securityNotes: e.target.value })} />
+            <SectionTitle style={{ marginTop: 28 }}>Event details</SectionTitle>
+            <Field label="Airwall closure timeline">
+              <Input value={form.airwallClosureTimeline}
+                onChange={(e) => set({ airwallClosureTimeline: e.target.value })} />
             </Field>
-            <Field label="Custodial needs">
-              <Textarea rows={2} value={form.custodialNotes}
-                onChange={(e) => set({ custodialNotes: e.target.value })} />
-            </Field>
-            <Field label="Access / doors">
-              <Textarea rows={2} value={form.accessDoorsNotes}
-                onChange={(e) => set({ accessDoorsNotes: e.target.value })}
-                placeholder="e.g. East doors unlocked 8am–5pm" />
-            </Field>
-            <Field label="Sustainability">
-              <Textarea rows={2} value={form.sustainabilityNotes}
-                onChange={(e) => set({ sustainabilityNotes: e.target.value })} />
-            </Field>
-
-            <Row>
-              <Field label="Delivery method">
-                <Input value={form.deliveryMethod}
-                  onChange={(e) => set({ deliveryMethod: e.target.value })} />
-              </Field>
-              <Field label="Lunch on own / count & call">
-                <Input value={form.lunchOnOwnCount}
-                  onChange={(e) => set({ lunchOnOwnCount: e.target.value })} />
-              </Field>
-              <Field label="Airwall closure timeline">
-                <Input value={form.airwallClosureTimeline}
-                  onChange={(e) => set({ airwallClosureTimeline: e.target.value })} />
-              </Field>
-            </Row>
 
             <Field label="Agenda link" error={visibleErrors.agendaLink}>
               <Input value={form.agendaLink} invalid={Boolean(visibleErrors.agendaLink)}
@@ -614,8 +666,12 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
               <Textarea value={form.specialRequests}
                 onChange={(e) => set({ specialRequests: e.target.value })} />
             </Field>
+          </>
+        )}
 
-            <SectionTitle style={{ marginTop: 28 }}>Payment</SectionTitle>
+        {step.id === "payment" && (
+          <>
+            <SectionTitle>Payment</SectionTitle>
             <Field label="Payment method" error={visibleErrors.paymentMethod}>
               <Select value={form.paymentMethod} invalid={Boolean(visibleErrors.paymentMethod)}
                 onChange={(e) => set({ paymentMethod: e.target.value })}>
@@ -645,7 +701,7 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
         )}
 
         {step.id === "review" && (
-          <ReviewStep form={form} buildings={buildings} rooms={rooms} onEdit={goToStep} />
+          <ReviewStep form={form} buildings={buildings} rooms={rooms} steps={steps} onEdit={goToStep} />
         )}
 
         {submitError && <Banner tone="error" title="Submission failed">{submitError}</Banner>}
@@ -800,10 +856,10 @@ function ProjectIdFields({
   );
 }
 
-function StepBar({ stepIndex, maxStepReached, onStepClick }) {
+function StepBar({ steps, stepIndex, maxStepReached, onStepClick }) {
   return (
     <ol style={{ display: "flex", gap: 8, listStyle: "none", marginBottom: 20, flexWrap: "wrap" }}>
-      {STEPS.map((s, i) => {
+      {steps.map((s, i) => {
         // A visited tab (current, or anything up to the furthest reached) reads
         // as "done"; tabs past that point are still to come.
         const state = i === stepIndex ? "current"
@@ -855,23 +911,36 @@ function describeProjectIds(form) {
   }).join(", ");
 }
 
-/**
- * Formats a `YYYY-MM-DD` schedule date as "Weekday M/D" (e.g. "Tuesday 8/25").
- * Parses the parts directly so the label doesn't drift a day across time zones.
- */
-function formatMealDayLabel(dateStr) {
-  if (!dateStr) return "—";
-  const [y, mo, dy] = dateStr.split("-").map(Number);
-  if (!y || !mo || !dy) return dateStr;
-  const weekday = new Date(y, mo - 1, dy).toLocaleDateString("en-US", { weekday: "long" });
-  return `${weekday} ${mo}/${dy}`;
+const money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+function formatMoney(value) {
+  return money.format(Number.isFinite(Number(value)) ? Number(value) : 0);
 }
 
-function ReviewStep({ form, buildings, rooms, onEdit }) {
+// Prices/quantities are snapshotted onto each meal's menuItems at selection
+// time, so this estimate matches what the meal picker showed.
+function cateringEstimateFor(scheduleDays) {
+  return (scheduleDays || []).reduce(
+    (total, d) => total + (d.meals || []).reduce(
+      (mealSum, m) => mealSum + (m.menuItems || []).reduce(
+        (sum, item) => sum + (Number(item.price) || 0) * (Number(item.quantity) || 0),
+        0,
+      ),
+      0,
+    ),
+    0,
+  );
+}
+
+function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
   const totalMeals = form.scheduleDays.reduce((n, d) => n + (d.meals?.length || 0), 0);
   const bookedRooms = (form.rooms || []).filter((r) => r.roomId);
   const nameFor = (list, id) => list.find((x) => x.id === id)?.name || id;
   const projectIdsDisplay = describeProjectIds(form);
+  // Resolve a step's live index by id — positions shift when the Meals step is
+  // hidden, so the Edit links can't rely on fixed numbers.
+  const editStep = (id) => onEdit(steps.findIndex((s) => s.id === id));
+
+  const cateringEstimate = cateringEstimateFor(form.scheduleDays);
 
   return (
     <>
@@ -881,33 +950,15 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
         keep editing this request at any time — even after it&apos;s confirmed.
       </p>
 
-      <ReviewBlock title="Event basics" onEdit={() => onEdit(0)} rows={[
+      <ReviewBlock title="Event basics" onEdit={() => editStep("basics")} rows={[
         ["Event", form.eventName],
-        ["Dates", [form.startDate, form.endDate].filter(Boolean).join(" → ") || "—"],
+        ["Dates", formatEventDateRange(form.startDate, form.endDate)],
         ["Attendance", form.expectedAttendance || "—"],
         ["Organization", [form.organization, form.lcpo].filter(Boolean).join(" / ") || "—"],
         ["Planner", [form.plannerName, form.plannerEmail].filter(Boolean).join(" · ") || "—"],
       ]} />
 
-      <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => onEdit(2)}
-        rows={form.scheduleDays.map((d, i) => [
-          `Day ${i + 1}`,
-          [d.date, [d.startTime, d.endTime].filter(Boolean).join("–")].filter(Boolean).join(" · ") || "—",
-        ])} />
-
-      <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => onEdit(3)}
-        rows={form.scheduleDays.flatMap((d) =>
-          (d.meals || []).map((m) => [
-            formatMealDayLabel(d.date),
-            [
-              [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
-              m.location,
-            ].filter(Boolean).join(" - ")
-              + (m.menuSelection ? ` · ${m.menuSelection}` : ""),
-          ])
-        )} />
-
-      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => onEdit(1)}
+      <ReviewBlock title={`Booked rooms — ${bookedRooms.length}`} onEdit={() => editStep("rooms")}
         rows={bookedRooms.map((r) => [
           nameFor(buildings, r.buildingId),
           [
@@ -918,17 +969,59 @@ function ReviewStep({ form, buildings, rooms, onEdit }) {
           ].filter(Boolean).join(" · "),
         ])} />
 
-      <ReviewBlock title="Logistics" onEdit={() => onEdit(4)} rows={[
+      <ReviewBlock title={`Schedule — ${form.scheduleDays.length} day(s)`} onEdit={() => editStep("schedule")}
+        rows={form.scheduleDays.map((d, i) => [
+          `Day ${i + 1}`,
+          [
+            d.date ? formatEventDate(d.date) : "",
+            [d.startTime, d.endTime].filter(Boolean).join("–"),
+          ].filter(Boolean).join(" · ") || "—",
+        ])} />
+
+      {form.needsCatering ? (
+        <ReviewBlock title={`Meals — ${totalMeals} total`} onEdit={() => editStep("meals")}
+          footer={["Catering estimate", formatMoney(cateringEstimate)]}
+          rows={form.scheduleDays.flatMap((d) =>
+            (d.meals || []).map((m) => {
+              // Coffee Break stores structured selections; menuSelection is only
+              // derived from them on save, so summarize here for the live preview.
+              const menu = (m.menuItems && m.menuItems.length)
+                ? summarizeMenuItems(m.menuItems)
+                : m.menuSelection;
+              return [
+                formatEventDate(d.date),
+                [
+                  [MEAL_PERIOD_LABELS[m.mealPeriod] || m.mealPeriod || "—", m.time].filter(Boolean).join(" "),
+                  m.location,
+                ].filter(Boolean).join(" - ")
+                  + (menu ? ` · ${menu}` : ""),
+              ];
+            })
+          )} />
+      ) : (
+        <ReviewBlock title="Meals" onEdit={() => editStep("schedule")}
+          rows={[["Catering", "Not requested"]]} />
+      )}
+
+      <ReviewBlock title="Logistics" onEdit={() => editStep("logistics")} rows={[
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
+        ["Setup", form.setupNotes],
+        ["Airwall closure", form.airwallClosureTimeline],
+        ["Agenda", form.agendaLink],
+        ["Special requests", form.specialRequests],
+      ]} />
+
+      <ReviewBlock title="Payment" onEdit={() => editStep("payment")} rows={[
         ["Payment", form.paymentMethod === PAYMENT_METHOD.PROJECT_ID ? "Project ID"
           : form.paymentMethod === PAYMENT_METHOD.ACH_EXTERNAL ? "ACH (External)" : "—"],
         ["Project ID(s)", projectIdsDisplay],
+        ["Payment notes", form.paymentNotes],
       ]} />
     </>
   );
 }
 
-function ReviewBlock({ title, rows, onEdit }) {
+function ReviewBlock({ title, rows, onEdit, footer }) {
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{
@@ -957,6 +1050,16 @@ function ReviewBlock({ title, rows, onEdit }) {
             </div>
           ))}
         </dl>
+      )}
+      {footer && (
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "baseline",
+          borderTop: `1px solid ${COLORS.BORDER}`, marginTop: 10, paddingTop: 8,
+          fontSize: 12, fontWeight: FONT.WEIGHT_BOLD, color: COLORS.TEXT_PRIMARY,
+        }}>
+          <span>{footer[0]}</span>
+          <span>{footer[1]}</span>
+        </div>
       )}
     </div>
   );

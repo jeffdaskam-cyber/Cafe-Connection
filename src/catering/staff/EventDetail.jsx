@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../../theme.js";
+import { formatEventDate, formatEventDateRange } from "../dates.js";
 import { LIFECYCLE_STATUS, PAYMENT_METHOD, REQUEST_STATUS } from "../schema.js";
 import {
   deleteRoomBooking, fetchEventRooms, fetchEventScheduleDays,
@@ -22,8 +23,13 @@ import {
   Banner, Button, Card, Field, Input, SectionTitle, Select, StatusBadge, Textarea, TimeSelect,
 } from "../ui.jsx";
 
+// Fields Event Services record on this screen. They are deliberately absent
+// from the requester's intake form, so nothing a planner submits overwrites them.
+const EVENT_SERVICES_HINT = "Event Services only — not shown on the request form.";
+
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
+  lunch_on_own: "Lunch on own", count_and_call: "Count & call",
   dinner: "Dinner", reception: "Reception", other: "Other",
 };
 
@@ -120,6 +126,7 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
       plannerPhone: event.plannerPhone || "",
       lcpo: event.lcpo || "",
       setupNotes: event.setupNotes || "",
+      deliveryMethod: event.deliveryMethod || "",
       securityNotes: event.securityNotes || "",
       custodialNotes: event.custodialNotes || "",
       accessDoorsNotes: event.accessDoorsNotes || "",
@@ -195,7 +202,8 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
             </h1>
             <div style={{ fontSize: 12, color: COLORS.TEXT_MUTED }}>
               {[
-                [event.startDate, event.endDate].filter(Boolean).join(" → "),
+                (event.startDate || event.endDate)
+                  ? formatEventDateRange(event.startDate, event.endDate) : null,
                 event.plannerName,
                 event.expectedAttendance ? `${event.expectedAttendance} guests` : null,
               ].filter(Boolean).join(" · ")}
@@ -294,6 +302,10 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
                 <option value={PAYMENT_METHOD.ACH_EXTERNAL}>ACH (External)</option>
               </Select>
             </Field>
+            <Field label="Delivery method" hint="Event Services only — not shown on the request form.">
+              <Input value={draft.deliveryMethod}
+                onChange={(e) => setDraft({ ...draft, deliveryMethod: e.target.value })} />
+            </Field>
             <Field label="Project ID(s)" hint="Comma separated.">
               <Input value={draft.projectIdsText} onChange={(e) => setDraft({ ...draft, projectIdsText: e.target.value })} />
             </Field>
@@ -302,14 +314,19 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
             </Field>
           </EditGrid>
 
+          {/* Security, custodial, access/doors and sustainability are recorded
+              here and nowhere else — the requester's intake form does not offer
+              them, so Event Services own what an event needs. */}
           {[
-            ["setupNotes", "Setup notes"], ["securityNotes", "Security"],
-            ["custodialNotes", "Custodial"], ["accessDoorsNotes", "Access / doors"],
-            ["sustainabilityNotes", "Sustainability"], ["specialRequests", "Special requests"],
-            ["staffNotes", "Internal staff notes"],
-          ].map(([key, label]) => (
-            <Field key={key} label={label}
-              hint={key === "staffNotes" ? "Not shown to the requester." : undefined}>
+            ["setupNotes", "Setup notes", undefined],
+            ["securityNotes", "Security", EVENT_SERVICES_HINT],
+            ["custodialNotes", "Custodial", EVENT_SERVICES_HINT],
+            ["accessDoorsNotes", "Access / doors", EVENT_SERVICES_HINT],
+            ["sustainabilityNotes", "Sustainability", EVENT_SERVICES_HINT],
+            ["specialRequests", "Special requests", undefined],
+            ["staffNotes", "Internal staff notes", "Not shown to the requester."],
+          ].map(([key, label, hint]) => (
+            <Field key={key} label={label} hint={hint}>
               <Textarea rows={2} value={draft[key]}
                 onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} />
             </Field>
@@ -338,6 +355,7 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
             ["Catering", event.needsCatering ? "Yes" : "No"],
             ["Alcohol", event.needsAlcohol ? "Yes" : "No"],
             ["Setup", event.setupNotes],
+            ["Delivery method", event.deliveryMethod],
             ["Security", event.securityNotes],
             ["Custodial", event.custodialNotes],
             ["Access / doors", event.accessDoorsNotes],
@@ -389,7 +407,7 @@ export default function EventDetail({ event, user, rooms, buildings, onBack }) {
               padding: 14, marginBottom: 12, background: COLORS.BG_SURFACE_ALT,
             }}>
               <div style={{ fontSize: 12, fontWeight: FONT.WEIGHT_BOLD, marginBottom: 6 }}>
-                {day.date} {[day.startTime, day.endTime].filter(Boolean).join("–")}
+                {formatEventDate(day.date)} {[day.startTime, day.endTime].filter(Boolean).join("–")}
               </div>
               {(day.cateringServicesNeeded || []).length > 0 && (
                 <div style={{ fontSize: 11, color: COLORS.TEXT_MUTED, marginBottom: 8 }}>

@@ -6,6 +6,7 @@
 import { useMemo } from "react";
 
 import { COLORS, FONT, RADIUS } from "../../theme.js";
+import { formatEventDateRange } from "../dates.js";
 import { LIFECYCLE_STATUS } from "../schema.js";
 import {
   QUEUE_STATUS_OPTIONS, filterEvents, queueCounts, sortEventsByDate,
@@ -117,7 +118,7 @@ export default function RequestQueue({ events, buildings, filters, onFiltersChan
                     )}
                   </td>
                   <td style={cell}>
-                    {[event.startDate, event.endDate].filter(Boolean).join(" → ") || "—"}
+                    {formatEventDateRange(event.startDate, event.endDate)}
                   </td>
                   <td style={cell}>{event.plannerName || "—"}</td>
                   <td style={cell}>{event.primaryRoomId || event.buildingId || "—"}</td>
