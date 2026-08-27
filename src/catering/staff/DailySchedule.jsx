@@ -152,7 +152,8 @@ const cell = { padding: "8px 12px", color: COLORS.TEXT_SECONDARY, verticalAlign:
 function formatDate(iso) {
   const d = new Date(`${iso}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString(undefined, {
-    weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
-  });
+  const weekday = d.toLocaleDateString(undefined, { weekday: "long", timeZone: "UTC" });
+  const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const dy = String(d.getUTCDate()).padStart(2, "0");
+  return `${weekday} ${mo}/${dy}/${d.getUTCFullYear()}`;
 }
