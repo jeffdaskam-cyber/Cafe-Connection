@@ -1,7 +1,7 @@
 /**
  * IntakeForm.jsx — the multi-step catering request form.
  *
- * Steps: Event basics → Rooms → Schedule → Meals → Logistics → Review.
+ * Steps: Event basics → Rooms → Schedule → Meals → Logistics → Payment → Review.
  * Form state lives in one object here; the shape, validation, and Firestore
  * mapping are all in formState.js so they can be tested without React.
  *
@@ -12,7 +12,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { COLORS, FONT, RADIUS } from "../theme.js";
 import {
-  MEAL_PERIODS, ORGANIZATIONS, PAYMENT_METHOD, PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
+  MEAL_PERIODS, MENULESS_MEAL_PERIODS, ORGANIZATIONS, PAYMENT_METHOD,
+  PROJECT_ALLOCATION_UNIT, REQUEST_STATUS,
 } from "./schema.js";
 import {
   STEPS, emptyIntakeForm, emptyMeal, emptyProjectId, emptyRoomBooking,
@@ -31,7 +32,14 @@ import BreakfastMenuPicker from "./BreakfastMenuPicker.jsx";
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
+  lunch_on_own: "Lunch on own", count_and_call: "Count & call",
   dinner: "Dinner", reception: "Reception", other: "Other",
+};
+
+/** What a menu-less period means, shown in place of the menu field. */
+const MENULESS_MEAL_HINTS = {
+  lunch_on_own: "Guests arrange their own lunch — nothing is catered for this break.",
+  count_and_call: "Order placed on the day against the final headcount.",
 };
 
 export default function IntakeForm({ user, existing = null, onDone, onCancel }) {
@@ -491,6 +499,10 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                         headcount={meal.headcount}
                         catalog={menuCatalog.breakfast}
                         onChange={(menuItems) => updateMeal(i, j, { menuItems })} />
+                    ) : MENULESS_MEAL_PERIODS.includes(meal.mealPeriod) ? (
+                      <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, margin: "0 0 12px", lineHeight: 1.6 }}>
+                        {MENULESS_MEAL_HINTS[meal.mealPeriod]}
+                      </p>
                     ) : (
                       <Field label="Menu selection">
                         <Textarea rows={2} value={meal.menuSelection}
@@ -498,11 +510,13 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                           placeholder="e.g. Continental breakfast, coffee and tea" />
                       </Field>
                     )}
-                    <Field label="Service location">
-                      <Input value={meal.location}
-                        onChange={(e) => updateMeal(i, j, { location: e.target.value })}
-                        placeholder="e.g. Lobby" />
-                    </Field>
+                    {!MENULESS_MEAL_PERIODS.includes(meal.mealPeriod) && (
+                      <Field label="Service location">
+                        <Input value={meal.location}
+                          onChange={(e) => updateMeal(i, j, { location: e.target.value })}
+                          placeholder="e.g. Lobby" />
+                      </Field>
+                    )}
                   </RepeatRow>
                 ))}
 
@@ -631,42 +645,17 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                 placeholder="e.g. Registration table in the lobby from 7:30am" />
             </Field>
 
-            <SectionTitle style={{ marginTop: 28 }}>Services</SectionTitle>
-            {/* "Catering needed" and "Alcohol will be served" are both set as
-                Yes/No questions on the Schedule step. */}
-            <Field label="Security needs"
-              hint="Describe what you need — hours, coverage, anything already arranged.">
-              <Textarea rows={2} value={form.securityNotes}
-                onChange={(e) => set({ securityNotes: e.target.value })} />
-            </Field>
-            <Field label="Custodial needs">
-              <Textarea rows={2} value={form.custodialNotes}
-                onChange={(e) => set({ custodialNotes: e.target.value })} />
-            </Field>
-            <Field label="Access / doors">
-              <Textarea rows={2} value={form.accessDoorsNotes}
-                onChange={(e) => set({ accessDoorsNotes: e.target.value })}
-                placeholder="e.g. East doors unlocked 8am–5pm" />
-            </Field>
-            <Field label="Sustainability">
-              <Textarea rows={2} value={form.sustainabilityNotes}
-                onChange={(e) => set({ sustainabilityNotes: e.target.value })} />
-            </Field>
+            {/* Security, custodial, access/doors, sustainability and delivery
+                method are Event Services' to record — they are edited from the
+                staff console, not requested here. "Catering needed" and
+                "Alcohol will be served" are both set as Yes/No questions on the
+                Schedule step. */}
 
-            <Row>
-              <Field label="Delivery method">
-                <Input value={form.deliveryMethod}
-                  onChange={(e) => set({ deliveryMethod: e.target.value })} />
-              </Field>
-              <Field label="Lunch on own / count & call">
-                <Input value={form.lunchOnOwnCount}
-                  onChange={(e) => set({ lunchOnOwnCount: e.target.value })} />
-              </Field>
-              <Field label="Airwall closure timeline">
-                <Input value={form.airwallClosureTimeline}
-                  onChange={(e) => set({ airwallClosureTimeline: e.target.value })} />
-              </Field>
-            </Row>
+            <SectionTitle style={{ marginTop: 28 }}>Event details</SectionTitle>
+            <Field label="Airwall closure timeline">
+              <Input value={form.airwallClosureTimeline}
+                onChange={(e) => set({ airwallClosureTimeline: e.target.value })} />
+            </Field>
 
             <Field label="Agenda link" error={visibleErrors.agendaLink}>
               <Input value={form.agendaLink} invalid={Boolean(visibleErrors.agendaLink)}
@@ -677,8 +666,12 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
               <Textarea value={form.specialRequests}
                 onChange={(e) => set({ specialRequests: e.target.value })} />
             </Field>
+          </>
+        )}
 
-            <SectionTitle style={{ marginTop: 28 }}>Payment</SectionTitle>
+        {step.id === "payment" && (
+          <>
+            <SectionTitle>Payment</SectionTitle>
             <Field label="Payment method" error={visibleErrors.paymentMethod}>
               <Select value={form.paymentMethod} invalid={Boolean(visibleErrors.paymentMethod)}
                 onChange={(e) => set({ paymentMethod: e.target.value })}>
@@ -1012,9 +1005,17 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
 
       <ReviewBlock title="Logistics" onEdit={() => editStep("logistics")} rows={[
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
+        ["Setup", form.setupNotes],
+        ["Airwall closure", form.airwallClosureTimeline],
+        ["Agenda", form.agendaLink],
+        ["Special requests", form.specialRequests],
+      ]} />
+
+      <ReviewBlock title="Payment" onEdit={() => editStep("payment")} rows={[
         ["Payment", form.paymentMethod === PAYMENT_METHOD.PROJECT_ID ? "Project ID"
           : form.paymentMethod === PAYMENT_METHOD.ACH_EXTERNAL ? "ACH (External)" : "—"],
         ["Project ID(s)", projectIdsDisplay],
+        ["Payment notes", form.paymentNotes],
       ]} />
     </>
   );

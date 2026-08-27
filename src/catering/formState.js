@@ -21,6 +21,7 @@ export const STEPS = [
   { id: "schedule",  label: "Schedule"     },
   { id: "meals",     label: "Meals"        },
   { id: "logistics", label: "Logistics"    },
+  { id: "payment",   label: "Payment"      },
   { id: "review",    label: "Review"       },
 ];
 
@@ -175,12 +176,18 @@ export function emptyIntakeForm(user = {}) {
     setupNotes: "",
     needsCatering: true,
     needsAlcohol: false,
-    deliveryMethod: "",
+    // Superseded by the Lunch on own / Count & call meal periods; kept so a
+    // migrated event's value survives an edit.
     lunchOnOwnCount: "",
     airwallClosureTimeline: "",
     agendaType: "",
     agendaLink: "",
     specialRequests: "",
+
+    // Event Services fields. Kept in form state so a requester's edit round-trips
+    // whatever staff have recorded, but they are authored only from the staff
+    // console — the intake form never renders them.
+    deliveryMethod: "",
     securityNotes: "",
     custodialNotes: "",
     accessDoorsNotes: "",
@@ -286,6 +293,12 @@ export function validateStep(stepId, form) {
   }
 
   if (stepId === "logistics") {
+    if (!isBlank(form.agendaLink) && !/^https?:\/\//i.test(form.agendaLink.trim())) {
+      errors.agendaLink = "Enter a full URL starting with http:// or https://";
+    }
+  }
+
+  if (stepId === "payment") {
     if (!isBlank(form.paymentMethod) && !Object.values(PAYMENT_METHOD).includes(form.paymentMethod)) {
       errors.paymentMethod = "Choose a payment method.";
     }
@@ -303,9 +316,6 @@ export function validateStep(stepId, form) {
           errors.projectAllocations = "Percentage allocations must add up to 100%.";
         }
       }
-    }
-    if (!isBlank(form.agendaLink) && !/^https?:\/\//i.test(form.agendaLink.trim())) {
-      errors.agendaLink = "Enter a full URL starting with http:// or https://";
     }
   }
 

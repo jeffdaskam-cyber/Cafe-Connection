@@ -71,14 +71,25 @@ export const PROJECT_ALLOCATION_UNITS = Object.values(PROJECT_ALLOCATION_UNIT);
 // ── Meal periods ─────────────────────────────────────────────────────────────
 // "coffee_break" is a real period in the source data that the build plan's
 // enum omitted.
+//
+// "lunch_on_own" and "count_and_call" were a single free-text logistics field
+// in the source ("Lunch on Own/Count & Call"). They are two distinct ways a
+// midday break is handled, so each is its own period the planner schedules on
+// a day like any other meal. Neither has a menu: on-own guests eat off-site,
+// and a count & call is placed against a headcount on the day.
 export const MEAL_PERIODS = [
   "breakfast",
   "coffee_break",
   "lunch",
+  "lunch_on_own",
+  "count_and_call",
   "dinner",
   "reception",
   "other",
 ];
+
+/** Meal periods that carry no menu selection — headcount and time only. */
+export const MENULESS_MEAL_PERIODS = ["lunch_on_own", "count_and_call"];
 
 // ── Organizations ────────────────────────────────────────────────────────────
 // The parent organization requesting the event. "External" is reserved for

@@ -32,6 +32,7 @@ const JUST_DONE_BANNER = {
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee Break", lunch: "Lunch",
+  lunch_on_own: "Lunch on Own", count_and_call: "Count & Call",
   dinner: "Dinner", reception: "Reception", other: "Other",
 };
 

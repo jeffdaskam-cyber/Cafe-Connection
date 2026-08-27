@@ -15,6 +15,7 @@ import { Banner, Card, EmptyState, Field, Input, SectionTitle, StatusBadge } fro
 
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
+  lunch_on_own: "Lunch on own", count_and_call: "Count & call",
   dinner: "Dinner", reception: "Reception", other: "Other",
 };
 
