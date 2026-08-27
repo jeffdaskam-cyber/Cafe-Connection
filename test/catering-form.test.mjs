@@ -7,7 +7,7 @@ import {
   emptyScheduleDay, isStepValid, loadDraft, parseProjectIdsText, primaryRoomBooking,
   saveDraft, stepsForForm, toEventDoc, toRoomBookingDocs, toScheduleDayDocs, validateAll, validateStep,
 } from "../src/catering/formState.js";
-import { REQUESTER_EDITABLE_FIELDS, STAFF_ONLY_FIELDS } from "../src/catering/schema.js";
+import { MEAL_PERIODS, REQUESTER_EDITABLE_FIELDS, STAFF_ONLY_FIELDS } from "../src/catering/schema.js";
 
 const USER = { uid: "uid123", email: "planner@ucar.edu", displayName: "Test Planner" };
 
@@ -52,7 +52,7 @@ test("the Meals step is shown only when catering is requested", () => {
   // The other steps are unaffected and keep their order.
   assert.deepEqual(
     stepsForForm(form).map((s) => s.id),
-    ["basics", "rooms", "schedule", "logistics", "review"],
+    ["basics", "rooms", "schedule", "logistics", "payment", "review"],
   );
 });
 
@@ -160,10 +160,10 @@ test("a meal must have a recognized period", () => {
 test("choosing Project ID payment requires at least one project ID", () => {
   const form = completeForm();
   form.projectIdRows = [{ localId: "pid_1", value: "", amount: "" }];
-  assert.ok(validateStep("logistics", form).projectIdRows);
+  assert.ok(validateStep("payment", form).projectIdRows);
 
   form.paymentMethod = "ach_external";
-  assert.equal(validateStep("logistics", form).projectIdRows, undefined);
+  assert.equal(validateStep("payment", form).projectIdRows, undefined);
 });
 
 test("a percentage split must add up to 100%", () => {
@@ -173,10 +173,10 @@ test("a percentage split must add up to 100%", () => {
     { localId: "pid_1", value: "PRJ000000001", amount: "60" },
     { localId: "pid_2", value: "PRJ000000002", amount: "30" },
   ];
-  assert.ok(validateStep("logistics", form).projectAllocations, "90% is short of 100%");
+  assert.ok(validateStep("payment", form).projectAllocations, "90% is short of 100%");
 
   form.projectIdRows[1].amount = "40";
-  assert.equal(validateStep("logistics", form).projectAllocations, undefined, "now totals 100%");
+  assert.equal(validateStep("payment", form).projectAllocations, undefined, "now totals 100%");
 });
 
 test("a dollar split is captured without a total check", () => {
@@ -186,14 +186,29 @@ test("a dollar split is captured without a total check", () => {
     { localId: "pid_1", value: "PRJ000000001", amount: "500" },
     { localId: "pid_2", value: "PRJ000000002", amount: "250" },
   ];
-  assert.equal(validateStep("logistics", form).projectAllocations, undefined);
+  assert.equal(validateStep("payment", form).projectAllocations, undefined);
 });
 
 test("a single project ID needs no allocation", () => {
   const form = completeForm();
   form.projectIdRows = [{ localId: "pid_1", value: "PRJ000000001", amount: "" }];
-  assert.equal(validateStep("logistics", form).projectAllocations, undefined);
-  assert.equal(validateStep("logistics", form).projectIdRows, undefined);
+  assert.equal(validateStep("payment", form).projectAllocations, undefined);
+  assert.equal(validateStep("payment", form).projectIdRows, undefined);
+});
+
+test("Payment is its own step, between Logistics and Review", () => {
+  const ids = stepsForForm(completeForm()).map((s) => s.id);
+  assert.deepEqual(ids, ["basics", "rooms", "schedule", "meals", "logistics", "payment", "review"]);
+});
+
+test("Lunch on own and Count & call are meal periods, not a logistics field", () => {
+  assert.ok(MEAL_PERIODS.includes("lunch_on_own"));
+  assert.ok(MEAL_PERIODS.includes("count_and_call"));
+
+  const form = completeForm();
+  form.scheduleDays[0].meals[0].mealPeriod = "count_and_call";
+  assert.equal(validateStep("meals", form)["scheduleDays.0.meals.0.mealPeriod"], undefined);
+  assert.deepEqual(dayMealPeriods(form.scheduleDays[0].meals), ["count_and_call"]);
 });
 
 test("an agenda link must be a full URL", () => {
