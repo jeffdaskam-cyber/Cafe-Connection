@@ -29,3 +29,19 @@ updates:
       # since @eslint/js@10 peer-requires eslint ^10.
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
+
+      # firebase-admin 14 depends on jwks-rsa ^4, which requires jose ^6. jose 6
+      # is ESM-only, and jwks-rsa's src/utils.js is CommonJS doing
+      # `require('jose')`. Node 22 papers over that locally with require(esm),
+      # but the Vercel function runtime does not implement it, so every endpoint
+      # that touches firebase-admin dies at module load with ERR_REQUIRE_ESM and
+      # returns 500. Batching the v14 bump did exactly this in #231.
+      #
+      # v13 stays on jwks-rsa 3.x -> jose ^4 (CommonJS) and loads correctly.
+      # test/api-handlers-load.test.mjs reproduces the break, but nothing runs
+      # the suite on a PR yet, so this entry is what stops the bump returning.
+      #
+      # Remove this entry once jwks-rsa ships a build whose CommonJS entry does
+      # not require() an ESM-only jose (or the runtime supports require(esm)).
+      - dependency-name: "firebase-admin"
+        update-types: ["version-update:semver-major"]
