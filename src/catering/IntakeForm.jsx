@@ -416,8 +416,8 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
           <>
             <SectionTitle>Meal selections</SectionTitle>
             <p style={{ fontSize: 12, color: COLORS.TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
-              Add the specific meals you want for each day. Menus can be finalized
-              with Event Services later — a rough idea is enough to submit.
+              Add the specific meals you want for each day. You can update menus at
+              any time during the planning process, so a rough estimate is fine to get started.
             </p>
 
             {form.scheduleDays.map((day, i) => (
