@@ -44,14 +44,16 @@ function sortByFiscalMonth(a, b) {
 }
 function buildMonthlyData(docs) {
   const byMonth = {};
+  const dailyPayroll = {};
   docs.filter(d => d.report_type === "period").forEach(d => {
     const key = getMonthKey(d.date);
     byMonth[key] = { monthKey: key, label: getMonthLabel(key),
       net_revenue: d.net_revenue || 0, total_checks: d.total_checks || 0,
-      lunch_checks: d.lunch_checks || 0, payroll: d.payroll || 0, source: "period" };
+      lunch_checks: d.lunch_checks || 0, payroll: d.payroll ?? null, source: "period" };
   });
   docs.filter(d => d.report_type === "daily" || !d.report_type).forEach(d => {
     const key = getMonthKey(d.date);
+    dailyPayroll[key] = (dailyPayroll[key] || 0) + (d.payroll || 0);
     if (byMonth[key]?.source === "period") return;
     if (!byMonth[key]) byMonth[key] = { monthKey: key, label: getMonthLabel(key),
       net_revenue: 0, total_checks: 0, lunch_checks: 0, payroll: 0, source: "daily" };
@@ -59,6 +61,10 @@ function buildMonthlyData(docs) {
     byMonth[key].total_checks += d.total_checks || 0;
     byMonth[key].lunch_checks += d.lunch_checks || 0;
     byMonth[key].payroll      += d.payroll      || 0;
+  });
+  Object.values(byMonth).forEach(m => {
+    if (m.source === "period" && m.payroll == null)
+      m.payroll = dailyPayroll[m.monthKey] || 0;
   });
   return Object.values(byMonth).sort(sortByFiscalMonth);
 }
