@@ -48,16 +48,17 @@ function buildMonthlyData(docs) {
     const key = getMonthKey(d.date);
     byMonth[key] = { monthKey: key, label: getMonthLabel(key),
       net_revenue: d.net_revenue || 0, total_checks: d.total_checks || 0,
-      lunch_checks: d.lunch_checks || 0, source: "period" };
+      lunch_checks: d.lunch_checks || 0, payroll: d.payroll || 0, source: "period" };
   });
   docs.filter(d => d.report_type === "daily" || !d.report_type).forEach(d => {
     const key = getMonthKey(d.date);
     if (byMonth[key]?.source === "period") return;
     if (!byMonth[key]) byMonth[key] = { monthKey: key, label: getMonthLabel(key),
-      net_revenue: 0, total_checks: 0, lunch_checks: 0, source: "daily" };
+      net_revenue: 0, total_checks: 0, lunch_checks: 0, payroll: 0, source: "daily" };
     byMonth[key].net_revenue  += d.net_revenue  || 0;
     byMonth[key].total_checks += d.total_checks || 0;
     byMonth[key].lunch_checks += d.lunch_checks || 0;
+    byMonth[key].payroll      += d.payroll      || 0;
   });
   return Object.values(byMonth).sort(sortByFiscalMonth);
 }
@@ -74,10 +75,11 @@ function buildMonthlyDataAllCampuses(docs) {
     buildMonthlyData(docs.filter(d => d.campus === c)).forEach(m => {
       if (!byMonth[m.monthKey])
         byMonth[m.monthKey] = { monthKey: m.monthKey, label: m.label,
-          net_revenue: 0, total_checks: 0, lunch_checks: 0 };
+          net_revenue: 0, total_checks: 0, lunch_checks: 0, payroll: 0 };
       byMonth[m.monthKey].net_revenue  += m.net_revenue;
       byMonth[m.monthKey].total_checks += m.total_checks;
       byMonth[m.monthKey].lunch_checks += m.lunch_checks;
+      byMonth[m.monthKey].payroll      += m.payroll || 0;
     });
   });
   return Object.values(byMonth).sort(sortByFiscalMonth);
@@ -89,10 +91,11 @@ function buildAnnualData(monthlyData) {
     const [year, month] = m.monthKey.split("-").map(Number);
     const fy    = month >= 10 ? year : year - 1;
     const label = `FY${String(fy + 1).slice(2)}`;
-    if (!byFY[fy]) byFY[fy] = { fy, label, net_revenue: 0, total_checks: 0, lunch_checks: 0 };
+    if (!byFY[fy]) byFY[fy] = { fy, label, net_revenue: 0, total_checks: 0, lunch_checks: 0, payroll: 0 };
     byFY[fy].net_revenue  += m.net_revenue;
     byFY[fy].total_checks += m.total_checks;
     byFY[fy].lunch_checks += m.lunch_checks;
+    byFY[fy].payroll      += m.payroll || 0;
   });
   return Object.values(byFY).sort((a, b) => a.fy - b.fy);
 }
@@ -292,10 +295,11 @@ export default function FinancialsPage() {
     const byDate = {};
     filteredDaily.forEach(d => {
       const key = fmt(d.date);
-      if (!byDate[key]) byDate[key] = { net_revenue: 0, total_checks: 0, lunch_checks: 0, date: d.date };
+      if (!byDate[key]) byDate[key] = { net_revenue: 0, total_checks: 0, lunch_checks: 0, payroll: 0, date: d.date };
       byDate[key].net_revenue  += d.net_revenue  || 0;
       byDate[key].total_checks += d.total_checks || 0;
       byDate[key].lunch_checks += d.lunch_checks || 0;
+      byDate[key].payroll      += d.payroll      || 0;
     });
     return Object.values(byDate);
   })();
@@ -310,6 +314,8 @@ export default function FinancialsPage() {
   const avgVolume   = statSource.length ? Math.round(totalChecks / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
   const avgCheck    = totalChecks > 0 ? totalSales / totalChecks : 0;
+  const totalPayroll = statSource.reduce((s, d) => s + (d.payroll || 0), 0);
+  const payrollDiscount = totalPayroll * 15 / 85;
   const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
   const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
 
@@ -437,6 +443,11 @@ export default function FinancialsPage() {
           label="Avg Check"
           value={loading ? "—" : fmtMoney(avgCheck)}
           delta={loading || !priorMetrics ? 0 : checkAvgDelta} accentColor={COLORS.AQUA}
+          showDelta={false} />
+        <StatCard
+          label={period === "monthly" ? "Payroll Discount (YTD)" : "Payroll Discount (MTD)"}
+          value={loading ? "—" : fmtMoney(payrollDiscount)}
+          delta={0} accentColor={COLORS.AQUA}
           showDelta={false} />
         <StatCard
           label={period === "monthly" ? "AVG Monthly Revenue" : "Avg Daily Revenue"}
