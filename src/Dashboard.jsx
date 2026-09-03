@@ -24,6 +24,13 @@ import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 
 
 
+// ── FY26 payroll baselines (post-discount charges from Cafe_Summary_YTD.xlsx) ─
+// Firestore lacks complete payroll history; these YTD actuals through 9/3/2026
+// fill the gap. Future FYs rely on daily uploads and need no baseline.
+const PAYROLL_BASELINES = {
+  "FY26": { "Center Green": 11651.62, "Foothills": 199232.67, "Mesa Lab": 132255.35 },
+};
+
 // ── Period helpers ─────────────────────────────────────────────────────────────
 function getMonthKey(date) {
   const d = date?.toDate ? date.toDate() : new Date(date);
@@ -320,7 +327,14 @@ export default function FinancialsPage() {
   const avgVolume   = statSource.length ? Math.round(totalChecks / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
   const avgCheck    = totalChecks > 0 ? totalSales / totalChecks : 0;
-  const totalPayroll = statSource.reduce((s, d) => s + (d.payroll || 0), 0);
+  let totalPayroll = statSource.reduce((s, d) => s + (d.payroll || 0), 0);
+  if (period === "monthly" && fiscalYear && PAYROLL_BASELINES[fiscalYear]) {
+    const bl = PAYROLL_BASELINES[fiscalYear];
+    const baselineTotal = campus === "All Campuses"
+      ? Object.values(bl).reduce((s, v) => s + v, 0)
+      : (bl[campus] || 0);
+    if (baselineTotal > totalPayroll) totalPayroll = baselineTotal;
+  }
   const payrollDiscount = totalPayroll * 15 / 85;
   const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
   const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
