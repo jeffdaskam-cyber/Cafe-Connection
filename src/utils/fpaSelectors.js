@@ -7,6 +7,11 @@
  *
  * All selectors tolerate missing months and missing campuses so partial
  * uploads still render meaningful data.
+ *
+ * Amounts arrive sign-normalized (see api/_lib/fpaAmounts.mjs): revenue and
+ * expense are both positive for ordinary postings, and a net-negative bucket
+ * means reversals outweighed charges. Campus rows are dropped only when they
+ * are empty, never for being negative.
  */
 
 import {
@@ -123,7 +128,7 @@ export function revenueByCampusAndType(facts, fiscalYear) {
     }
     row.total = REVENUE_NORMALIZED_NAMES.reduce((s, n) => s + (row[n] || 0), 0);
     return row;
-  }).filter(r => r.total > 0);
+  }).filter(r => r.total !== 0);
 }
 
 // ── Report 4: Total Expense - FYTD by campus, stacked by type ────────────────
@@ -139,7 +144,7 @@ export function expenseByCampusAndType(facts, fiscalYear) {
     }
     row.total = EXPENSE_NORMALIZED_NAMES.reduce((s, n) => s + (row[n] || 0), 0);
     return row;
-  }).filter(r => r.total > 0);
+  }).filter(r => r.total !== 0);
 }
 
 // ── Report 5: Monthly Labor Expense — multi-series by campus (13-month) ──────

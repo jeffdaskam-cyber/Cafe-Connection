@@ -12,8 +12,11 @@
 //   - Only the twelve mapped ledger rows are read; ledger codes 5051 and 9989
 //     both normalize to "Benefits" and are stored as separate facts with the
 //     same normalizedName (selectors sum them downstream).
-//   - Values are stored as absolute numbers (positive) for both revenue and
-//     expense so charts use consistent comparison values.
+//   - Revenue and sales tax are flipped from Workday's credit convention to
+//     positive so charts compare them against expenses on one scale; expenses
+//     keep Workday's sign. Either way the posting's own sign survives, so
+//     credit memos and reversals reduce their bucket instead of inflating it.
+//     See api/_lib/fpaAmounts.mjs.
 //   - Re-uploading a month overwrites that month's stored facts; prior months
 //     are preserved.
 //   - Hard fails if period parsing fails, the file shape is invalid, or no
@@ -23,6 +26,7 @@
 import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import ExcelJS from "exceljs";
+import { normalizeAmount } from "./_lib/fpaAmounts.mjs";
 import {
   getAdminApp,
   fetchWithTimeout,
@@ -286,10 +290,8 @@ function parseFpaWorkbook(workbook) {
     const ledger = detectLedgerInRow(cellAText);
     if (!ledger) continue;
 
-    const mtdRaw = cellNumber(row.getCell(3)); // column C
-    const ytdRaw = cellNumber(row.getCell(4)); // column D
-    const mtdAmount = Math.abs(mtdRaw);
-    const ytdAmount = Math.abs(ytdRaw);
+    const mtdAmount = normalizeAmount(cellNumber(row.getCell(3)), ledger.category); // column C
+    const ytdAmount = normalizeAmount(cellNumber(row.getCell(4)), ledger.category); // column D
 
     // Track ledger presence for per-campus warnings
     perProjectLedgers.get(activeProject.campus).add(ledger.code);
@@ -301,8 +303,8 @@ function parseFpaWorkbook(workbook) {
       sourceLabel: ledger.sourceLabel,
       normalizedName: ledger.normalizedName,
       category: ledger.category,
-      mtdAmount: Math.round(mtdAmount * 100) / 100,
-      ytdAmount: Math.round(ytdAmount * 100) / 100,
+      mtdAmount,
+      ytdAmount,
     });
   }
 
