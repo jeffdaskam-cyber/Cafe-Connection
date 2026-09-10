@@ -8,6 +8,11 @@ import { db } from "../firebase.js";
 const CAMPUSES = ["ES Admin", "Mesa Lab", "Foothills", "Center Green"];
 const VOLUME_CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 
+// Payroll-deduct sales are tendered at 85% of menu price — the 15% employee
+// discount is the difference between the full price and what was charged, so
+// discount = charge × 15/85. Matches the Payroll Discount card on Cafe Sales.
+const PAYROLL_DISCOUNT_RATE = 15 / 85;
+
 const REVENUE_KEYS = [
   ["Cafe Sales Revenue",    "cafe_sales_revenue"],
   ["Cafe Revenue",          "cafe_revenue"],
@@ -100,7 +105,12 @@ export async function exportAgentJson() {
     byMonth[monthKey].campuses[campus][normalizedName] = bucket;
   }
 
-  // ── daily_metrics → volumeAccum[monthKey][campus] = { net_revenue, total_checks }
+  // ── daily_metrics → volumeAccum[monthKey][campus] =
+  //      { net_revenue, total_checks, period_payroll, daily_payroll }
+  // Payroll (the payroll-deduct tender total) is tracked per report_type the way
+  // the Cafe Sales tab does it: a month-end "period" doc carries the authoritative
+  // figure for its month, and the daily docs are summed as the fallback for months
+  // with no period doc or with a period doc whose payroll came through null.
   const volumeAccum = {};
   for (const doc of dailyMetrics) {
     if (!VOLUME_CAMPUSES.includes(doc.campus)) continue;
@@ -108,10 +118,18 @@ export async function exportAgentJson() {
     if (!monthKey) continue;
     if (!volumeAccum[monthKey]) volumeAccum[monthKey] = {};
     if (!volumeAccum[monthKey][doc.campus]) {
-      volumeAccum[monthKey][doc.campus] = { net_revenue: 0, total_checks: 0 };
+      volumeAccum[monthKey][doc.campus] = {
+        net_revenue: 0, total_checks: 0, period_payroll: null, daily_payroll: 0,
+      };
     }
-    volumeAccum[monthKey][doc.campus].net_revenue += doc.net_revenue ?? 0;
-    volumeAccum[monthKey][doc.campus].total_checks += doc.total_checks ?? 0;
+    const acc = volumeAccum[monthKey][doc.campus];
+    acc.net_revenue += doc.net_revenue ?? 0;
+    acc.total_checks += doc.total_checks ?? 0;
+    if (doc.report_type === "period") {
+      if (doc.payroll != null) acc.period_payroll = (acc.period_payroll ?? 0) + doc.payroll;
+    } else {
+      acc.daily_payroll += doc.payroll ?? 0;
+    }
   }
 
   function buildCafeVolume(monthKey) {
@@ -120,15 +138,20 @@ export async function exportAgentJson() {
     const byCampus = {};
     let allRevenue = 0;
     let allChecks = 0;
+    let allPayroll = 0;
     for (const campus of VOLUME_CAMPUSES) {
       const v = monthVol[campus];
       if (!v || v.total_checks === 0) continue;
+      const payroll = v.period_payroll ?? v.daily_payroll;
       byCampus[campus] = {
         total_checks: v.total_checks,
         avg_check: v.net_revenue / v.total_checks,
+        payroll_deduct_sales: payroll,
+        payroll_discount: payroll * PAYROLL_DISCOUNT_RATE,
       };
       allRevenue += v.net_revenue;
       allChecks  += v.total_checks;
+      allPayroll += payroll;
     }
     if (Object.keys(byCampus).length === 0) return null;
     return {
@@ -136,6 +159,8 @@ export async function exportAgentJson() {
       totals: {
         total_checks: allChecks,
         avg_check: allChecks > 0 ? allRevenue / allChecks : null,
+        payroll_deduct_sales: allPayroll,
+        payroll_discount: allPayroll * PAYROLL_DISCOUNT_RATE,
       },
     };
   }
@@ -190,7 +215,7 @@ export async function exportAgentJson() {
       app: "Cafe Connection",
       months_with_data: months.map(m => m.month_key),
       fiscal_years_with_data: [...new Set(months.map(m => m.fiscal_year))].sort(),
-      note: "MTD values represent activity in that specific calendar month. YTD values are cumulative FYTD totals as of that month's Workday upload. Use MTD for month-by-month trend analysis. Use YTD only for the most recent month's FYTD snapshot. cafe_volume data comes from InfoGenesis (POS) via daily_metrics — it reflects customer transaction counts, not Workday accounting figures.",
+      note: "MTD values represent activity in that specific calendar month. YTD values are cumulative FYTD totals as of that month's Workday upload. Use MTD for month-by-month trend analysis. Use YTD only for the most recent month's FYTD snapshot. cafe_volume data comes from InfoGenesis (POS) via daily_metrics — it reflects customer transaction counts, not Workday accounting figures. Within cafe_volume, payroll_deduct_sales is the MTD payroll-deduct tender total (what employees were charged, already net of their discount) and payroll_discount is the MTD value of the 15% employee discount on those sales (payroll_deduct_sales × 15/85). Both are MTD-only, so they graph month by month alongside total_checks and avg_check; sum the months to get an FYTD discount figure.",
     },
     months,
   };
