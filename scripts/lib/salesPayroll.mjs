@@ -1,13 +1,16 @@
 /**
  * Pure helpers for the sales payroll backfill.
  *
- * Kept free of Firestore and Storage so the selection and file-matching rules
- * — the parts that decide which production documents get written — are unit
- * tested. See scripts/backfillSalesPayroll.mjs for the runner.
+ * Kept free of Firestore and Storage so the selection and matching rules — the
+ * parts that decide which production documents get written, and from which
+ * report — are unit tested. See scripts/backfillSalesPayroll.mjs for the runner.
  */
 
 /** Campuses whose sales reports carry a payroll-deduct tender. */
 export const VOLUME_CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
+
+/** Storage folder segment → campus, as uploadReport() writes it. */
+const CAMPUS_BY_FOLDER = new Map(VOLUME_CAMPUSES.map(c => [c.replace(/\s+/g, "_"), c]));
 
 /**
  * True when a daily_metrics doc is missing its payroll figure.
@@ -43,29 +46,72 @@ export function uploadedAtFromObjectName(objectName) {
   return match ? Number(match[1]) : 0;
 }
 
-/**
- * Index storage object names by the source_file they were uploaded as.
- *
- * The same report can be uploaded more than once — a correction, or a retry
- * after a failed parse. Later uploads win, so the newest timestamp is the one
- * re-parsed, matching what the last upload wrote to the document.
- */
-export function indexReportsBySourceFile(objectNames) {
-  const index = new Map();
-  for (const name of objectNames) {
-    const key = sourceFileFromObjectName(name);
-    const existing = index.get(key);
-    if (!existing || uploadedAtFromObjectName(name) >= uploadedAtFromObjectName(existing)) {
-      index.set(key, name);
-    }
-  }
-  return index;
+/** Campus the object was uploaded under, from its folder, or null. */
+export function campusFromObjectName(objectName) {
+  const parts = objectName.split("/");
+  if (parts.length < 2) return null;
+  return CAMPUS_BY_FOLDER.get(parts[parts.length - 2]) ?? null;
 }
 
-/** Why a document could not be backfilled, or null when it can be. */
-export function classifyGap(doc, objectName) {
+/**
+ * Group storage object names by the source_file they were uploaded as, newest
+ * upload first.
+ *
+ * source_file is NOT a unique key. The InfoGenesis export carries the same
+ * name every time, so a whole run of days — across campuses — can share one
+ * source_file while Storage keeps them apart by timestamp prefix and folder.
+ * Every object is kept here and the runner picks by what the report actually
+ * contains; collapsing to one object per name would reparse a single day's
+ * file for every document that shares its name.
+ */
+export function groupReportsBySourceFile(objectNames) {
+  const groups = new Map();
+  for (const name of objectNames) {
+    const key = sourceFileFromObjectName(name);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(name);
+  }
+  for (const names of groups.values()) {
+    names.sort((a, b) => uploadedAtFromObjectName(b) - uploadedAtFromObjectName(a));
+  }
+  return groups;
+}
+
+/** Key a parsed report by the day and campus it describes. */
+export function dayKey(dateStr, campus) {
+  return `${dateStr}|${campus}`;
+}
+
+export const EXCEL_NAME = /\.(xlsx|xls)$/i;
+
+/** Why a document has no usable report, or null when the candidates are usable. */
+export function classifyGap(doc, objectNames) {
   if (!doc.source_file) return "no-source-file";
-  if (!objectName) return "file-not-in-storage";
-  if (!/\.(xlsx|xls)$/i.test(objectName)) return "not-excel";
+  if (!objectNames || objectNames.length === 0) return "file-not-in-storage";
+  if (!objectNames.some(name => EXCEL_NAME.test(name))) return "not-excel";
   return null;
+}
+
+/**
+ * Does a parsed report describe the same day, campus, and totals as the
+ * document it would fill?
+ *
+ * Every field is checked, because source_file alone does not identify a
+ * report: matching on totals alone would let another day — or another
+ * campus — supply the payroll figure whenever the totals happened to agree.
+ * `objectCampus` covers reports whose Profit Center line did not parse, where
+ * the upload folder is the only campus signal.
+ */
+export function matchesDocument(doc, metrics, { docDate, objectCampus, revenueTolerance = 0.01 } = {}) {
+  if (!docDate || !metrics?.date || docDate !== metrics.date) return false;
+
+  const reportCampus = metrics.detectedCampus ?? objectCampus ?? null;
+  if (!reportCampus || reportCampus !== doc.campus) return false;
+
+  if (doc.net_revenue != null && metrics.net_revenue != null &&
+      Math.abs(doc.net_revenue - metrics.net_revenue) > revenueTolerance) return false;
+  if (doc.total_checks != null && metrics.total_checks != null &&
+      doc.total_checks !== metrics.total_checks) return false;
+
+  return true;
 }
