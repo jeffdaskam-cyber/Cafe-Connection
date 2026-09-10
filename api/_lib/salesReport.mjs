@@ -180,6 +180,11 @@ export async function parseExcel(buffer) {
   // find "Total" column (index > 10) → scan data rows below header.
   let payroll    = null;
   let creditCard = 0;
+  // Every tender label the scan saw, in sheet order. Reported so a report that
+  // yields no payroll can say whether the section was missing entirely or the
+  // payroll row is simply spelled in a way the match below does not catch.
+  const tenderLabels = [];
+  let tendersFound = false;
   const tendersAnchor = findInCol(6, "TENDERS");
   if (tendersAnchor) {
     const tendersHeaderRow = tendersAnchor.row + 1;
@@ -193,6 +198,7 @@ export async function parseExcel(buffer) {
       }
     }
     if (tendersTotalCol) {
+      tendersFound = true;
       for (let r = tendersHeaderRow + 1; r <= ws.rowCount; r++) {
         const colF = strVal(r, 6);
         const colB = strVal(r, 2);
@@ -203,6 +209,7 @@ export async function parseExcel(buffer) {
         if (!colF) continue; // skip blank rows
         const label = colF.toLowerCase();
         const val   = numVal(r, tendersTotalCol) || 0;
+        tenderLabels.push(colF);
         if (label.startsWith("payroll")) {
           payroll = val;
         } else if (
@@ -217,7 +224,16 @@ export async function parseExcel(buffer) {
       creditCard = Math.round(creditCard * 100) / 100;
     }
   }
-  if (payroll === null)   console.warn("[parseExcel] Could not find payroll — TENDERS section may have changed.");
+  if (payroll === null) {
+    // A payroll row the match misses is not just a missing figure: it falls
+    // through to the credit-card branch above and inflates that total too.
+    console.warn(
+      "[parseExcel] Could not find payroll — TENDERS section may have changed. " +
+        (tendersFound
+          ? `Tender labels read: ${tenderLabels.join(", ") || "(none)"}`
+          : "TENDERS section not found.")
+    );
+  }
   if (creditCard === 0)   console.warn("[parseExcel] Credit card total is 0 — verify TENDERS section.");
 
   // ── Validate required fields ───────────────────────────────────────────────
@@ -249,6 +265,10 @@ export async function parseExcel(buffer) {
     cash_drop:             round2(cashDrop),
     payroll:               round2(payroll),
     credit_card:           creditCard || null,
+    // Diagnostics, not stored on the document: the upload handler enumerates
+    // the fields it persists, and these are for explaining a missing payroll.
+    tenders_found:         tendersFound,
+    tender_labels:         tenderLabels,
   };
 }
 

@@ -180,6 +180,7 @@ async function main() {
   const writes = [];
   const skipped = [];
   const parseFailures = [];
+  const unmatchedTenderLabels = new Set();
   let recovered = 0;
 
   // Classify what each gap has to work with before parsing anything, so the
@@ -217,7 +218,14 @@ async function main() {
       continue;
     }
     if (match.metrics.payroll == null) {
-      skipped.push({ id, dateStr, campus: data.campus, reason: "no-payroll-in-report" });
+      // Distinguish a report with no TENDERS section from one whose payroll
+      // row is spelled in a way the parser's match does not catch — the fixes
+      // are completely different, and the labels below say which it is.
+      const reason = match.metrics.tenders_found ? "no-payroll-row" : "no-tenders-section";
+      skipped.push({ id, dateStr, campus: data.campus, reason });
+      if (match.metrics.tenders_found) {
+        for (const label of match.metrics.tender_labels ?? []) unmatchedTenderLabels.add(label);
+      }
       continue;
     }
 
@@ -245,6 +253,22 @@ async function main() {
     console.log(
       "\n[backfill] PDF reports carry no readable TENDERS section. Re-upload " +
         "those days as .xlsx on the Weekly Ops tab and re-run to recover them."
+    );
+  }
+  if (unmatchedTenderLabels.size > 0) {
+    // The parser takes the payroll row to be one whose label starts with
+    // "payroll". A report that reached here had a TENDERS section but no such
+    // row, so one of these labels is likely the payroll tender under another
+    // name — in which case it is also being counted into credit_card today.
+    console.log(
+      `\n[backfill] ${byReason["no-payroll-row"]} report(s) had a TENDERS ` +
+        "section with no row starting with \"payroll\". Labels actually read:"
+    );
+    for (const label of [...unmatchedTenderLabels].sort()) console.log(`[backfill]   ${label}`);
+    console.log(
+      "[backfill] If the payroll tender is among these under another name, the " +
+        "parser's match needs widening — and that tender is being added to " +
+        "credit_card today. Nothing was written for those days."
     );
   }
 
