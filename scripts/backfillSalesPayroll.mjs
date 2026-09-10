@@ -218,12 +218,15 @@ async function main() {
       continue;
     }
     if (match.metrics.payroll == null) {
-      // Distinguish a report with no TENDERS section from one whose payroll
-      // row is spelled in a way the parser's match does not catch — the fixes
-      // are completely different, and the labels below say which it is.
-      const reason = match.metrics.tenders_found ? "no-payroll-row" : "no-tenders-section";
+      // Three failures with three different fixes: no TENDERS section at all,
+      // a payroll row whose amount would not parse, or a payroll row spelled in
+      // a way the parser's match does not catch. Only the last is explained by
+      // the tender labels, so only it contributes them.
+      const reason = !match.metrics.tenders_found  ? "no-tenders-section"
+        : match.metrics.payroll_unreadable         ? "payroll-row-unreadable"
+        : "no-payroll-row";
       skipped.push({ id, dateStr, campus: data.campus, reason });
-      if (match.metrics.tenders_found) {
+      if (reason === "no-payroll-row") {
         for (const label of match.metrics.tender_labels ?? []) unmatchedTenderLabels.add(label);
       }
       continue;
@@ -253,6 +256,14 @@ async function main() {
     console.log(
       "\n[backfill] PDF reports carry no readable TENDERS section. Re-upload " +
         "those days as .xlsx on the Weekly Ops tab and re-run to recover them."
+    );
+  }
+  if (byReason["payroll-row-unreadable"]) {
+    console.log(
+      `\n[backfill] ${byReason["payroll-row-unreadable"]} report(s) had a payroll ` +
+        "row whose Total cell could not be read as a number — blank, text, or an " +
+        "unevaluated formula. The row is there and named correctly, so the parser " +
+        "needs no change; the cell does. Nothing was written for those days."
     );
   }
   if (unmatchedTenderLabels.size > 0) {
