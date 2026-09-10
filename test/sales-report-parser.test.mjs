@@ -122,6 +122,33 @@ test("a day with no card tenders reports credit_card 0, not null", async () => {
   assert.equal(metrics.tenders_found, true);
 });
 
+test("a card row whose amount will not parse leaves credit_card null", async () => {
+  // The section being present does not mean its amounts were readable. A blank
+  // or non-numeric Total on a card row reads as null, and folding that to 0
+  // would be indistinguishable from the no-card-tenders day above.
+  const blank = await parseExcel(await buildReport({
+    tenderRows: [["Payroll Deduct", 425.5], ["Visa", null]],
+  }));
+  assert.equal(blank.credit_card, null);
+  assert.equal(blank.tenders_found, true);
+
+  const nonNumeric = await parseExcel(await buildReport({
+    tenderRows: [["Payroll Deduct", 425.5], ["Visa", "n/a"]],
+  }));
+  assert.equal(nonNumeric.credit_card, null);
+});
+
+test("one unreadable card row makes the whole total unknown, not understated", async () => {
+  // Summing only the rows that parsed would report 900 for a day that also
+  // took an unknown amount on Master Card — a wrong figure presented as fact.
+  const metrics = await parseExcel(await buildReport({
+    tenderRows: [["Payroll Deduct", 425.5], ["Visa", 900], ["Master Card", null]],
+  }));
+  assert.equal(metrics.credit_card, null);
+  assert.equal(metrics.payroll, 425.5);
+  assert.deepEqual(metrics.tender_labels, ["Payroll Deduct", "Visa", "Master Card"]);
+});
+
 test("a report with no TENDERS section is distinguishable from a missing row", async () => {
   const metrics = await parseExcel(await buildReport({ omitTenders: true }));
   assert.equal(metrics.payroll, null);

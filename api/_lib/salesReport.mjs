@@ -180,6 +180,10 @@ export async function parseExcel(buffer) {
   // find "Total" column (index > 10) → scan data rows below header.
   let payroll    = null;
   let creditCard = 0;
+  // Card rows whose Total cell could not be read as a number. Such a row is
+  // indistinguishable from a genuine 0 once summed, so any of them leaves the
+  // whole total unknown rather than silently understating it.
+  let unreadableCardRows = 0;
   // Every tender label the scan saw, in sheet order. Reported so a report that
   // yields no payroll can say whether the section was missing entirely or the
   // payroll row is simply spelled in a way the match below does not catch.
@@ -207,18 +211,19 @@ export async function parseExcel(buffer) {
         if ((colB && colB.toLowerCase() === "cash position") ||
             (colC && colC.toLowerCase() === "cash position")) break;
         if (!colF) continue; // skip blank rows
-        const label = colF.toLowerCase();
-        const val   = numVal(r, tendersTotalCol) || 0;
+        const label  = colF.toLowerCase();
+        const rawVal = numVal(r, tendersTotalCol);
         tenderLabels.push(colF);
         if (label.startsWith("payroll")) {
-          payroll = val;
+          payroll = rawVal ?? 0;
         } else if (
           !label.startsWith("cash") &&
           !label.startsWith("event services") &&
           !label.startsWith("subtotal") &&
           !label.startsWith("total")
         ) {
-          creditCard += val;
+          if (rawVal === null) unreadableCardRows++;
+          else creditCard += rawVal;
         }
       }
       creditCard = Math.round(creditCard * 100) / 100;
@@ -239,6 +244,11 @@ export async function parseExcel(buffer) {
   // card payment, and is reported as 0 — not as an unreadable figure.
   if (!tendersFound) {
     console.warn("[parseExcel] No TENDERS section — credit_card is unknown, not zero.");
+  } else if (unreadableCardRows > 0) {
+    console.warn(
+      `[parseExcel] ${unreadableCardRows} card tender row(s) had an unreadable ` +
+        "Total — credit_card left unknown rather than understated."
+    );
   }
 
   // ── Validate required fields ───────────────────────────────────────────────
@@ -269,9 +279,11 @@ export async function parseExcel(buffer) {
     total_taxes:           round2(totalTaxes),
     cash_drop:             round2(cashDrop),
     payroll:               round2(payroll),
-    // Null only when the section could not be read at all: `|| null` used to
-    // coerce a real 0 into "unknown", which is a different fact entirely.
-    credit_card:           tendersFound ? creditCard : null,
+    // Null means "could not be read": no TENDERS section, or a card row whose
+    // amount would not parse. A section that was read and simply holds no card
+    // tenders yields a genuine 0 — `|| null` used to coerce that into "unknown"
+    // too, which is a different fact entirely.
+    credit_card:           tendersFound && unreadableCardRows === 0 ? creditCard : null,
     // Diagnostics, not stored on the document: the upload handler enumerates
     // the fields it persists, and these are for explaining a missing payroll.
     tenders_found:         tendersFound,
