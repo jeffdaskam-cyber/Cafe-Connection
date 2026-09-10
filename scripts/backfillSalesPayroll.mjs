@@ -33,55 +33,6 @@
  */
 
 import { main } from "./lib/salesBackfill.mjs";
-import { needsPayrollBackfill } from "./lib/salesPayroll.mjs";
+import { PAYROLL_FIELD } from "./lib/salesBackfillFields.mjs";
 
-main({
-  field: "payroll",
-  needsBackfill: needsPayrollBackfill,
-
-  /**
-   * Three failures with three different fixes: no TENDERS section at all, a
-   * payroll row whose amount would not parse, or a payroll row spelled in a way
-   * the parser's match does not catch. Only the last is explained by the tender
-   * labels, so only it contributes them.
-   */
-  explainMissing(metrics) {
-    if (!metrics.tenders_found)  return "no-tenders-section";
-    if (metrics.payroll_unreadable) return "payroll-row-unreadable";
-    return "no-payroll-row";
-  },
-
-  collectExtras({ metrics, reason, extras }) {
-    if (reason !== "no-payroll-row") return;
-    extras.tenderLabels ??= new Set();
-    for (const label of metrics.tender_labels ?? []) extras.tenderLabels.add(label);
-  },
-
-  summaryNotes({ byReason, extras, log }) {
-    if (byReason["payroll-row-unreadable"]) {
-      log(
-        `\n[backfill] ${byReason["payroll-row-unreadable"]} report(s) had a payroll ` +
-          "row whose Total cell could not be read as a number — blank, text, or an " +
-          "unevaluated formula. The row is there and named correctly, so the parser " +
-          "needs no change; the cell does. Nothing was written for those days."
-      );
-    }
-    const labels = extras.tenderLabels;
-    if (labels?.size > 0) {
-      // The parser takes the payroll row to be one whose label starts with
-      // "payroll". A report that reached here had a TENDERS section but no such
-      // row, so one of these labels is likely the payroll tender under another
-      // name — in which case it is also being counted into credit_card today.
-      log(
-        `\n[backfill] ${byReason["no-payroll-row"]} report(s) had a TENDERS ` +
-          "section with no row starting with \"payroll\". Labels actually read:"
-      );
-      for (const label of [...labels].sort()) log(`[backfill]   ${label}`);
-      log(
-        "[backfill] If the payroll tender is among these under another name, the " +
-          "parser's match needs widening — and that tender is being added to " +
-          "credit_card today. Nothing was written for those days."
-      );
-    }
-  },
-}, process.argv.slice(2));
+main(PAYROLL_FIELD, process.argv.slice(2));

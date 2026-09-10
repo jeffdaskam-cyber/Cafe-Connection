@@ -18,6 +18,8 @@
  * @property {(doc: object) => boolean} needsBackfill  Is this document a gap?
  * @property {(metrics: object) => string} explainMissing
  *           Report matched the document but carries no figure — which failure was it?
+ * @property {(metrics: object) => (string|null)} [rejectValue]
+ *           Report produced a figure, but one that must not be written — why?
  * @property {(ctx: object) => void} [collectExtras]   Gather per-skip diagnostics.
  * @property {(ctx: object) => void} [summaryNotes]    Print field-specific closing notes.
  */
@@ -218,6 +220,15 @@ export async function runBackfill(spec, argv) {
       const reason = spec.explainMissing(match.metrics);
       skipped.push({ id, dateStr, campus: data.campus, reason });
       spec.collectExtras?.({ metrics: match.metrics, reason, extras });
+      continue;
+    }
+    // A figure the report produced can still be untrustworthy. Absence is not
+    // the only failure, so a field gets to refuse a value it can see is wrong
+    // rather than write a bad number into a financial record.
+    const rejection = spec.rejectValue?.(match.metrics) ?? null;
+    if (rejection) {
+      skipped.push({ id, dateStr, campus: data.campus, reason: rejection });
+      spec.collectExtras?.({ metrics: match.metrics, reason: rejection, extras });
       continue;
     }
 

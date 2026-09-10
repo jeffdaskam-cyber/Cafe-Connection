@@ -16,7 +16,9 @@
  * uses (api/_lib/salesReport.mjs), so a backfilled figure is identical to what
  * the upload would write today. A report that cannot produce a figure is
  * reported, not guessed at — and since the fix, a card row whose amount will
- * not parse is one of those cases rather than a silent 0.
+ * not parse is one of those cases rather than a silent 0. A total the parser
+ * inflated by summing an unrecognized payroll row into it is refused too; see
+ * CREDIT_CARD_FIELD in scripts/lib/salesBackfillFields.mjs.
  *
  * Usage:
  *   # Dry run — reads everything, writes nothing, prints what it would do.
@@ -36,29 +38,6 @@
  */
 
 import { main } from "./lib/salesBackfill.mjs";
-import { needsCreditCardBackfill } from "./lib/salesPayroll.mjs";
+import { CREDIT_CARD_FIELD } from "./lib/salesBackfillFields.mjs";
 
-main({
-  field: "credit_card",
-  needsBackfill: needsCreditCardBackfill,
-
-  /**
-   * Unlike payroll, credit_card has no "row is missing" case — it is a sum over
-   * whichever card rows exist, and none of them is an error. So null means one
-   * of exactly two things, and tenders_found tells them apart.
-   */
-  explainMissing(metrics) {
-    return metrics.tenders_found ? "card-row-unreadable" : "no-tenders-section";
-  },
-
-  summaryNotes({ byReason, log }) {
-    if (byReason["card-row-unreadable"]) {
-      log(
-        `\n[backfill] ${byReason["card-row-unreadable"]} report(s) had a card tender ` +
-          "row whose Total cell could not be read as a number — blank, text, or an " +
-          "unevaluated formula. Summing the rows that did parse would understate " +
-          "the day, so nothing was written for those."
-      );
-    }
-  },
-}, process.argv.slice(2));
+main(CREDIT_CARD_FIELD, process.argv.slice(2));
