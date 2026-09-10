@@ -26,6 +26,20 @@ export function needsPayrollBackfill(doc) {
 }
 
 /**
+ * True when a daily_metrics doc is missing its credit-card figure.
+ *
+ * Same two shapes as payroll: absent (written before the parser read the
+ * TENDERS section) and an explicit null (a PDF upload, an Excel with no
+ * readable TENDERS section, or — before the parser distinguished them — a day
+ * that simply took no card payment). A real 0 is now a legitimate day with no
+ * card tenders and is left alone.
+ */
+export function needsCreditCardBackfill(doc) {
+  if (!VOLUME_CAMPUSES.includes(doc?.campus)) return false;
+  return doc.credit_card === undefined || doc.credit_card === null;
+}
+
+/**
  * Storage object name → the report file name daily_metrics recorded.
  *
  * uploadReport() writes `reports/{Campus_With_Underscores}/{epochMs}_{name}`

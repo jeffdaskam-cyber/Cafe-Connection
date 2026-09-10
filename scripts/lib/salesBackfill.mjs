@@ -1,0 +1,282 @@
+/**
+ * The shared runner behind the sales backfill scripts.
+ *
+ * Every one of these backfills does the same thing: find daily_metrics
+ * documents missing one figure, re-parse the archived report each gap came
+ * from with the same parser the upload endpoint uses, verify the report really
+ * describes that document, and fill the figure from it. Nothing is invented or
+ * apportioned — a report that cannot produce the figure is reported, not
+ * guessed at.
+ *
+ * Only three things differ per field: which documents count as gaps, what to
+ * call the figure in the output, and why a parsed report failed to yield one.
+ * A FieldSpec supplies those; everything else lives here so the rules that
+ * decide which production documents get written exist in exactly one place.
+ *
+ * @typedef {object} FieldSpec
+ * @property {string}   field         Document field to write, also the key on parsed metrics.
+ * @property {(doc: object) => boolean} needsBackfill  Is this document a gap?
+ * @property {(metrics: object) => string} explainMissing
+ *           Report matched the document but carries no figure — which failure was it?
+ * @property {(metrics: object) => (string|null)} [rejectValue]
+ *           Report produced a figure, but one that must not be written — why?
+ * @property {(ctx: object) => void} [collectExtras]   Gather per-skip diagnostics.
+ * @property {(ctx: object) => void} [summaryNotes]    Print field-specific closing notes.
+ */
+
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
+
+import { parseExcel } from "../../api/_lib/salesReport.mjs";
+// initAdmin/isEmulator/commitInBatches are generic Admin SDK plumbing; they
+// live in the catering lib only because that is where they were first needed.
+import { commitInBatches, initAdmin, isEmulator } from "./cateringAdmin.mjs";
+import {
+  EXCEL_NAME, VOLUME_CAMPUSES, campusFromObjectName, classifyGap, dayKey,
+  groupReportsBySourceFile, matchesDocument, uploadedAtFromObjectName,
+} from "./salesPayroll.mjs";
+
+export const REPORTS_PREFIX = "reports/";
+
+export function parseArgs(argv) {
+  const args = { commit: false, campus: null, since: null, limit: Infinity };
+  for (const arg of argv) {
+    if (arg === "--commit") args.commit = true;
+    else if (arg.startsWith("--campus=")) args.campus = arg.slice("--campus=".length);
+    else if (arg.startsWith("--since=")) args.since = arg.slice("--since=".length);
+    else if (arg.startsWith("--limit=")) args.limit = Number(arg.slice("--limit=".length));
+    else throw new Error(`Unknown option: ${arg}`);
+  }
+  if (args.campus && !VOLUME_CAMPUSES.includes(args.campus)) {
+    throw new Error(`--campus must be one of: ${VOLUME_CAMPUSES.join(", ")}`);
+  }
+  if (args.since && !/^\d{4}-\d{2}-\d{2}$/.test(args.since)) {
+    throw new Error("--since must be YYYY-MM-DD");
+  }
+  if (!Number.isFinite(args.limit) && args.limit !== Infinity) {
+    throw new Error("--limit must be a number");
+  }
+  return args;
+}
+
+/** Refuse to write to a real project without a deliberate opt-in. */
+export function assertWriteAllowed() {
+  if (isEmulator()) return;
+  if (process.env.ALLOW_PRODUCTION_WRITE === "true") return;
+  throw new Error(
+    "Refusing to write to live Firebase project " +
+      `'${process.env.FIREBASE_ADMIN_PROJECT_ID || "unknown"}'.\n` +
+      "Re-run without --commit for a dry run, point at the emulator " +
+      "(FIRESTORE_EMULATOR_HOST=127.0.0.1:8080), or set " +
+      "ALLOW_PRODUCTION_WRITE=true to write to the live project deliberately."
+  );
+}
+
+function bucketName() {
+  const name = process.env.FIREBASE_STORAGE_BUCKET || process.env.ALLOWED_STORAGE_BUCKET;
+  if (!name) {
+    throw new Error(
+      "Set FIREBASE_STORAGE_BUCKET (or ALLOWED_STORAGE_BUCKET) to the bucket " +
+        "holding reports/ — the archived sales reports are read from it."
+    );
+  }
+  return name;
+}
+
+export function toDateString(value) {
+  if (!value) return null;
+  if (typeof value === "string") return value.slice(0, 10);
+  const d = typeof value.toDate === "function" ? value.toDate() : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/**
+ * Parse every archived report a gap could be filled from, once each, and index
+ * the results by the day and campus the report itself describes.
+ *
+ * Indexing by content rather than by file name is what keeps a run of days
+ * exported under one recurring file name apart. Each object is parsed a single
+ * time no matter how many documents share its name; where two uploads describe
+ * the same day and campus, the newest wins, matching what the last upload
+ * wrote to the document.
+ */
+async function parseReportsForGaps(bucket, sourceFiles, reportGroups, onSkip) {
+  const byDay = new Map();
+  for (const sourceFile of sourceFiles) {
+    const objectNames = (reportGroups.get(sourceFile) ?? []).filter(name => EXCEL_NAME.test(name));
+    for (const objectName of objectNames) {
+      let metrics;
+      try {
+        const [buffer] = await bucket.file(objectName).download();
+        metrics = await parseExcel(buffer);
+      } catch (err) {
+        onSkip(objectName, `parse-failed: ${err.message}`);
+        continue;
+      }
+      const campus = metrics.detectedCampus ?? campusFromObjectName(objectName);
+      if (!metrics.date || !campus) continue;
+
+      const key = dayKey(metrics.date, campus);
+      const uploadedAt = uploadedAtFromObjectName(objectName);
+      const existing = byDay.get(key);
+      if (!existing || uploadedAt >= existing.uploadedAt) {
+        byDay.set(key, { metrics, objectName, uploadedAt, objectCampus: campusFromObjectName(objectName) });
+      }
+    }
+  }
+  return byDay;
+}
+
+/**
+ * Run one field's backfill end to end.
+ *
+ * @param {FieldSpec} spec
+ * @param {string[]} argv Raw CLI arguments (process.argv.slice(2)).
+ */
+export async function runBackfill(spec, argv) {
+  const args = parseArgs(argv);
+  if (args.commit) assertWriteAllowed();
+
+  const app = initAdmin();
+  const db = getFirestore(app);
+
+  const target = isEmulator()
+    ? `EMULATOR ${process.env.FIRESTORE_EMULATOR_HOST}`
+    : `LIVE PROJECT ${process.env.FIREBASE_ADMIN_PROJECT_ID}`;
+  console.log(`[backfill] target: ${target}`);
+  console.log(`[backfill] mode:   ${args.commit ? "COMMIT — will write" : "DRY RUN — no writes"}`);
+
+  // The collection is small (one document per campus per day) and Firestore
+  // cannot query for an absent field, so scan and filter in memory.
+  const snap = await db.collection("daily_metrics").get();
+  const candidates = [];
+  for (const docSnap of snap.docs) {
+    const data = docSnap.data();
+    if (!spec.needsBackfill(data)) continue;
+    if (args.campus && data.campus !== args.campus) continue;
+    const dateStr = toDateString(data.date);
+    if (args.since && (!dateStr || dateStr < args.since)) continue;
+    candidates.push({ ref: docSnap.ref, id: docSnap.id, data, dateStr });
+  }
+  candidates.sort((a, b) => (a.dateStr ?? "").localeCompare(b.dateStr ?? ""));
+  const selected = candidates.slice(0, args.limit === Infinity ? undefined : args.limit);
+
+  console.log(
+    `[backfill] ${snap.size} daily_metrics documents, ` +
+      `${candidates.length} missing ${spec.field}, ${selected.length} in scope.`
+  );
+  if (selected.length === 0) {
+    console.log("[backfill] Nothing to do.");
+    return;
+  }
+
+  const bucket = getStorage(app).bucket(bucketName());
+  const [files] = await bucket.getFiles({ prefix: REPORTS_PREFIX });
+  const reportGroups = groupReportsBySourceFile(files.map(f => f.name));
+  console.log(`[backfill] ${files.length} archived reports under ${REPORTS_PREFIX}`);
+
+  const writes = [];
+  const skipped = [];
+  const parseFailures = [];
+  const extras = {};
+  let recovered = 0;
+
+  // Classify what each gap has to work with before parsing anything, so the
+  // parse pass only opens files that some document actually needs.
+  const gaps = [];
+  const neededSourceFiles = new Set();
+  for (const candidate of selected) {
+    const objectNames = candidate.data.source_file
+      ? reportGroups.get(candidate.data.source_file) ?? []
+      : [];
+    const gap = classifyGap(candidate.data, objectNames);
+    if (gap) {
+      skipped.push({ id: candidate.id, dateStr: candidate.dateStr, campus: candidate.data.campus, reason: gap });
+      continue;
+    }
+    gaps.push(candidate);
+    neededSourceFiles.add(candidate.data.source_file);
+  }
+
+  const byDay = await parseReportsForGaps(
+    bucket, neededSourceFiles, reportGroups,
+    (objectName, reason) => parseFailures.push({ objectName, reason })
+  );
+  console.log(`[backfill] parsed ${byDay.size} archived reports covering the gaps`);
+
+  for (const candidate of gaps) {
+    const { data, dateStr, id } = candidate;
+    const match = byDay.get(dayKey(dateStr, data.campus));
+    if (!match) {
+      skipped.push({ id, dateStr, campus: data.campus, reason: "no-report-for-this-day" });
+      continue;
+    }
+    if (!matchesDocument(data, match.metrics, { docDate: dateStr, objectCampus: match.objectCampus })) {
+      skipped.push({ id, dateStr, campus: data.campus, reason: "report-does-not-match-document" });
+      continue;
+    }
+    const value = match.metrics[spec.field];
+    if (value == null) {
+      const reason = spec.explainMissing(match.metrics);
+      skipped.push({ id, dateStr, campus: data.campus, reason });
+      spec.collectExtras?.({ metrics: match.metrics, reason, extras });
+      continue;
+    }
+    // A figure the report produced can still be untrustworthy. Absence is not
+    // the only failure, so a field gets to refuse a value it can see is wrong
+    // rather than write a bad number into a financial record.
+    const rejection = spec.rejectValue?.(match.metrics) ?? null;
+    if (rejection) {
+      skipped.push({ id, dateStr, campus: data.campus, reason: rejection });
+      spec.collectExtras?.({ metrics: match.metrics, reason: rejection, extras });
+      continue;
+    }
+
+    recovered++;
+    console.log(
+      `[backfill] ${dateStr} ${data.campus.padEnd(12)} ${spec.field} ${value.toFixed(2)}  (${match.objectName})`
+    );
+    writes.push({ ref: candidate.ref, data: { [spec.field]: value } });
+  }
+  for (const failure of parseFailures) {
+    console.warn(`[backfill] could not parse ${failure.objectName} — ${failure.reason}`);
+  }
+
+  const byReason = {};
+  for (const s of skipped) {
+    const key = s.reason.startsWith("parse-failed") ? "parse-failed" : s.reason;
+    byReason[key] = (byReason[key] ?? 0) + 1;
+  }
+
+  console.log(`\n[backfill] recoverable: ${recovered}`);
+  for (const [reason, count] of Object.entries(byReason).sort((a, b) => b[1] - a[1])) {
+    console.log(`[backfill] skipped ${String(count).padStart(4)}  ${reason}`);
+  }
+  if (byReason["not-excel"]) {
+    console.log(
+      "\n[backfill] PDF reports carry no readable TENDERS section. Re-upload " +
+        "those days as .xlsx on the Weekly Ops tab and re-run to recover them."
+    );
+  }
+  spec.summaryNotes?.({ byReason, extras, log: console.log });
+
+  if (!args.commit) {
+    console.log("\n[backfill] DRY RUN — nothing written. Re-run with --commit to apply.");
+    return;
+  }
+  if (writes.length === 0) {
+    console.log("\n[backfill] Nothing recoverable to write.");
+    return;
+  }
+
+  await commitInBatches(db, writes);
+  console.log(`\n[backfill] wrote ${spec.field} to ${writes.length} documents.`);
+}
+
+/** Wrap a runner so a thrown error prints one line and sets a failing exit code. */
+export function main(spec, argv) {
+  return runBackfill(spec, argv).catch(err => {
+    console.error(`[backfill] ${err.message}`);
+    process.exitCode = 1;
+  });
+}

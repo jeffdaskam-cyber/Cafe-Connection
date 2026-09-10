@@ -11,8 +11,8 @@ import assert from "node:assert/strict";
 
 import {
   campusFromObjectName, classifyGap, dayKey, groupReportsBySourceFile,
-  matchesDocument, needsPayrollBackfill, sourceFileFromObjectName,
-  uploadedAtFromObjectName,
+  matchesDocument, needsCreditCardBackfill, needsPayrollBackfill,
+  sourceFileFromObjectName, uploadedAtFromObjectName,
 } from "../scripts/lib/salesPayroll.mjs";
 
 test("an absent payroll field and an explicit null both count as missing", () => {
@@ -31,6 +31,26 @@ test("campuses outside the cafes are left alone", () => {
   // ES Admin carries no POS payroll-deduct tender.
   assert.equal(needsPayrollBackfill({ campus: "ES Admin", payroll: null }), false);
   assert.equal(needsPayrollBackfill({ payroll: null }), false);
+});
+
+test("an absent credit_card field and an explicit null both count as missing", () => {
+  // Written before the parser read the TENDERS section.
+  assert.equal(needsCreditCardBackfill({ campus: "Center Green" }), true);
+  // A PDF upload, an unreadable TENDERS section, or — before the parser drew
+  // the distinction — a day that simply took no card payment.
+  assert.equal(needsCreditCardBackfill({ campus: "Center Green", credit_card: null }), true);
+});
+
+test("a real zero is a day with no card tenders, not a gap", () => {
+  // This is the whole point of the parser fix: once a genuine 0 is recorded as
+  // 0, re-running the backfill must leave it alone rather than rewrite it.
+  assert.equal(needsCreditCardBackfill({ campus: "Center Green", credit_card: 0 }), false);
+  assert.equal(needsCreditCardBackfill({ campus: "Mesa Lab", credit_card: 3861 }), false);
+});
+
+test("credit_card gaps are scoped to the cafe campuses too", () => {
+  assert.equal(needsCreditCardBackfill({ campus: "ES Admin", credit_card: null }), false);
+  assert.equal(needsCreditCardBackfill({ credit_card: null }), false);
 });
 
 test("the upload timestamp prefix is stripped to recover source_file", () => {
