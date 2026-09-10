@@ -39,15 +39,12 @@ import { parseExcel } from "../api/_lib/salesReport.mjs";
 // live in the catering lib only because that is where they were first needed.
 import { commitInBatches, initAdmin, isEmulator } from "./lib/cateringAdmin.mjs";
 import {
-  VOLUME_CAMPUSES, classifyGap, indexReportsBySourceFile, needsPayrollBackfill,
+  EXCEL_NAME, VOLUME_CAMPUSES, campusFromObjectName, classifyGap, dayKey,
+  groupReportsBySourceFile, matchesDocument, needsPayrollBackfill,
+  uploadedAtFromObjectName,
 } from "./lib/salesPayroll.mjs";
 
 const REPORTS_PREFIX = "reports/";
-
-// A re-parsed report must describe the same day as the document it fills, or
-// the payroll figure belongs to some other day. Revenue is compared to the cent
-// and checks exactly; anything else is reported rather than written.
-const REVENUE_TOLERANCE = 0.01;
 
 function parseArgs(argv) {
   const args = { commit: false, campus: null, since: null, limit: Infinity };
@@ -101,13 +98,41 @@ function toDateString(value) {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
 
-/** Does a re-parsed report describe the same day as the document it would fill? */
-function describesSameDay(doc, metrics) {
-  if (doc.net_revenue != null && metrics.net_revenue != null &&
-      Math.abs(doc.net_revenue - metrics.net_revenue) > REVENUE_TOLERANCE) return false;
-  if (doc.total_checks != null && metrics.total_checks != null &&
-      doc.total_checks !== metrics.total_checks) return false;
-  return true;
+/**
+ * Parse every archived report a gap could be filled from, once each, and index
+ * the results by the day and campus the report itself describes.
+ *
+ * Indexing by content rather than by file name is what keeps a run of days
+ * exported under one recurring file name apart. Each object is parsed a single
+ * time no matter how many documents share its name; where two uploads describe
+ * the same day and campus, the newest wins, matching what the last upload
+ * wrote to the document.
+ */
+async function parseReportsForGaps(bucket, sourceFiles, reportGroups, onSkip) {
+  const byDay = new Map();
+  for (const sourceFile of sourceFiles) {
+    const objectNames = (reportGroups.get(sourceFile) ?? []).filter(name => EXCEL_NAME.test(name));
+    for (const objectName of objectNames) {
+      let metrics;
+      try {
+        const [buffer] = await bucket.file(objectName).download();
+        metrics = await parseExcel(buffer);
+      } catch (err) {
+        onSkip(objectName, `parse-failed: ${err.message}`);
+        continue;
+      }
+      const campus = metrics.detectedCampus ?? campusFromObjectName(objectName);
+      if (!metrics.date || !campus) continue;
+
+      const key = dayKey(metrics.date, campus);
+      const uploadedAt = uploadedAtFromObjectName(objectName);
+      const existing = byDay.get(key);
+      if (!existing || uploadedAt >= existing.uploadedAt) {
+        byDay.set(key, { metrics, objectName, uploadedAt, objectCampus: campusFromObjectName(objectName) });
+      }
+    }
+  }
+  return byDay;
 }
 
 async function main() {
@@ -149,45 +174,61 @@ async function main() {
 
   const bucket = getStorage(app).bucket(bucketName());
   const [files] = await bucket.getFiles({ prefix: REPORTS_PREFIX });
-  const reportIndex = indexReportsBySourceFile(files.map(f => f.name));
+  const reportGroups = groupReportsBySourceFile(files.map(f => f.name));
   console.log(`[backfill] ${files.length} archived reports under ${REPORTS_PREFIX}`);
 
   const writes = [];
   const skipped = [];
+  const parseFailures = [];
   let recovered = 0;
 
+  // Classify what each gap has to work with before parsing anything, so the
+  // parse pass only opens files that some document actually needs.
+  const gaps = [];
+  const neededSourceFiles = new Set();
   for (const candidate of selected) {
-    const { data, dateStr, id } = candidate;
-    const objectName = data.source_file ? reportIndex.get(data.source_file) : null;
-    const gap = classifyGap(data, objectName);
+    const objectNames = candidate.data.source_file
+      ? reportGroups.get(candidate.data.source_file) ?? []
+      : [];
+    const gap = classifyGap(candidate.data, objectNames);
     if (gap) {
-      skipped.push({ id, dateStr, campus: data.campus, reason: gap });
+      skipped.push({ id: candidate.id, dateStr: candidate.dateStr, campus: candidate.data.campus, reason: gap });
       continue;
     }
+    gaps.push(candidate);
+    neededSourceFiles.add(candidate.data.source_file);
+  }
 
-    let metrics;
-    try {
-      const [buffer] = await bucket.file(objectName).download();
-      metrics = await parseExcel(buffer);
-    } catch (err) {
-      skipped.push({ id, dateStr, campus: data.campus, reason: `parse-failed: ${err.message}` });
-      continue;
-    }
+  const byDay = await parseReportsForGaps(
+    bucket, neededSourceFiles, reportGroups,
+    (objectName, reason) => parseFailures.push({ objectName, reason })
+  );
+  console.log(`[backfill] parsed ${byDay.size} archived reports covering the gaps`);
 
-    if (metrics.payroll == null) {
-      skipped.push({ id, dateStr, campus: data.campus, reason: "no-payroll-in-report" });
+  for (const candidate of gaps) {
+    const { data, dateStr, id } = candidate;
+    const match = byDay.get(dayKey(dateStr, data.campus));
+    if (!match) {
+      skipped.push({ id, dateStr, campus: data.campus, reason: "no-report-for-this-day" });
       continue;
     }
-    if (!describesSameDay(data, metrics)) {
+    if (!matchesDocument(data, match.metrics, { docDate: dateStr, objectCampus: match.objectCampus })) {
       skipped.push({ id, dateStr, campus: data.campus, reason: "report-does-not-match-document" });
+      continue;
+    }
+    if (match.metrics.payroll == null) {
+      skipped.push({ id, dateStr, campus: data.campus, reason: "no-payroll-in-report" });
       continue;
     }
 
     recovered++;
     console.log(
-      `[backfill] ${dateStr} ${data.campus.padEnd(12)} payroll ${metrics.payroll.toFixed(2)}  (${objectName})`
+      `[backfill] ${dateStr} ${data.campus.padEnd(12)} payroll ${match.metrics.payroll.toFixed(2)}  (${match.objectName})`
     );
-    writes.push({ ref: candidate.ref, data: { payroll: metrics.payroll } });
+    writes.push({ ref: candidate.ref, data: { payroll: match.metrics.payroll } });
+  }
+  for (const failure of parseFailures) {
+    console.warn(`[backfill] could not parse ${failure.objectName} — ${failure.reason}`);
   }
 
   const byReason = {};
