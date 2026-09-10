@@ -4,14 +4,9 @@
 
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase.js";
+import { buildCafeVolume, buildVolumeAccum } from "./cafeVolume.js";
 
 const CAMPUSES = ["ES Admin", "Mesa Lab", "Foothills", "Center Green"];
-const VOLUME_CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
-
-// Payroll-deduct sales are tendered at 85% of menu price — the 15% employee
-// discount is the difference between the full price and what was charged, so
-// discount = charge × 15/85. Matches the Payroll Discount card on Cafe Sales.
-const PAYROLL_DISCOUNT_RATE = 15 / 85;
 
 const REVENUE_KEYS = [
   ["Cafe Sales Revenue",    "cafe_sales_revenue"],
@@ -66,19 +61,6 @@ function buildTotals(campusObjects, period) {
   };
 }
 
-function resolveMonthKey(date) {
-  if (typeof date === "string") return date.slice(0, 7);
-  if (date?.seconds != null) {
-    const d = new Date(date.seconds * 1000);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }
-  if (typeof date?.toDate === "function") {
-    const d = date.toDate();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  }
-  return null;
-}
-
 export async function exportAgentJson() {
   const [fpaSnap, metricsSnap] = await Promise.all([
     getDocs(collection(db, "fpa_facts")),
@@ -105,65 +87,7 @@ export async function exportAgentJson() {
     byMonth[monthKey].campuses[campus][normalizedName] = bucket;
   }
 
-  // ── daily_metrics → volumeAccum[monthKey][campus] =
-  //      { net_revenue, total_checks, period_payroll, daily_payroll }
-  // Payroll (the payroll-deduct tender total) is tracked per report_type the way
-  // the Cafe Sales tab does it: a month-end "period" doc carries the authoritative
-  // figure for its month, and the daily docs are summed as the fallback for months
-  // with no period doc or with a period doc whose payroll came through null.
-  const volumeAccum = {};
-  for (const doc of dailyMetrics) {
-    if (!VOLUME_CAMPUSES.includes(doc.campus)) continue;
-    const monthKey = resolveMonthKey(doc.date);
-    if (!monthKey) continue;
-    if (!volumeAccum[monthKey]) volumeAccum[monthKey] = {};
-    if (!volumeAccum[monthKey][doc.campus]) {
-      volumeAccum[monthKey][doc.campus] = {
-        net_revenue: 0, total_checks: 0, period_payroll: null, daily_payroll: 0,
-      };
-    }
-    const acc = volumeAccum[monthKey][doc.campus];
-    acc.net_revenue += doc.net_revenue ?? 0;
-    acc.total_checks += doc.total_checks ?? 0;
-    if (doc.report_type === "period") {
-      if (doc.payroll != null) acc.period_payroll = (acc.period_payroll ?? 0) + doc.payroll;
-    } else {
-      acc.daily_payroll += doc.payroll ?? 0;
-    }
-  }
-
-  function buildCafeVolume(monthKey) {
-    const monthVol = volumeAccum[monthKey];
-    if (!monthVol) return null;
-    const byCampus = {};
-    let allRevenue = 0;
-    let allChecks = 0;
-    let allPayroll = 0;
-    for (const campus of VOLUME_CAMPUSES) {
-      const v = monthVol[campus];
-      if (!v || v.total_checks === 0) continue;
-      const payroll = v.period_payroll ?? v.daily_payroll;
-      byCampus[campus] = {
-        total_checks: v.total_checks,
-        avg_check: v.net_revenue / v.total_checks,
-        payroll_deduct_sales: payroll,
-        payroll_discount: payroll * PAYROLL_DISCOUNT_RATE,
-      };
-      allRevenue += v.net_revenue;
-      allChecks  += v.total_checks;
-      allPayroll += payroll;
-    }
-    if (Object.keys(byCampus).length === 0) return null;
-    return {
-      by_campus: byCampus,
-      totals: {
-        total_checks: allChecks,
-        avg_check: allChecks > 0 ? allRevenue / allChecks : null,
-        payroll_deduct_sales: allPayroll,
-        payroll_discount: allPayroll * PAYROLL_DISCOUNT_RATE,
-      },
-    };
-  }
+  const volumeAccum = buildVolumeAccum(dailyMetrics);
 
   // ── Assemble months[] sorted chronologically ────────────────────────────────
   const months = Object.values(byMonth)
@@ -204,10 +128,18 @@ export async function exportAgentJson() {
         },
       };
 
-      const cafeVolume = buildCafeVolume(month.monthKey);
+      const cafeVolume = buildCafeVolume(volumeAccum, month.monthKey);
       if (cafeVolume) monthOut.cafe_volume = cafeVolume;
       return monthOut;
     });
+
+  // Months whose café volume carries no usable payroll total, so a consumer
+  // sees the gap before it sums anything. The August 2026 leadership report
+  // read five zeroed months as "the discount program began in March 2026" and
+  // published an FYTD discount of $32,825 against the app's $60,554.
+  const payrollMonthsIncomplete = months
+    .filter(m => m.cafe_volume && m.cafe_volume.totals.payroll_deduct_sales == null)
+    .map(m => m.month_key);
 
   const exportData = {
     export_metadata: {
@@ -215,7 +147,11 @@ export async function exportAgentJson() {
       app: "Cafe Connection",
       months_with_data: months.map(m => m.month_key),
       fiscal_years_with_data: [...new Set(months.map(m => m.fiscal_year))].sort(),
-      note: "MTD values represent activity in that specific calendar month. YTD values are cumulative FYTD totals as of that month's Workday upload. Use MTD for month-by-month trend analysis. Use YTD only for the most recent month's FYTD snapshot. cafe_volume data comes from InfoGenesis (POS) via daily_metrics — it reflects customer transaction counts, not Workday accounting figures. Within cafe_volume, payroll_deduct_sales is the MTD payroll-deduct tender total (what employees were charged, already net of their discount) and payroll_discount is the MTD value of the 15% employee discount on those sales (payroll_deduct_sales × 15/85). Both are MTD-only, so they graph month by month alongside total_checks and avg_check; sum the months to get an FYTD discount figure.",
+      data_quality: {
+        payroll_months_incomplete: payrollMonthsIncomplete,
+        payroll_note: "Months listed here have café traffic but no complete payroll-deduct total, because the source reports for those days were uploaded in a format the TENDERS parser cannot read (PDF uploads never yield one). Run scripts/backfillSalesPayroll.mjs to recover them from the archived reports, then re-export. Until that is done, no FYTD payroll figure derived from this file is complete.",
+      },
+      note: "MTD values represent activity in that specific calendar month. YTD values are cumulative FYTD totals as of that month's Workday upload. Use MTD for month-by-month trend analysis. Use YTD only for the most recent month's FYTD snapshot. cafe_volume data comes from InfoGenesis (POS) via daily_metrics — it reflects customer transaction counts, not Workday accounting figures. Within cafe_volume, payroll_deduct_sales is the MTD payroll-deduct tender total (what employees were charged, already net of their discount) and payroll_discount is the MTD value of the 15% employee discount on those sales (payroll_deduct_sales × 15/85). Both are MTD-only, so they graph month by month alongside total_checks and avg_check. IMPORTANT: a null payroll_deduct_sales or payroll_discount means the figure was not recorded — never that it was zero. The 15% payroll-deduct discount is a long-standing program, so every month with café activity has payroll-deduct sales; a null is a gap in the uploaded source reports. payroll_coverage on each campus and month total says which. Do not sum months into an FYTD discount while export_metadata.data_quality.payroll_months_incomplete is non-empty — the result understates the year by however much those months hold. Report the gap instead.",
     },
     months,
   };
