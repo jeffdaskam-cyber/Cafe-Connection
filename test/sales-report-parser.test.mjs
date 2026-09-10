@@ -110,11 +110,25 @@ test("a payroll row named something else is missed AND inflates credit_card", as
   assert.deepEqual(metrics.tender_labels, ["Employee Payroll Deduct", "Visa"]);
 });
 
+test("a day with no card tenders reports credit_card 0, not null", async () => {
+  // The zero is a fact about the day, not a failure to read one: the section
+  // was found and totalled, and none of its rows were card tenders. Center
+  // Green files reports shaped like this routinely.
+  const metrics = await parseExcel(await buildReport({
+    tenderRows: [["Payroll Deduct", 425.5], ["Cash", 300]],
+  }));
+  assert.equal(metrics.credit_card, 0);
+  assert.equal(metrics.payroll, 425.5);
+  assert.equal(metrics.tenders_found, true);
+});
+
 test("a report with no TENDERS section is distinguishable from a missing row", async () => {
   const metrics = await parseExcel(await buildReport({ omitTenders: true }));
   assert.equal(metrics.payroll, null);
   assert.equal(metrics.tenders_found, false);
   assert.deepEqual(metrics.tender_labels, []);
+  // Unreadable, not zero — the one case credit_card is null.
+  assert.equal(metrics.credit_card, null);
 });
 
 test("the surrounding figures the backfill matches on are read correctly", async () => {

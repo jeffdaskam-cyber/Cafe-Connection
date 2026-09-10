@@ -234,7 +234,12 @@ export async function parseExcel(buffer) {
           : "TENDERS section not found.")
     );
   }
-  if (creditCard === 0)   console.warn("[parseExcel] Credit card total is 0 — verify TENDERS section.");
+  // A zero credit-card total is only suspect when there was no section to
+  // total. A day on which none of the card tenders appear genuinely took no
+  // card payment, and is reported as 0 — not as an unreadable figure.
+  if (!tendersFound) {
+    console.warn("[parseExcel] No TENDERS section — credit_card is unknown, not zero.");
+  }
 
   // ── Validate required fields ───────────────────────────────────────────────
   const missing = [];
@@ -264,7 +269,9 @@ export async function parseExcel(buffer) {
     total_taxes:           round2(totalTaxes),
     cash_drop:             round2(cashDrop),
     payroll:               round2(payroll),
-    credit_card:           creditCard || null,
+    // Null only when the section could not be read at all: `|| null` used to
+    // coerce a real 0 into "unknown", which is a different fact entirely.
+    credit_card:           tendersFound ? creditCard : null,
     // Diagnostics, not stored on the document: the upload handler enumerates
     // the fields it persists, and these are for explaining a missing payroll.
     tenders_found:         tendersFound,
