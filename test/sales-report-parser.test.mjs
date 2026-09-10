@@ -122,6 +122,42 @@ test("a day with no card tenders reports credit_card 0, not null", async () => {
   assert.equal(metrics.tenders_found, true);
 });
 
+test("a payroll row whose amount will not parse leaves payroll null", async () => {
+  // Recording 0 would assert the day had no payroll deduct. Worse, the backfill
+  // only treats null as a gap, so a false 0 would be invisible to the one tool
+  // that would otherwise re-read the report.
+  for (const bad of [null, "n/a"]) {
+    const metrics = await parseExcel(await buildReport({
+      tenderRows: [["Payroll Deduct", bad], ["Visa", 900]],
+    }));
+    assert.equal(metrics.payroll, null);
+    assert.equal(metrics.payroll_unreadable, true);
+    assert.equal(metrics.tenders_found, true);
+    // The row is present and correctly named, so the labels do not explain it.
+    assert.deepEqual(metrics.tender_labels, ["Payroll Deduct", "Visa"]);
+    // An unreadable payroll amount says nothing about the card rows.
+    assert.equal(metrics.credit_card, 900);
+  }
+});
+
+test("a payroll row reading 0 is a real zero, not an unreadable one", async () => {
+  const metrics = await parseExcel(await buildReport({
+    tenderRows: [["Payroll Deduct", 0], ["Visa", 900]],
+  }));
+  assert.equal(metrics.payroll, 0);
+  assert.equal(metrics.payroll_unreadable, false);
+});
+
+test("a missing payroll row is distinguishable from an unreadable one", async () => {
+  // Both leave payroll null, but only the missing row is explained by the
+  // labels — and only it means the figure rolled into credit_card.
+  const metrics = await parseExcel(await buildReport({
+    tenderRows: [["Visa", 900]],
+  }));
+  assert.equal(metrics.payroll, null);
+  assert.equal(metrics.payroll_unreadable, false);
+});
+
 test("a card row whose amount will not parse leaves credit_card null", async () => {
   // The section being present does not mean its amounts were readable. A blank
   // or non-numeric Total on a card row reads as null, and folding that to 0

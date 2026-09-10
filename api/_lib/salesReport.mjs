@@ -184,6 +184,11 @@ export async function parseExcel(buffer) {
   // indistinguishable from a genuine 0 once summed, so any of them leaves the
   // whole total unknown rather than silently understating it.
   let unreadableCardRows = 0;
+  // A payroll row that is present but whose Total will not parse. Recording it
+  // as 0 would assert the day had no payroll deduct, and — because the backfill
+  // only treats null as a gap — would hide that false figure from the one tool
+  // that would otherwise re-read it.
+  let payrollUnreadable = false;
   // Every tender label the scan saw, in sheet order. Reported so a report that
   // yields no payroll can say whether the section was missing entirely or the
   // payroll row is simply spelled in a way the match below does not catch.
@@ -215,7 +220,8 @@ export async function parseExcel(buffer) {
         const rawVal = numVal(r, tendersTotalCol);
         tenderLabels.push(colF);
         if (label.startsWith("payroll")) {
-          payroll = rawVal ?? 0;
+          if (rawVal === null) payrollUnreadable = true;
+          else payroll = rawVal;
         } else if (
           !label.startsWith("cash") &&
           !label.startsWith("event services") &&
@@ -229,7 +235,15 @@ export async function parseExcel(buffer) {
       creditCard = Math.round(creditCard * 100) / 100;
     }
   }
-  if (payroll === null) {
+  // An unreadable amount and a missing row are different failures with
+  // different fixes, and the tender labels only explain the second.
+  if (payrollUnreadable) {
+    payroll = null;
+    console.warn(
+      "[parseExcel] Payroll row found but its Total could not be read — " +
+        "payroll left unknown rather than recorded as 0."
+    );
+  } else if (payroll === null) {
     // A payroll row the match misses is not just a missing figure: it falls
     // through to the credit-card branch above and inflates that total too.
     console.warn(
@@ -288,6 +302,7 @@ export async function parseExcel(buffer) {
     // the fields it persists, and these are for explaining a missing payroll.
     tenders_found:         tendersFound,
     tender_labels:         tenderLabels,
+    payroll_unreadable:    payrollUnreadable,
   };
 }
 
