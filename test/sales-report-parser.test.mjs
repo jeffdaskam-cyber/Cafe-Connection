@@ -19,7 +19,7 @@ import { parseExcel } from "../api/_lib/salesReport.mjs";
  * Business Period line, STATISTICS and REVENUE sections anchored in column B,
  * and a TENDERS section anchored in column F with its own Total column.
  */
-async function buildReport({ tenderRows } = {}) {
+async function buildReport({ tenderRows, omitTenders = false } = {}) {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Report");
   const set = (row, col, value) => { ws.getCell(row, col).value = value; };
@@ -51,13 +51,17 @@ async function buildReport({ tenderRows } = {}) {
   set(18, 2, "Subtotal"); set(18, 3, 88.25);
 
   // ── TENDERS — anchored in column F, totals out past column 10 ───────────
-  set(20, 6, "TENDERS");
-  set(21, 11, "Total");
-  const rows = tenderRows ?? [["Payroll Deduct", 425.5], ["Visa", 900], ["Mastercard", 300]];
-  rows.forEach(([label, value], i) => {
-    set(22 + i, 6, label);
-    set(22 + i, 11, value);
-  });
+  const rows = omitTenders
+    ? []
+    : tenderRows ?? [["Payroll Deduct", 425.5], ["Visa", 900], ["Mastercard", 300]];
+  if (!omitTenders) {
+    set(20, 6, "TENDERS");
+    set(21, 11, "Total");
+    rows.forEach(([label, value], i) => {
+      set(22 + i, 6, label);
+      set(22 + i, 11, value);
+    });
+  }
 
   // ── CASH POSITION — ends the TENDERS scan ───────────────────────────────
   const cashRow = 22 + rows.length;
@@ -82,13 +86,35 @@ test("every tender that is not payroll or cash rolls into credit_card", async ()
 });
 
 test("a report with no payroll-deduct row parses with payroll null", async () => {
-  // The gap scripts/backfillSalesPayroll.mjs reports as no-payroll-in-report
-  // rather than filling with a guess.
+  // The gap scripts/backfillSalesPayroll.mjs reports rather than filling with
+  // a guess. The labels it read come back so the run can say which case it is.
   const metrics = await parseExcel(await buildReport({
     tenderRows: [["Visa", 900], ["Mastercard", 300]],
   }));
   assert.equal(metrics.payroll, null);
   assert.equal(metrics.credit_card, 1200);
+  assert.equal(metrics.tenders_found, true);
+  assert.deepEqual(metrics.tender_labels, ["Visa", "Mastercard"]);
+});
+
+test("a payroll row named something else is missed AND inflates credit_card", async () => {
+  // The match is label.startsWith("payroll"), so a tender named "Employee
+  // Payroll Deduct" falls through to the credit-card branch: the figure is
+  // lost from payroll and silently added to credit_card. The backfill reports
+  // these labels precisely so this is visible rather than inferred.
+  const metrics = await parseExcel(await buildReport({
+    tenderRows: [["Employee Payroll Deduct", 425.5], ["Visa", 900]],
+  }));
+  assert.equal(metrics.payroll, null);
+  assert.equal(metrics.credit_card, 1325.5); // 900 + the 425.50 of payroll deduct
+  assert.deepEqual(metrics.tender_labels, ["Employee Payroll Deduct", "Visa"]);
+});
+
+test("a report with no TENDERS section is distinguishable from a missing row", async () => {
+  const metrics = await parseExcel(await buildReport({ omitTenders: true }));
+  assert.equal(metrics.payroll, null);
+  assert.equal(metrics.tenders_found, false);
+  assert.deepEqual(metrics.tender_labels, []);
 });
 
 test("the surrounding figures the backfill matches on are read correctly", async () => {
