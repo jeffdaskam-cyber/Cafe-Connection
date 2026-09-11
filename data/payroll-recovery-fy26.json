@@ -1,0 +1,321 @@
+{
+  "generated_by": "scripts/extractPayrollFromSummary.mjs",
+  "note": "Payroll-deduct tender totals read from the archived InfoGenesis Sales Summary workbooks with the same parseExcel the upload endpoint uses. payroll_deduct_sales is what employees were charged, already net of their 15% discount; payroll_discount is that × 15/85. A month is only totalled when every campus sheet in it yielded a payroll figure.",
+  "months": [
+    {
+      "month_key": "2025-10",
+      "source_file": "8af41f91-Mesa_Sales_Summary_0.xlsx",
+      "complete": true,
+      "campuses": [
+        {
+          "campus": "Center Green",
+          "period_start": "2025-10-01",
+          "period_end": "2025-10-31",
+          "total_checks": 197,
+          "net_revenue": 1147.17,
+          "payroll": 1188.74,
+          "credit_card": 63.97,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Foothills",
+          "period_start": "2025-10-01",
+          "period_end": "2025-10-31",
+          "total_checks": 3220,
+          "net_revenue": 23973.13,
+          "payroll": 22705.87,
+          "credit_card": 3115.95,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Mesa Lab",
+          "period_start": "2025-10-01",
+          "period_end": "2025-10-31",
+          "total_checks": 2403,
+          "net_revenue": 17321.82,
+          "payroll": 13930.71,
+          "credit_card": 4476.03,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        }
+      ],
+      "payroll_deduct_sales": 37825.32,
+      "payroll_discount": 6675.056470588235,
+      "recorded_payroll_sales": 37825.32
+    },
+    {
+      "month_key": "2025-11",
+      "source_file": "1b1d4f93-Sales_Summary__Nov.xlsx",
+      "complete": true,
+      "campuses": [
+        {
+          "campus": "Center Green",
+          "period_start": "2025-11-01",
+          "period_end": "2025-11-30",
+          "total_checks": 105,
+          "net_revenue": 638.7,
+          "payroll": 671.27,
+          "credit_card": 26.2,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Visa (2)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Foothills",
+          "period_start": "2025-11-01",
+          "period_end": "2025-11-30",
+          "total_checks": 2280,
+          "net_revenue": 17735.88,
+          "payroll": 16102.23,
+          "credit_card": 2894.97,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Mesa Lab",
+          "period_start": "2025-11-01",
+          "period_end": "2025-11-30",
+          "total_checks": 1681,
+          "net_revenue": 12844,
+          "payroll": 9692.28,
+          "credit_card": 4114.64,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        }
+      ],
+      "payroll_deduct_sales": 26465.78,
+      "payroll_discount": 4670.431764705882,
+      "recorded_payroll_sales": 26465.78
+    },
+    {
+      "month_key": "2025-12",
+      "source_file": "391261af-Sales_Summary__Dec.xlsx",
+      "complete": true,
+      "campuses": [
+        {
+          "campus": "Center Green",
+          "period_start": "2025-12-01",
+          "period_end": "2025-12-31",
+          "total_checks": 157,
+          "net_revenue": 774.6,
+          "payroll": 845.81,
+          "credit_card": 0,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Payroll (9)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Foothills",
+          "period_start": "2025-12-01",
+          "period_end": "2025-12-31",
+          "total_checks": 1693,
+          "net_revenue": 12558.32,
+          "payroll": 11931.63,
+          "credit_card": 1463.1,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Mesa Lab",
+          "period_start": "2025-12-01",
+          "period_end": "2025-12-31",
+          "total_checks": 1248,
+          "net_revenue": 8073.97,
+          "payroll": 7375.22,
+          "credit_card": 1293.26,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        }
+      ],
+      "payroll_deduct_sales": 20152.66,
+      "payroll_discount": 3556.3517647058825,
+      "recorded_payroll_sales": 20152.66
+    },
+    {
+      "month_key": "2026-01",
+      "source_file": "4793b9d2-Sales_Summary__Jan.xlsx",
+      "complete": true,
+      "campuses": [
+        {
+          "campus": "Center Green",
+          "period_start": "2026-01-01",
+          "period_end": "2026-01-31",
+          "total_checks": 181,
+          "net_revenue": 1048.72,
+          "payroll": 1134.94,
+          "credit_card": 10.37,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Master Card (3)",
+            "Payroll (9)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Foothills",
+          "period_start": "2026-01-01",
+          "period_end": "2026-01-31",
+          "total_checks": 2344,
+          "net_revenue": 17086.26,
+          "payroll": 16106.91,
+          "credit_card": 2235.43,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Mesa Lab",
+          "period_start": "2026-01-01",
+          "period_end": "2026-01-31",
+          "total_checks": 1879,
+          "net_revenue": 12142.14,
+          "payroll": 10949.9,
+          "credit_card": 2138.81,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        }
+      ],
+      "payroll_deduct_sales": 28191.75,
+      "payroll_discount": 4975.014705882353,
+      "recorded_payroll_sales": 28191.75
+    },
+    {
+      "month_key": "2026-02",
+      "source_file": "ee8ac29b-Sales_Summary__Feb.xlsx",
+      "complete": true,
+      "campuses": [
+        {
+          "campus": "Foothills",
+          "period_start": "2026-02-01",
+          "period_end": "2026-02-28",
+          "total_checks": 2644,
+          "net_revenue": 20362.89,
+          "payroll": 18989.24,
+          "credit_card": 2791.92,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        },
+        {
+          "campus": "Mesa Lab",
+          "period_start": "2026-02-01",
+          "period_end": "2026-02-28",
+          "total_checks": 2106,
+          "net_revenue": 14616.52,
+          "payroll": 11864.63,
+          "credit_card": 3861,
+          "tenders_found": true,
+          "payroll_unreadable": false,
+          "tender_labels": [
+            "Cash (1)",
+            "Visa (2)",
+            "Master Card (3)",
+            "American Express (4)",
+            "Payroll (9)",
+            "Event Services (11)",
+            "Subtotal"
+          ]
+        }
+      ],
+      "payroll_deduct_sales": 30853.870000000003,
+      "payroll_discount": 5444.8005882352945,
+      "recorded_payroll_sales": 30853.870000000003
+    }
+  ]
+}
