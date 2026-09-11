@@ -33,6 +33,12 @@ export function resolveMonthKey(date) {
  * figure for its month, and the daily docs are summed as the fallback for months
  * with no period doc or with a period doc whose payroll came through null.
  *
+ * Traffic follows the same rule as payroll: a period doc states the month's
+ * own totals, so it replaces the daily docs rather than adding to them. Summing
+ * both double-counts every check and dollar in a month that has each — which is
+ * exactly what happens when a month uploaded daily later gets its period
+ * workbook filed to recover the payroll the dailies never carried.
+ *
  * A daily doc whose payroll is null contributes nothing to the sum and is
  * counted separately. The parser writes null when it cannot read the TENDERS
  * section — PDF uploads never yield one — and that is not the same fact as a
@@ -49,8 +55,10 @@ export function buildVolumeAccum(dailyMetrics) {
     if (!accum[monthKey]) accum[monthKey] = {};
     if (!accum[monthKey][doc.campus]) {
       accum[monthKey][doc.campus] = {
-        net_revenue: 0,
-        total_checks: 0,
+        period_net_revenue: null,
+        period_total_checks: null,
+        daily_net_revenue: 0,
+        daily_total_checks: 0,
         period_payroll: null,
         daily_payroll: null,
         daily_docs: 0,
@@ -58,11 +66,13 @@ export function buildVolumeAccum(dailyMetrics) {
       };
     }
     const acc = accum[monthKey][doc.campus];
-    acc.net_revenue += doc.net_revenue ?? 0;
-    acc.total_checks += doc.total_checks ?? 0;
     if (doc.report_type === "period") {
+      acc.period_net_revenue = (acc.period_net_revenue ?? 0) + (doc.net_revenue ?? 0);
+      acc.period_total_checks = (acc.period_total_checks ?? 0) + (doc.total_checks ?? 0);
       if (doc.payroll != null) acc.period_payroll = (acc.period_payroll ?? 0) + doc.payroll;
     } else {
+      acc.daily_net_revenue += doc.net_revenue ?? 0;
+      acc.daily_total_checks += doc.total_checks ?? 0;
       acc.daily_docs += 1;
       if (doc.payroll != null) {
         acc.daily_docs_with_payroll += 1;
@@ -83,6 +93,24 @@ export function buildVolumeAccum(dailyMetrics) {
  * month's total would understate it in a way nothing downstream could detect,
  * so the partial stays in `recorded_sales` where it cannot be mistaken for one.
  */
+export function resolveTraffic(v) {
+  // Only a period doc that actually reports traffic replaces the dailies. One
+  // that carries a payroll figure and no checks — a tender-only correction —
+  // contributes its payroll without blanking the month it belongs to.
+  const fromPeriod = (v.period_total_checks ?? 0) > 0;
+  return fromPeriod
+    ? {
+        total_checks: v.period_total_checks ?? 0,
+        net_revenue: v.period_net_revenue ?? 0,
+        source: "period",
+      }
+    : {
+        total_checks: v.daily_total_checks,
+        net_revenue: v.daily_net_revenue,
+        source: "daily",
+      };
+}
+
 export function resolvePayroll(v) {
   if (v.period_payroll != null) {
     return { amount: v.period_payroll, coverage: { status: "period" } };
@@ -130,17 +158,19 @@ export function buildCafeVolume(accum, monthKey) {
 
   for (const campus of VOLUME_CAMPUSES) {
     const v = monthVol[campus];
-    if (!v || v.total_checks === 0) continue;
+    if (!v) continue;
+    const traffic = resolveTraffic(v);
+    if (traffic.total_checks === 0) continue;
     const { amount, coverage } = resolvePayroll(v);
     byCampus[campus] = {
-      total_checks: v.total_checks,
-      avg_check: v.net_revenue / v.total_checks,
+      total_checks: traffic.total_checks,
+      avg_check: traffic.net_revenue / traffic.total_checks,
       payroll_deduct_sales: amount,
       payroll_discount: amount == null ? null : amount * PAYROLL_DISCOUNT_RATE,
       payroll_coverage: coverage,
     };
-    allRevenue += v.net_revenue;
-    allChecks += v.total_checks;
+    allRevenue += traffic.net_revenue;
+    allChecks += traffic.total_checks;
     if (amount == null) {
       campusesMissingPayroll.push(campus);
       recordedSales += coverage.recorded_sales ?? 0;

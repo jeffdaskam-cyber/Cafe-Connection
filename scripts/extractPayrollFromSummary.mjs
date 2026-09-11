@@ -14,10 +14,8 @@
  * written. A sheet that will not yield a payroll figure is reported, not
  * guessed at, and leaves its month marked incomplete.
  *
- * These period workbooks carry one worksheet per campus, and parseExcel reads
- * only worksheets[0]. Each sheet is therefore split into its own single-sheet
- * workbook and parsed separately — uploading such a file whole would silently
- * capture the first campus and drop the rest.
+ * These period workbooks carry one worksheet per campus, which parseExcelAll
+ * walks. A sheet that is not a campus report is reported, not skipped quietly.
  *
  * Usage:
  *   node scripts/extractPayrollFromSummary.mjs <file.xlsx> [...]
@@ -27,31 +25,21 @@
  *   --json=<path>   Also write the parsed figures to <path> as JSON.
  */
 
-import ExcelJS from "exceljs";
-import { realpath, writeFile } from "node:fs/promises";
+import { readFile, realpath, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { argv } from "node:process";
 import { fileURLToPath } from "node:url";
-import { parseExcel } from "../api/_lib/salesReport.mjs";
+import { parseExcelAll } from "../api/_lib/salesReport.mjs";
 
 const PAYROLL_DISCOUNT_RATE = 15 / 85;
 
-/** Parse every worksheet of a summary workbook as its own single-sheet file. */
+/** Parse every campus worksheet of a summary workbook. */
 export async function parseSummaryWorkbook(path) {
-  const probe = new ExcelJS.Workbook();
-  await probe.xlsx.readFile(path);
-  const sheetIds = probe.worksheets.map(w => w.id);
-  if (sheetIds.length === 0) throw new Error(`${path}: workbook has no worksheets.`);
-
-  const parsed = [];
-  for (const keep of sheetIds) {
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(path);
-    for (const id of sheetIds) if (id !== keep) wb.removeWorksheet(id);
-    const buf = await wb.xlsx.writeBuffer();
-    parsed.push(await parseExcel(Buffer.from(buf)));
+  const { results, failures } = await parseExcelAll(await readFile(path));
+  for (const f of failures) {
+    console.warn(`   [${path}] sheet "${f.sheet}" skipped — ${f.error}`);
   }
-  return parsed;
+  return results;
 }
 
 function monthKeyOf(parsed) {
