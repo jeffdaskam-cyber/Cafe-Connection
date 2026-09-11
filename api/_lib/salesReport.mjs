@@ -30,13 +30,15 @@ function detectCampusFromProfitCenter(str) {
 }
 
 // ─── EXCEL PARSER ─────────────────────────────────────────────────────────────
-export async function parseExcel(buffer) {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
-
-  const ws = workbook.worksheets[0];
-  if (!ws) throw new Error("Excel file has no worksheets.");
-
+/**
+ * Parse one worksheet of a Sales Summary workbook.
+ *
+ * Period summaries carry a worksheet per campus, so this is per-sheet and
+ * parseExcelAll walks them. Reading only the first sheet silently drops every
+ * other campus in the file, which is how a month can end up with café traffic
+ * and no payroll-deduct total behind it.
+ */
+function parseWorksheet(ws) {
   // ── Cell helpers ───────────────────────────────────────────────────────────
   const strVal = (row, col) => {
     const v = ws.getCell(row, col).value;
@@ -304,6 +306,53 @@ export async function parseExcel(buffer) {
     tender_labels:         tenderLabels,
     payroll_unreadable:    payrollUnreadable,
   };
+}
+
+/**
+ * Parse every worksheet in the workbook.
+ *
+ * Returns { results, failures }. A sheet that is not a Sales Summary (a notes
+ * or cover tab) lands in `failures` rather than aborting the file, but it is
+ * returned rather than swallowed — the caller is expected to surface it, since
+ * a dropped campus and a skipped cover sheet look identical once ignored.
+ * Throws when no sheet parses at all; with a single-sheet workbook it throws
+ * that sheet's own error, so a one-campus upload still reports the real reason.
+ */
+export async function parseExcelAll(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const sheets = workbook.worksheets;
+  if (sheets.length === 0) throw new Error("Excel file has no worksheets.");
+
+  const results = [];
+  const failures = [];
+  for (const ws of sheets) {
+    try {
+      results.push({ ...parseWorksheet(ws), sheet_name: ws.name });
+    } catch (err) {
+      failures.push({ sheet: ws.name, error: err.message, cause: err });
+    }
+  }
+
+  if (results.length === 0) {
+    if (failures.length === 1) throw failures[0].cause;
+    throw new Error(
+      "No worksheet could be parsed as a Sales Summary — " +
+        failures.map(f => `${f.sheet}: ${f.error}`).join("; ")
+    );
+  }
+  return { results, failures: failures.map(({ sheet, error }) => ({ sheet, error })) };
+}
+
+/**
+ * The first worksheet only. Kept for the backfills, which re-parse archived
+ * single-campus daily reports; new callers that accept a whole workbook should
+ * use parseExcelAll so no campus is dropped.
+ */
+export async function parseExcel(buffer) {
+  const { results } = await parseExcelAll(buffer);
+  return results[0];
 }
 
 // ─── PDF PARSER ───────────────────────────────────────────────────────────────

@@ -33,7 +33,7 @@ function UploadZone({ onDrop, uploadState }) {
     noPaste: true,
   });
 
-  const { status, campus, errorMsg } = uploadState;
+  const { status, campus, filedCount, unreadCount, errorMsg } = uploadState;
   const accentColor = COLORS.AQUA;
 
   const icon = isProcessing        ? "⏳"
@@ -41,10 +41,19 @@ function UploadZone({ onDrop, uploadState }) {
     : status === "ERROR"           ? "✕"
     : "↑";
 
+  // A period workbook files one report per campus. Saying how many were filed,
+  // and naming any sheet that could not be read, keeps a partial success from
+  // looking like a whole one.
+  const successMessage = campus
+    ? `Filed ${filedCount} report${filedCount === 1 ? "" : "s"} to ${campus}.` +
+      (unreadCount ? ` ${unreadCount} sheet${unreadCount === 1 ? "" : "s"} could not be read.` : "") +
+      " Drop another."
+    : "Uploaded! Drop another.";
+
   const message = isProcessing
     ? (status === "UPLOADING" ? "Uploading to storage…" : "Parsing report data…")
     : status === "SUCCESS"
-      ? (campus ? `Filed to ${campus}. Drop another.` : "Uploaded! Drop another.")
+      ? successMessage
     : status === "ERROR"
       ? (errorMsg || "Upload failed — try again")
     : isDragActive
@@ -127,19 +136,25 @@ function UploadZone({ onDrop, uploadState }) {
 // ── DropBox ────────────────────────────────────────────────────────────────────
 export default function DropBox() {
   const [uploadState, setUploadState] = useState({
-    status: "IDLE", campus: null, errorMsg: null,
+    status: "IDLE", campus: null, filedCount: 0, unreadCount: 0, errorMsg: null,
   });
 
   const handleDrop = useCallback(async (file) => {
-    setUploadState({ status: "UPLOADING", campus: null, errorMsg: null });
+    setUploadState({ status: "UPLOADING", campus: null, filedCount: 0, unreadCount: 0, errorMsg: null });
     try {
       const url    = await uploadReport("auto", file, () => {});
-      setUploadState({ status: "PROCESSING", campus: null, errorMsg: null });
+      setUploadState({ status: "PROCESSING", campus: null, filedCount: 0, unreadCount: 0, errorMsg: null });
       const result = await parseReport(url, null, file.name);
-      setUploadState({ status: "SUCCESS", campus: result?.campus ?? null, errorMsg: null });
+      setUploadState({
+        status: "SUCCESS",
+        campus: result?.campus ?? null,
+        filedCount: result?.results?.length ?? (result?.campus ? 1 : 0),
+        unreadCount: (result?.rejected?.length ?? 0) + (result?.skipped?.length ?? 0),
+        errorMsg: null,
+      });
     } catch (err) {
       console.error("[DropBox] Upload failed:", err);
-      setUploadState({ status: "ERROR", campus: null, errorMsg: err?.message ?? "Upload failed" });
+      setUploadState({ status: "ERROR", campus: null, filedCount: 0, unreadCount: 0, errorMsg: err?.message ?? "Upload failed" });
     }
   }, []);
 

@@ -6,6 +6,11 @@
  * Fetches the file from Firebase Storage, detects PDF vs Excel by extension,
  * parses revenue/check/tax/cash fields, and writes the result to Firestore
  * daily_metrics/{YYYY-MM-DD_CampusName} with merge: true.
+ *
+ * A period Sales Summary carries one worksheet per campus, so an Excel upload
+ * can produce several documents — one per campus — written in a single batch.
+ * Reading only the first sheet dropped the rest silently, which left months
+ * with café traffic and no payroll-deduct total behind them.
  */
 
 import { getAuth } from "firebase-admin/auth";
@@ -19,7 +24,7 @@ import {
   respondWithError,
   respondWithInternalError,
 } from "./_lib/serverless.mjs";
-import { parseExcel, parsePdf } from "./_lib/salesReport.mjs";
+import { parseExcelAll, parsePdf } from "./_lib/salesReport.mjs";
 
 // ─── Firebase Admin Init (singleton) ────────────────────────────────────────
 const REQUIRED_ENV = [
@@ -92,61 +97,117 @@ export default async function handler(req, res) {
     const isExcel = /\.(xlsx|xls)$/i.test(fileName);
     const isPdf   = /\.pdf$/i.test(fileName);
 
-    let metrics;
-    let campus;
+    // A period workbook holds a sheet per campus; a PDF or a daily Excel holds
+    // one report. Both become a list so there is a single path below.
+    let sheets;
+    let skipped = [];
 
     if (isExcel) {
-      metrics = await parseExcel(fileBuffer);
-      campus  = metrics.detectedCampus || campusFallback;
+      const parsed = await parseExcelAll(fileBuffer);
+      sheets = parsed.results;
+      skipped = parsed.failures;
     } else if (isPdf) {
-      metrics = await parsePdf(fileBuffer);
-      campus  = metrics.detectedCampus || campusFallback;
+      sheets = [await parsePdf(fileBuffer)];
     } else {
       return res.status(400).json({ error: "Unsupported file type. Please upload a .xlsx or .pdf file." });
     }
 
-    if (!campus || !VALID_CAMPUSES.includes(campus)) {
+    // The campus fallback names one campus, so it can only stand in for a
+    // single-report file. Applying it across a multi-campus workbook would
+    // file other campuses' figures under the named one.
+    const allowFallback = sheets.length === 1;
+
+    const batch = db.batch();
+    const written = [];
+    const rejected = [];
+    const seenDocIds = new Map();
+
+    for (const metrics of sheets) {
+      const sheetName = metrics.sheet_name ?? null;
+      const campus = metrics.detectedCampus || (allowFallback ? campusFallback : null);
+
+      if (!campus || !VALID_CAMPUSES.includes(campus)) {
+        rejected.push({
+          sheet: sheetName,
+          error: `Could not determine campus. Detected: "${metrics.detectedCampus || "none"}". ` +
+            `Expected: ${VALID_CAMPUSES.join(", ")}.`,
+        });
+        continue;
+      }
+
+      const campusSlug = campus.replace(/\s+/g, "");
+      const isPeriod   = metrics.period_end && metrics.period_end !== metrics.period_start;
+      const docId      = isPeriod
+        ? `period_${metrics.period_start}_${metrics.period_end}_${campusSlug}`
+        : `${metrics.date}_${campusSlug}`;
+
+      // Two sheets landing on one document id would leave only the last one
+      // written, losing a campus to the very silence this endpoint now avoids.
+      if (seenDocIds.has(docId)) {
+        rejected.push({
+          sheet: sheetName,
+          error: `Sheet resolves to the same document as "${seenDocIds.get(docId)}" (${docId}). ` +
+            "Two sheets report the same campus and period.",
+        });
+        continue;
+      }
+      seenDocIds.set(docId, sheetName ?? campus);
+
+      const docData = {
+        date:            Timestamp.fromDate(new Date(metrics.date + "T12:00:00")),
+        report_type:     isPeriod ? "period" : "daily",
+        campus,
+        net_revenue:     metrics.net_revenue,
+        total_checks:    metrics.total_checks,
+        lunch_avg_check: metrics.lunch_avg_check,
+        // Extended fields from Excel
+        ...(metrics.breakfast_net_revenue !== undefined && { breakfast_net_revenue: metrics.breakfast_net_revenue }),
+        ...(metrics.lunch_net_revenue     !== undefined && { lunch_net_revenue:     metrics.lunch_net_revenue     }),
+        ...(metrics.gross_revenue         !== undefined && { gross_revenue:         metrics.gross_revenue         }),
+        ...(metrics.discounts             !== undefined && { discounts:             metrics.discounts             }),
+        ...(metrics.breakfast_checks      !== undefined && { breakfast_checks:      metrics.breakfast_checks      }),
+        ...(metrics.lunch_checks          !== undefined && { lunch_checks:          metrics.lunch_checks          }),
+        ...(metrics.breakfast_avg_check   !== undefined && { breakfast_avg_check:   metrics.breakfast_avg_check   }),
+        ...(metrics.period_start          !== undefined && { period_start:          metrics.period_start          }),
+        ...(metrics.period_end            !== undefined && { period_end:            metrics.period_end            }),
+        // Month-end accounting fields
+        ...(metrics.total_taxes !== undefined && { total_taxes:  metrics.total_taxes  }),
+        ...(metrics.cash_drop   !== undefined && { cash_drop:    metrics.cash_drop    }),
+        ...(metrics.payroll     !== undefined && { payroll:      metrics.payroll      }),
+        ...(metrics.credit_card !== undefined && { credit_card:  metrics.credit_card  }),
+        source_file:  fileName,
+        ...(sheetName !== null && { source_sheet: sheetName }),
+        parse_method: isExcel ? "excel" : "pdf",
+        last_updated: FieldValue.serverTimestamp(),
+      };
+
+      batch.set(db.collection("daily_metrics").doc(docId), docData, { merge: true });
+      written.push({ docId, campus, sheet: sheetName, metrics });
+    }
+
+    if (written.length === 0) {
       return res.status(400).json({
-        error: `Could not determine campus. Detected: "${campus || "none"}". Expected: ${VALID_CAMPUSES.join(", ")}.`
+        error: "No campus report could be read from this file.",
+        rejected,
+        skipped,
       });
     }
 
-    const campusSlug = campus.replace(/\s+/g, "");
-    const isPeriod   = metrics.period_end && metrics.period_end !== metrics.period_start;
-    const docId      = isPeriod
-      ? `period_${metrics.period_start}_${metrics.period_end}_${campusSlug}`
-      : `${metrics.date}_${campusSlug}`;
+    // One batch: a file either files every campus it carries or none of them.
+    await batch.commit();
 
-    const docData = {
-      date:            Timestamp.fromDate(new Date(metrics.date + "T12:00:00")),
-      report_type:     isPeriod ? "period" : "daily",
-      campus,
-      net_revenue:     metrics.net_revenue,
-      total_checks:    metrics.total_checks,
-      lunch_avg_check: metrics.lunch_avg_check,
-      // Extended fields from Excel
-      ...(metrics.breakfast_net_revenue !== undefined && { breakfast_net_revenue: metrics.breakfast_net_revenue }),
-      ...(metrics.lunch_net_revenue     !== undefined && { lunch_net_revenue:     metrics.lunch_net_revenue     }),
-      ...(metrics.gross_revenue         !== undefined && { gross_revenue:         metrics.gross_revenue         }),
-      ...(metrics.discounts             !== undefined && { discounts:             metrics.discounts             }),
-      ...(metrics.breakfast_checks      !== undefined && { breakfast_checks:      metrics.breakfast_checks      }),
-      ...(metrics.lunch_checks          !== undefined && { lunch_checks:          metrics.lunch_checks          }),
-      ...(metrics.breakfast_avg_check   !== undefined && { breakfast_avg_check:   metrics.breakfast_avg_check   }),
-      ...(metrics.period_start          !== undefined && { period_start:          metrics.period_start          }),
-      ...(metrics.period_end            !== undefined && { period_end:            metrics.period_end            }),
-      // Month-end accounting fields
-      ...(metrics.total_taxes !== undefined && { total_taxes:  metrics.total_taxes  }),
-      ...(metrics.cash_drop   !== undefined && { cash_drop:    metrics.cash_drop    }),
-      ...(metrics.payroll     !== undefined && { payroll:      metrics.payroll      }),
-      ...(metrics.credit_card !== undefined && { credit_card:  metrics.credit_card  }),
-      source_file:  fileName,
-      parse_method: isExcel ? "excel" : "pdf",
-      last_updated: FieldValue.serverTimestamp(),
-    };
-
-    await db.collection("daily_metrics").doc(docId).set(docData, { merge: true });
-
-    return res.status(200).json({ success: true, docId, campus, metrics });
+    // docId/campus/metrics stay singular for existing callers; campus lists
+    // every campus filed so an operator sees at a glance that a three-campus
+    // workbook filed three.
+    return res.status(200).json({
+      success: true,
+      docId:   written[0].docId,
+      campus:  written.map(w => w.campus).join(", "),
+      metrics: written[0].metrics,
+      results: written.map(({ docId, campus, sheet }) => ({ docId, campus, sheet })),
+      rejected,
+      skipped,
+    });
 
   } catch (err) {
     return respondWithInternalError(res, "parse-report", err, { detail: err?.message });

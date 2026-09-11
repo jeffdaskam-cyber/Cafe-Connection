@@ -140,3 +140,46 @@ test("a café with no checks is left out rather than counted as a gap", () => {
   assert.equal(vol.totals.payroll_deduct_sales, 500);
   assert.equal(vol.totals.payroll_coverage.status, "complete");
 });
+
+test("a period doc replaces the daily docs' traffic instead of adding to it", () => {
+  // Oct 2025 as Firestore actually holds it: PDF-sourced daily docs carrying
+  // the month's checks and no payroll. parsePdf never sets period_end, so
+  // these are always report_type "daily".
+  const dailies = [
+    daily("Mesa Lab", "2025-10-06", null, { total_checks: 1200, net_revenue: 8000 }),
+    daily("Mesa Lab", "2025-10-07", null, { total_checks: 1203, net_revenue: 9321.82 }),
+  ];
+  const before = volumeFor(dailies, "2025-10");
+  assert.equal(before.by_campus["Mesa Lab"].total_checks, 2403);
+  assert.equal(before.by_campus["Mesa Lab"].payroll_deduct_sales, null);
+
+  // Filing the period workbook to recover the payroll must not also re-add the
+  // month's traffic: 2403 + 2403 = 4806 checks would halve the average check
+  // and overstate every volume figure in the report.
+  const withPeriod = volumeFor([
+    ...dailies,
+    { campus: "Mesa Lab", date: "2025-10-31", report_type: "period",
+      payroll: 13930.71, total_checks: 2403, net_revenue: 17321.82 },
+  ], "2025-10");
+
+  const ml = withPeriod.by_campus["Mesa Lab"];
+  assert.equal(ml.total_checks, 2403, "the period doc states the month, it does not add to it");
+  assert.equal(Math.round(ml.avg_check * 100) / 100, 7.21);
+  assert.equal(ml.payroll_deduct_sales, 13930.71);
+  assert.equal(ml.payroll_coverage.status, "period");
+  assert.equal(withPeriod.totals.total_checks, 2403);
+});
+
+test("a tender-only period doc adds payroll without blanking the month", () => {
+  // A period doc with no traffic of its own must not replace real daily checks.
+  const vol = volumeFor([
+    daily("Foothills", "2026-08-03", null, { total_checks: 2482, net_revenue: 19274.08 }),
+    { campus: "Foothills", date: "2026-08-31", report_type: "period",
+      payroll: 17716.42, total_checks: 0, net_revenue: 0 },
+  ], "2026-08");
+
+  const fh = vol.by_campus.Foothills;
+  assert.equal(fh.total_checks, 2482);
+  assert.equal(fh.payroll_deduct_sales, 17716.42);
+  assert.equal(fh.payroll_coverage.status, "period");
+});
