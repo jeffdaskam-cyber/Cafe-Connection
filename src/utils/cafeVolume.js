@@ -5,11 +5,15 @@
 
 export const VOLUME_CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 
-// Payroll-deduct sales are tendered at 85% of menu price — the 15% employee
-// discount is the difference between the full price and what was charged, so
-// discount = charge × 15/85. The Payroll Discount card on Cafe Sales applies
-// the same rate, but reads through PAYROLL_BASELINES in Dashboard.jsx, so the
-// two only agree once daily_metrics carries the full payroll history.
+// Payroll-deduct sales are tendered at 85% of menu price, so the 15% employee
+// discount is charge × 15/85 — but only on the menu price. The payroll tender
+// recorded by the POS is what was charged in full, sales tax included, and the
+// discount never applied to the tax. Applying 15/85 to the whole tender
+// therefore overstates the discount by the tax share, about 9% here, so the
+// tender is put back on a pre-tax footing first.
+//
+// On a $10 item: charged $8.50 plus $0.75 tax = $9.25 tendered. The discount is
+// $1.50, not the $1.63 that $9.25 × 15/85 gives.
 export const PAYROLL_DISCOUNT_RATE = 15 / 85;
 
 export function resolveMonthKey(date) {
@@ -59,21 +63,29 @@ export function buildVolumeAccum(dailyMetrics) {
         period_total_checks: null,
         daily_net_revenue: 0,
         daily_total_checks: 0,
+        period_total_taxes: null,
+        daily_total_taxes: null,
         period_payroll: null,
         daily_payroll: null,
         daily_docs: 0,
         daily_docs_with_payroll: 0,
+        daily_docs_with_taxes: 0,
       };
     }
     const acc = accum[monthKey][doc.campus];
     if (doc.report_type === "period") {
       acc.period_net_revenue = (acc.period_net_revenue ?? 0) + (doc.net_revenue ?? 0);
       acc.period_total_checks = (acc.period_total_checks ?? 0) + (doc.total_checks ?? 0);
+      if (doc.total_taxes != null) acc.period_total_taxes = (acc.period_total_taxes ?? 0) + doc.total_taxes;
       if (doc.payroll != null) acc.period_payroll = (acc.period_payroll ?? 0) + doc.payroll;
     } else {
       acc.daily_net_revenue += doc.net_revenue ?? 0;
       acc.daily_total_checks += doc.total_checks ?? 0;
       acc.daily_docs += 1;
+      if (doc.total_taxes != null) {
+        acc.daily_docs_with_taxes += 1;
+        acc.daily_total_taxes = (acc.daily_total_taxes ?? 0) + doc.total_taxes;
+      }
       if (doc.payroll != null) {
         acc.daily_docs_with_payroll += 1;
         acc.daily_payroll = (acc.daily_payroll ?? 0) + doc.payroll;
@@ -109,6 +121,28 @@ export function resolveTraffic(v) {
         net_revenue: v.daily_net_revenue,
         source: "daily",
       };
+}
+
+/**
+ * The effective sales-tax rate for a campus-month, as the POS reported it.
+ *
+ * Derived from the month's own figures rather than configured, so it follows a
+ * rate change on its own. Taken from whichever source supplied the traffic, so
+ * the tax and the revenue it is divided by always describe the same reporting
+ * period. Null when the tax was not recorded — parsePdf cannot read the TAXES
+ * section, so a PDF-sourced month has none (it has no payroll either, for the
+ * same reason: the tender section it would come from is equally unreadable).
+ *
+ * This assumes payroll-deduct purchases carry the same taxable mix as the rest
+ * of the month's sales, which is the best the aggregates support: the POS does
+ * not break tax out per tender.
+ */
+export function resolveTaxRate(v, traffic) {
+  const taxes = traffic.source === "period"
+    ? v.period_total_taxes
+    : (v.daily_docs > 0 && v.daily_docs_with_taxes === v.daily_docs ? v.daily_total_taxes : null);
+  if (taxes == null || !(traffic.net_revenue > 0)) return null;
+  return taxes / traffic.net_revenue;
 }
 
 export function resolvePayroll(v) {
@@ -154,7 +188,9 @@ export function buildCafeVolume(accum, monthKey) {
   let allRevenue = 0;
   let allChecks = 0;
   let recordedSales = 0;
+  let recordedPretax = 0;
   const campusesMissingPayroll = [];
+  const campusesMissingTaxRate = [];
 
   for (const campus of VOLUME_CAMPUSES) {
     const v = monthVol[campus];
@@ -162,11 +198,19 @@ export function buildCafeVolume(accum, monthKey) {
     const traffic = resolveTraffic(v);
     if (traffic.total_checks === 0) continue;
     const { amount, coverage } = resolvePayroll(v);
+    const taxRate = resolveTaxRate(v, traffic);
+
+    // The tender less its sales tax — the menu-price side of the charge, which
+    // is the only part the 15% discount ever applied to.
+    const pretax = amount == null || taxRate == null ? null : amount / (1 + taxRate);
+
     byCampus[campus] = {
       total_checks: traffic.total_checks,
       avg_check: traffic.net_revenue / traffic.total_checks,
       payroll_deduct_sales: amount,
-      payroll_discount: amount == null ? null : amount * PAYROLL_DISCOUNT_RATE,
+      payroll_deduct_sales_pretax: pretax,
+      payroll_tax_rate: taxRate,
+      payroll_discount: pretax == null ? null : pretax * PAYROLL_DISCOUNT_RATE,
       payroll_coverage: coverage,
     };
     allRevenue += traffic.net_revenue;
@@ -176,6 +220,8 @@ export function buildCafeVolume(accum, monthKey) {
       recordedSales += coverage.recorded_sales ?? 0;
     } else {
       recordedSales += amount;
+      if (pretax == null) campusesMissingTaxRate.push(campus);
+      else recordedPretax += pretax;
     }
   }
 
@@ -194,14 +240,23 @@ export function buildCafeVolume(accum, monthKey) {
         recorded_sales: recordedSales,
       };
 
+  // The discount needs the tax rate as well as the payroll, so a month can have
+  // a complete tender total and still no computable discount. Saying which is
+  // missing keeps the two from being read as one failure.
+  const discountable = complete && campusesMissingTaxRate.length === 0;
+
   return {
     by_campus: byCampus,
     totals: {
       total_checks: allChecks,
       avg_check: allChecks > 0 ? allRevenue / allChecks : null,
       payroll_deduct_sales: complete ? recordedSales : null,
-      payroll_discount: complete ? recordedSales * PAYROLL_DISCOUNT_RATE : null,
+      payroll_deduct_sales_pretax: discountable ? recordedPretax : null,
+      payroll_discount: discountable ? recordedPretax * PAYROLL_DISCOUNT_RATE : null,
       payroll_coverage: coverage,
+      payroll_tax_basis: discountable
+        ? { status: "tax_excluded" }
+        : { status: "unavailable", campuses_missing_tax_rate: campusesMissingTaxRate },
     },
   };
 }

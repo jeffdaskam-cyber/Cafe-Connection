@@ -21,6 +21,7 @@ import CampusSelector, { CAMPUSES } from "./components/CampusSelector.jsx";
 const FINANCIALS_CAMPUSES = [...CAMPUSES, "All Campuses"];
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
+import { buildCafeVolume, buildVolumeAccum, resolveMonthKey, VOLUME_CAMPUSES } from "./utils/cafeVolume.js";
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 function getMonthKey(date) {
@@ -318,8 +319,30 @@ export default function FinancialsPage() {
   const avgVolume   = statSource.length ? Math.round(totalChecks / statSource.length) : 0;
   const totalEvents = statSource.reduce((s, d) => s + (d.lunch_checks || 0), 0);
   const avgCheck    = totalChecks > 0 ? totalSales / totalChecks : 0;
-  const totalPayroll = statSource.reduce((s, d) => s + (d.payroll || 0), 0);
-  const payrollDiscount = totalPayroll * 15 / 85;
+  // The employee discount is computed by the same code the agent export uses,
+  // so the card and the export cannot drift apart. It needs each month's sales
+  // tax to take the tender off its tax before applying 15/85, which is more
+  // than the month rows above carry — hence the second pass over the documents.
+  const volumeAccum = buildVolumeAccum(period === "daily" ? filteredDaily : safeAllDocs);
+  const discountMonths = period === "daily"
+    ? [...new Set(filteredDaily.map(d => resolveMonthKey(d.date)).filter(Boolean))]
+    : filteredMonthly.map(d => d.monthKey);
+  const discountCampuses = campus === "All Campuses" ? VOLUME_CAMPUSES : [campus];
+
+  let payrollDiscount = 0;
+  let payrollDiscountComplete = true;
+  for (const monthKey of discountMonths) {
+    const vol = buildCafeVolume(volumeAccum, monthKey);
+    for (const c of discountCampuses) {
+      const entry = vol?.by_campus?.[c];
+      if (!entry) continue;
+      // A café-month whose tender or tax was never recorded cannot be
+      // discounted. Adding nothing for it would understate the total silently,
+      // so the total is withheld instead and the card shows no figure.
+      if (entry.payroll_discount == null) payrollDiscountComplete = false;
+      else payrollDiscount += entry.payroll_discount;
+    }
+  }
   const daysWithRevenue = statSource.filter(d => (d.net_revenue || 0) > 0).length;
   const avgDailyRevenue = daysWithRevenue > 0 ? totalSales / daysWithRevenue : 0;
 
@@ -450,7 +473,7 @@ export default function FinancialsPage() {
           showDelta={false} />
         <StatCard
           label={period === "monthly" ? "Payroll Discount (YTD)" : "Payroll Discount (MTD)"}
-          value={loading ? "—" : fmtMoney(payrollDiscount)}
+          value={loading || !payrollDiscountComplete ? "—" : fmtMoney(payrollDiscount)}
           delta={0} accentColor={COLORS.AQUA}
           showDelta={false} />
         <StatCard
