@@ -33,6 +33,16 @@ import { parseExcelAll } from "../api/_lib/salesReport.mjs";
 
 const PAYROLL_DISCOUNT_RATE = 15 / 85;
 
+/**
+ * The discount applies to menu price, not to the sales tax the tender also
+ * carries, so the tender comes off its tax before 15/85 does. The rate is the
+ * sheet's own taxes over its net revenue rather than a configured constant.
+ */
+function discountFor(payroll, netRevenue, totalTaxes) {
+  if (payroll == null || totalTaxes == null || !(netRevenue > 0)) return null;
+  return (payroll / (1 + totalTaxes / netRevenue)) * PAYROLL_DISCOUNT_RATE;
+}
+
 /** Parse every campus worksheet of a summary workbook. */
 export async function parseSummaryWorkbook(path) {
   const { results, failures } = await parseExcelAll(await readFile(path));
@@ -71,20 +81,24 @@ async function main(argv) {
       total_checks: p.total_checks,
       net_revenue: p.net_revenue,
       payroll: p.payroll,
+      total_taxes: p.total_taxes,
+      payroll_discount: discountFor(p.payroll, p.net_revenue, p.total_taxes),
       credit_card: p.credit_card,
       tenders_found: p.tenders_found,
       payroll_unreadable: p.payroll_unreadable,
       tender_labels: p.tender_labels,
     }));
     const complete = campuses.every(c => c.payroll != null);
+    const discountable = complete && campuses.every(c => c.payroll_discount != null);
     const payrollTotal = campuses.reduce((s, c) => s + (c.payroll ?? 0), 0);
+    const discountTotal = campuses.reduce((s, c) => s + (c.payroll_discount ?? 0), 0);
     months.push({
       month_key: monthKey,
       source_file: basename(file),
       complete,
       campuses,
       payroll_deduct_sales: complete ? payrollTotal : null,
-      payroll_discount: complete ? payrollTotal * PAYROLL_DISCOUNT_RATE : null,
+      payroll_discount: discountable ? discountTotal : null,
       recorded_payroll_sales: payrollTotal,
     });
   }
@@ -112,14 +126,15 @@ async function main(argv) {
   const sales = complete.reduce((s, m) => s + m.payroll_deduct_sales, 0);
   console.log(`\n══ ${complete.length} of ${months.length} month(s) complete`);
   if (incomplete.length) console.log(`   incomplete: ${incomplete.map(m => m.month_key).join(", ")}`);
+  const discount = complete.reduce((s, m) => s + (m.payroll_discount ?? 0), 0);
   console.log(`   payroll-deduct sales : ${money(sales)}`);
-  console.log(`   15% discount ×15/85  : ${money(sales * PAYROLL_DISCOUNT_RATE)}`);
+  console.log(`   15% discount, net of sales tax : ${money(discount)}`);
 
   if (jsonArg) {
     const out = jsonArg.slice("--json=".length);
     await writeFile(out, JSON.stringify({
       generated_by: "scripts/extractPayrollFromSummary.mjs",
-      note: "Payroll-deduct tender totals read from the archived InfoGenesis Sales Summary workbooks with the same parseExcel the upload endpoint uses. payroll_deduct_sales is what employees were charged, already net of their 15% discount; payroll_discount is that × 15/85. A month is only totalled when every campus sheet in it yielded a payroll figure.",
+      note: "Payroll-deduct tender totals read from the archived InfoGenesis Sales Summary workbooks with the same parseExcel the upload endpoint uses. payroll_deduct_sales is what employees were charged, already net of their 15% discount and including sales tax; payroll_discount is 15/85 of the tender once its sales tax is removed, since the discount never applied to tax. A month is only totalled when every campus sheet in it yielded a payroll figure.",
       months,
     }, null, 2) + "\n");
     console.log(`\n   wrote ${out}`);

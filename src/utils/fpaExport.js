@@ -141,6 +141,15 @@ export async function exportAgentJson() {
     .filter(m => m.cafe_volume && m.cafe_volume.totals.payroll_deduct_sales == null)
     .map(m => m.month_key);
 
+  // A month can have every tender recorded and still no computable discount,
+  // when its sales tax was never read. Listed apart so the two are not read as
+  // one failure — the tenders in these months are still sound.
+  const discountMonthsIncomplete = months
+    .filter(m => m.cafe_volume
+      && m.cafe_volume.totals.payroll_deduct_sales != null
+      && m.cafe_volume.totals.payroll_discount == null)
+    .map(m => m.month_key);
+
   const exportData = {
     export_metadata: {
       exported_at: new Date().toISOString(),
@@ -149,9 +158,10 @@ export async function exportAgentJson() {
       fiscal_years_with_data: [...new Set(months.map(m => m.fiscal_year))].sort(),
       data_quality: {
         payroll_months_incomplete: payrollMonthsIncomplete,
+        discount_months_incomplete: discountMonthsIncomplete,
         payroll_note: "Months listed here have café traffic but no complete payroll-deduct total, because the source reports for those days were uploaded in a format the TENDERS parser cannot read (PDF uploads never yield one). Run scripts/backfillSalesPayroll.mjs to recover them from the archived reports, then re-export. Until that is done, no FYTD payroll figure derived from this file is complete.",
       },
-      note: "MTD values represent activity in that specific calendar month. YTD values are cumulative FYTD totals as of that month's Workday upload. Use MTD for month-by-month trend analysis. Use YTD only for the most recent month's FYTD snapshot. cafe_volume data comes from InfoGenesis (POS) via daily_metrics — it reflects customer transaction counts, not Workday accounting figures. Within cafe_volume, payroll_deduct_sales is the MTD payroll-deduct tender total (what employees were charged, already net of their discount) and payroll_discount is the MTD value of the 15% employee discount on those sales (payroll_deduct_sales × 15/85). Both are MTD-only, so they graph month by month alongside total_checks and avg_check. IMPORTANT: a null payroll_deduct_sales or payroll_discount means the figure was not recorded — never that it was zero. The 15% payroll-deduct discount is a long-standing program, so every month with café activity has payroll-deduct sales; a null is a gap in the uploaded source reports. payroll_coverage on each campus and month total says which. Do not sum months into an FYTD discount while export_metadata.data_quality.payroll_months_incomplete is non-empty — the result understates the year by however much those months hold. Report the gap instead.",
+      note: "MTD values represent activity in that specific calendar month. YTD values are cumulative FYTD totals as of that month's Workday upload. Use MTD for month-by-month trend analysis. Use YTD only for the most recent month's FYTD snapshot. cafe_volume data comes from InfoGenesis (POS) via daily_metrics — it reflects customer transaction counts, not Workday accounting figures. Within cafe_volume, payroll_deduct_sales is the MTD payroll-deduct tender total (what employees were charged, already net of their discount) and payroll_discount is the MTD value of the 15% employee discount on those sales. The discount is taken on the menu-price share of the tender only: the tender includes sales tax, and the discount never applied to tax, so the figure is payroll_deduct_sales_pretax × 15/85, where payroll_deduct_sales_pretax is the tender divided by (1 + payroll_tax_rate) and payroll_tax_rate is that campus-month's own sales tax over its net revenue. Taking 15/85 of the whole tender overstates the discount by the tax share, about 9%. Both are MTD-only, so they graph month by month alongside total_checks and avg_check. IMPORTANT: a null payroll_deduct_sales or payroll_discount means the figure was not recorded — never that it was zero. The 15% payroll-deduct discount is a long-standing program, so every month with café activity has payroll-deduct sales; a null is a gap in the uploaded source reports. payroll_coverage on each campus and month total says which. A null payroll_discount beside a non-null payroll_deduct_sales means the tender was recorded but the sales tax was not, so the discount cannot be computed; payroll_tax_basis on the month total names the campuses responsible. Do not sum months into an FYTD discount while either export_metadata.data_quality.payroll_months_incomplete or discount_months_incomplete is non-empty — the result understates the year by however much those months hold. Report the gap instead.",
     },
     months,
   };

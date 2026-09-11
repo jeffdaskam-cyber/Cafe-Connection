@@ -1,6 +1,6 @@
 {
   "generated_by": "scripts/extractPayrollFromSummary.mjs",
-  "note": "Payroll-deduct tender totals read from the archived InfoGenesis Sales Summary workbooks with the same parseExcel the upload endpoint uses. payroll_deduct_sales is what employees were charged, already net of their 15% discount; payroll_discount is that × 15/85. A month is only totalled when every campus sheet in it yielded a payroll figure.",
+  "note": "Payroll-deduct tender totals read from the archived InfoGenesis Sales Summary workbooks with the same parseExcel the upload endpoint uses. payroll_deduct_sales is what employees were charged, already net of their 15% discount and including sales tax; payroll_discount is 15/85 of the tender once its sales tax is removed, since the discount never applied to tax. A month is only totalled when every campus sheet in it yielded a payroll figure.",
   "months": [
     {
       "month_key": "2025-10",
@@ -14,6 +14,8 @@
           "total_checks": 197,
           "net_revenue": 1147.17,
           "payroll": 1188.74,
+          "total_taxes": 105.54,
+          "payroll_discount": 192.10401719190443,
           "credit_card": 63.97,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -32,6 +34,8 @@
           "total_checks": 3220,
           "net_revenue": 23973.13,
           "payroll": 22705.87,
+          "total_taxes": 2206.18,
+          "payroll_discount": 3669.2476522137704,
           "credit_card": 3115.95,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -52,6 +56,8 @@
           "total_checks": 2403,
           "net_revenue": 17321.82,
           "payroll": 13930.71,
+          "total_taxes": 1592.37,
+          "payroll_discount": 2251.3932452040444,
           "credit_card": 4476.03,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -67,7 +73,7 @@
         }
       ],
       "payroll_deduct_sales": 37825.32,
-      "payroll_discount": 6675.056470588235,
+      "payroll_discount": 6112.744914609719,
       "recorded_payroll_sales": 37825.32
     },
     {
@@ -82,6 +88,8 @@
           "total_checks": 105,
           "net_revenue": 638.7,
           "payroll": 671.27,
+          "total_taxes": 58.77,
+          "payroll_discount": 108.47782168999045,
           "credit_card": 26.2,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -99,6 +107,8 @@
           "total_checks": 2280,
           "net_revenue": 17735.88,
           "payroll": 16102.23,
+          "total_taxes": 1632.06,
+          "payroll_discount": 2602.122091022587,
           "credit_card": 2894.97,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -119,6 +129,8 @@
           "total_checks": 1681,
           "net_revenue": 12844,
           "payroll": 9692.28,
+          "total_taxes": 1173.28,
+          "payroll_discount": 1567.2375682854645,
           "credit_card": 4114.64,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -134,7 +146,7 @@
         }
       ],
       "payroll_deduct_sales": 26465.78,
-      "payroll_discount": 4670.431764705882,
+      "payroll_discount": 4277.837480998041,
       "recorded_payroll_sales": 26465.78
     },
     {
@@ -149,6 +161,8 @@
           "total_checks": 157,
           "net_revenue": 774.6,
           "payroll": 845.81,
+          "total_taxes": 71.21,
+          "payroll_discount": 136.69411764705882,
           "credit_card": 0,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -164,6 +178,8 @@
           "total_checks": 1693,
           "net_revenue": 12558.32,
           "payroll": 11931.63,
+          "total_taxes": 1155.71,
+          "payroll_discount": 1928.1399841870825,
           "credit_card": 1463.1,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -183,6 +199,8 @@
           "total_checks": 1248,
           "net_revenue": 8073.97,
           "payroll": 7375.22,
+          "total_taxes": 743.37,
+          "payroll_discount": 1191.7820958821917,
           "credit_card": 1293.26,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -198,7 +216,7 @@
         }
       ],
       "payroll_deduct_sales": 20152.66,
-      "payroll_discount": 3556.3517647058825,
+      "payroll_discount": 3256.616197716333,
       "recorded_payroll_sales": 20152.66
     },
     {
@@ -213,6 +231,8 @@
           "total_checks": 181,
           "net_revenue": 1048.72,
           "payroll": 1134.94,
+          "total_taxes": 96.59,
+          "payroll_discount": 183.39256879334494,
           "credit_card": 10.37,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -229,6 +249,8 @@
           "total_checks": 2344,
           "net_revenue": 17086.26,
           "payroll": 16106.91,
+          "total_taxes": 1572.69,
+          "payroll_discount": 2602.8214379057645,
           "credit_card": 2235.43,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -249,6 +271,8 @@
           "total_checks": 1879,
           "net_revenue": 12142.14,
           "payroll": 10949.9,
+          "total_taxes": 1117.58,
+          "payroll_discount": 1769.47067269276,
           "credit_card": 2138.81,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -264,7 +288,7 @@
         }
       ],
       "payroll_deduct_sales": 28191.75,
-      "payroll_discount": 4975.014705882353,
+      "payroll_discount": 4555.684679391869,
       "recorded_payroll_sales": 28191.75
     },
     {
@@ -279,6 +303,8 @@
           "total_checks": 2644,
           "net_revenue": 20362.89,
           "payroll": 18989.24,
+          "total_taxes": 1873.98,
+          "payroll_discount": 3068.638114009857,
           "credit_card": 2791.92,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -299,6 +325,8 @@
           "total_checks": 2106,
           "net_revenue": 14616.52,
           "payroll": 11864.63,
+          "total_taxes": 1335.44,
+          "payroll_discount": 1918.4764205364845,
           "credit_card": 3861,
           "tenders_found": true,
           "payroll_unreadable": false,
@@ -314,7 +342,7 @@
         }
       ],
       "payroll_deduct_sales": 30853.870000000003,
-      "payroll_discount": 5444.8005882352945,
+      "payroll_discount": 4987.114534546341,
       "recorded_payroll_sales": 30853.870000000003
     }
   ]
