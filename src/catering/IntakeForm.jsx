@@ -30,6 +30,18 @@ import { formatEventDate, formatEventDateRange } from "./dates.js";
 import BreakMenuPicker from "./BreakMenuPicker.jsx";
 import BreakfastMenuPicker from "./BreakfastMenuPicker.jsx";
 
+const AIRWALL_ROOM_KEYS = new Set([
+  "CG1-1210-South-Auditorium",
+  "CG1-1212-Center-Auditorium",
+  "CG1-1214-North-Auditorium",
+]);
+
+function hasAirwallRoom(rooms) {
+  return (rooms || []).some(
+    (r) => r.buildingId === "CG1" && AIRWALL_ROOM_KEYS.has(r.roomId),
+  );
+}
+
 const MEAL_PERIOD_LABELS = {
   breakfast: "Breakfast", coffee_break: "Coffee break", lunch: "Lunch",
   lunch_on_own: "Lunch on own", count_and_call: "Count & call",
@@ -235,10 +247,14 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
     }
   }
 
-  const updateRoom = (index, patch) => setForm((f) => ({
-    ...f,
-    rooms: f.rooms.map((r, i) => (i === index ? { ...r, ...patch } : r)),
-  }));
+  const updateRoom = (index, patch) => setForm((f) => {
+    const nextRooms = f.rooms.map((r, i) => (i === index ? { ...r, ...patch } : r));
+    return {
+      ...f,
+      rooms: nextRooms,
+      airwallClosureTimeline: hasAirwallRoom(nextRooms) ? f.airwallClosureTimeline : "",
+    };
+  });
 
   return (
     <div>
@@ -556,7 +572,10 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
               return (
                 <RepeatRow key={room.localId} title={`Room ${i + 1}`}
                   onRemove={form.rooms.length > 1
-                    ? () => set({ rooms: form.rooms.filter((_, idx) => idx !== i) })
+                    ? () => {
+                        const nextRooms = form.rooms.filter((_, idx) => idx !== i);
+                        set({ rooms: nextRooms, airwallClosureTimeline: hasAirwallRoom(nextRooms) ? form.airwallClosureTimeline : "" });
+                      }
                     : null}>
                   <Row>
                     <Field label="Building" required error={visibleErrors[`rooms.${i}.buildingId`]}>
@@ -652,10 +671,12 @@ export default function IntakeForm({ user, existing = null, onDone, onCancel }) 
                 Schedule step. */}
 
             <SectionTitle style={{ marginTop: 28 }}>Event details</SectionTitle>
-            <Field label="Airwall closure timeline">
-              <Input value={form.airwallClosureTimeline}
-                onChange={(e) => set({ airwallClosureTimeline: e.target.value })} />
-            </Field>
+            {hasAirwallRoom(form.rooms) && (
+              <Field label="Airwall closure timeline">
+                <Input value={form.airwallClosureTimeline}
+                  onChange={(e) => set({ airwallClosureTimeline: e.target.value })} />
+              </Field>
+            )}
 
             <Field label="Agenda link" error={visibleErrors.agendaLink}>
               <Input value={form.agendaLink} invalid={Boolean(visibleErrors.agendaLink)}
@@ -1006,7 +1027,7 @@ function ReviewStep({ form, buildings, rooms, steps, onEdit }) {
       <ReviewBlock title="Logistics" onEdit={() => editStep("logistics")} rows={[
         ["Alcohol", form.needsAlcohol ? "Yes" : "No"],
         ["Setup", form.setupNotes],
-        ["Airwall closure", form.airwallClosureTimeline],
+        ...(hasAirwallRoom(form.rooms) ? [["Airwall closure", form.airwallClosureTimeline]] : []),
         ["Agenda", form.agendaLink],
         ["Special requests", form.specialRequests],
       ]} />
