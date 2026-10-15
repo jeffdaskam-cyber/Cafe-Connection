@@ -5,8 +5,7 @@
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { buildCafeVolume, buildVolumeAccum } from "./cafeVolume.js";
-
-const CAMPUSES = ["ES Admin", "Mesa Lab", "Foothills", "Center Green"];
+import { FPA_CAMPUSES as CAMPUSES } from "./fpaMappings.js";
 
 const REVENUE_KEYS = [
   ["Cafe Sales Revenue",    "cafe_sales_revenue"],
