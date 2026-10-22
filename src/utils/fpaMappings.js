@@ -2,8 +2,9 @@
  * FP&A mappings and shared constants.
  *
  * Project and ledger mappings drive the Workday Operating Budget parser and
- * every downstream selector. All approved projects and twelve mapped ledger
- * rows are defined here; unmapped entries are ignored by design.
+ * every downstream selector. All six approved projects (rolled up into five
+ * campuses) and twelve mapped ledger rows are defined here; unmapped entries
+ * are ignored by design.
  *
  * Benefits combine rule: ledger codes 5051 (Benefits — Applied) and 9989
  * (Final Rate-Full Benefits) both normalize to "Benefits" and are summed by
@@ -15,18 +16,22 @@ export const FISCAL_START_MONTH = 10; // October
 
 // ── Approved projects ────────────────────────────────────────────────────────
 // Any row in column A that contains one of these project codes starts a
-// project block. Rows outside these blocks are ignored. revenueOnly projects
-// contribute revenue rows only; the parser skips their expense rows.
+// project block. Rows outside these blocks are ignored.
+// Two projects can share one campus: "Cafe Special" groups Unrelated Business
+// Income (323935) and Cafe Special Functions (323950). sparseLedgers marks
+// projects that only ever post to a few ledgers, so the parser skips the
+// missing-ledger warning for them.
 export const FPA_PROJECTS = [
   { code: "PRJ004382", campus: "ES Admin",     label: "Event Services"    },
   { code: "PRJ005073", campus: "Mesa Lab",     label: "Food Services ML"  },
   { code: "PRJ005074", campus: "Foothills",    label: "Food Services FL"  },
   { code: "PRJ005075", campus: "Center Green", label: "Food Services CG"  },
-  { code: "PRJ005076", campus: "Unrelated Business", label: "Food Services Unrel Bus Income", revenueOnly: true },
-  { code: "PRJ005077", campus: "Special Functions",  label: "Cafe Special Functions",         revenueOnly: true },
+  { code: "PRJ005076", campus: "Cafe Special", label: "Food Services Unrel Bus Income", sparseLedgers: true },
+  { code: "PRJ005077", campus: "Cafe Special", label: "Cafe Special Functions",         sparseLedgers: true },
 ];
 
-export const FPA_CAMPUSES = FPA_PROJECTS.map(p => p.campus);
+// De-duplicated: Cafe Special appears once even though two projects map to it.
+export const FPA_CAMPUSES = [...new Set(FPA_PROJECTS.map(p => p.campus))];
 
 // ── Ledger mapping table ─────────────────────────────────────────────────────
 // category: "Revenue" | "Expense" | "Tax"

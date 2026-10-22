@@ -1,9 +1,10 @@
 /**
  * The Workday Operating Budget Report (Project Hierarchy) parser.
  *
- * Rows below are copied from the FY2026 - Sep upload. Revenue posted to the
- * Food Services Unrel Bus Income and Cafe Special Functions projects (D66 and
- * D70 in that file) used to be dropped because neither project was mapped.
+ * Rows below are copied from the FY2026 - Sep upload. The Food Services Unrel
+ * Bus Income (PRJ005076) and Cafe Special Functions (PRJ005077) projects used
+ * to be dropped because neither was mapped; both now roll up into the
+ * "Cafe Special" campus, revenue and expense alike.
  */
 
 import test from "node:test";
@@ -47,25 +48,33 @@ function buildReport(rows) {
   return wb;
 }
 
-test("revenue in the Unrel Bus Income and Special Functions blocks is ingested", () => {
+test("Unrel Bus Income and Special Functions roll up into Cafe Special", () => {
   const { period, facts } = parseFpaWorkbook(buildReport(SEP_FY26_ROWS));
   assert.deepEqual(period, { year: 2026, month: 9 });
 
-  const ubi = facts.filter(f => f.projectCode === "PRJ005076");
-  assert.deepEqual(ubi.map(f => [f.campus, f.ledgerCode, f.normalizedName, f.mtdAmount, f.ytdAmount]), [
-    ["Unrelated Business", "4325", "Cafe Revenue", 1000, 1500],
-  ]);
-
-  const special = facts.filter(f => f.projectCode === "PRJ005077");
-  assert.deepEqual(special.map(f => [f.campus, f.ledgerCode, f.normalizedName, f.mtdAmount, f.ytdAmount]), [
-    ["Special Functions", "4320", "External Event Revenue", 431.25, 2193.75],
-  ]);
+  const cafeSpecial = facts.filter(f => f.campus === "Cafe Special");
+  assert.deepEqual(
+    cafeSpecial.map(f => [f.ledgerCode, f.category, f.mtdAmount, f.ytdAmount, f.projectCode]),
+    [
+      ["4325", "Revenue", 1000,   1500,    "PRJ005076"],
+      ["7750", "Expense", 0,      534.58,  "PRJ005076+PRJ005077"],
+      ["9989", "Expense", 0,      0,       "PRJ005076"],
+      ["4320", "Revenue", 431.25, 2193.75, "PRJ005077"],
+      ["7000", "Expense", 759.53, 5963.85, "PRJ005077"],
+    ],
+  );
 });
 
-test("expense rows in revenue-only blocks are skipped", () => {
+test("a ledger both Cafe Special projects post to is stored once, summed", () => {
+  // Facts are keyed campus × ledger in Firestore, so two 7750 facts would
+  // collide and the second write would drop $154.26 of YTD taxes.
   const { facts } = parseFpaWorkbook(buildReport(SEP_FY26_ROWS));
-  const revenueOnly = facts.filter(f => ["PRJ005076", "PRJ005077"].includes(f.projectCode));
-  assert.ok(revenueOnly.every(f => f.category !== "Expense"));
+  const keys = facts.map(f => `${f.campus}|${f.ledgerCode}`);
+  assert.equal(new Set(keys).size, keys.length);
+
+  const taxes = facts.filter(f => f.campus === "Cafe Special" && f.ledgerCode === "7750");
+  assert.equal(taxes.length, 1);
+  assert.equal(taxes[0].ytdAmount, 534.58); // 380.32 + 154.26
 });
 
 test("campus blocks and unmapped projects behave as before", () => {
@@ -75,10 +84,11 @@ test("campus blocks and unmapped projects behave as before", () => {
   assert.deepEqual(cg.map(f => f.ledgerCode), ["4313", "4320", "5001", "9990"]);
 
   // Custodial (PRJ005109) is still unmapped, so its rows don't bleed into the
-  // Special Functions block above it.
+  // Cafe Special Functions block above it.
   assert.equal(facts.some(f => f.ledgerCode === "7500"), false);
 
-  // Revenue-only projects never warn; the campus warnings are unchanged.
-  assert.ok(warnings.every(w => !/Unrelated Business|Special Functions|PRJ00507[67]/.test(w)));
+  // Cafe Special posts to only a few ledgers, so it never warns about missing
+  // ledger rows; the other campus warnings are unchanged.
+  assert.ok(warnings.every(w => !/Cafe Special|PRJ00507[67]/.test(w)));
   assert.ok(warnings.includes("Missing project block: PRJ005073 (Mesa Lab)"));
 });

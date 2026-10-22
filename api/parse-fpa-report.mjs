@@ -8,10 +8,10 @@
 // Returns: { success, monthKey, written, overwritten, warnings }
 //
 // Behavior:
-//   - Only the approved project blocks are ingested: the four campus blocks in
-//     full, plus revenue-only blocks (Unrelated Business Income, Cafe Special
-//     Functions) whose revenue rows count toward the totals and whose expense
-//     rows are skipped. Parsing lives in api/_lib/fpaReport.mjs.
+//   - Only the six approved project blocks are ingested. PRJ005076 and
+//     PRJ005077 both map to the "Cafe Special" campus; facts that land on the
+//     same campus × ledger are summed before writing. Parsing lives in
+//     api/_lib/fpaReport.mjs.
 //   - Only the twelve mapped ledger rows are read; ledger codes 5051 and 9989
 //     both normalize to "Benefits" and are stored as separate facts with the
 //     same normalizedName (selectors sum them downstream).
@@ -93,8 +93,8 @@ async function upsertFacts(db, period, facts, sourceFileName) {
   const existingSnap = await factsCol.where("monthKey", "==", monthKey).get();
   const overwritten = existingSnap.size;
 
-  // Firestore batches cap at 500 ops; 6 projects × 12 ledgers = 72 at most,
-  // plus deletes up to the same. Well under the limit.
+  // Firestore batches cap at 500 ops; 5 campuses × 12 ledgers = 60, plus
+  // deletes up to the same. Well under the limit.
   const batch = db.batch();
   existingSnap.docs.forEach(d => batch.delete(d.ref));
 

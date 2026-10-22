@@ -9,16 +9,17 @@ import { normalizeAmount } from "./fpaAmounts.mjs";
 import { createHttpError } from "./serverless.mjs";
 
 // ── Mappings (kept in sync with src/utils/fpaMappings.js) ────────────────────
-// revenueOnly projects contribute their revenue and sales-tax rows only; their
-// expense rows are skipped. They don't post every month, so a missing block or
-// ledger row is not worth a warning.
+// PRJ005076 and PRJ005077 both map to the "Cafe Special" campus; facts that
+// land on the same campus × ledger are summed (see parseFpaWorkbook).
+// sparseLedgers projects only ever post to a few ledgers, so they skip the
+// missing-ledger warning.
 export const FPA_PROJECTS = [
   { code: "PRJ004382", campus: "ES Admin"     },
   { code: "PRJ005073", campus: "Mesa Lab"     },
   { code: "PRJ005074", campus: "Foothills"    },
   { code: "PRJ005075", campus: "Center Green" },
-  { code: "PRJ005076", campus: "Unrelated Business", revenueOnly: true },
-  { code: "PRJ005077", campus: "Special Functions",  revenueOnly: true },
+  { code: "PRJ005076", campus: "Cafe Special", sparseLedgers: true },
+  { code: "PRJ005077", campus: "Cafe Special", sparseLedgers: true },
 ];
 
 export const FPA_LEDGERS = [
@@ -174,6 +175,11 @@ function detectPeriodFromSheet(sheet, workbook) {
   return null;
 }
 
+// Sum two amounts already rounded to cents without float drift; never -0.
+function addCents(a, b) {
+  return Math.round((a + b) * 100) / 100 || 0;
+}
+
 // ── Project + ledger detection ──────────────────────────────────────────────
 function detectProjectInRow(cellA) {
   if (!cellA) return null;
@@ -216,6 +222,7 @@ export function parseFpaWorkbook(workbook) {
   const facts = [];
   const seenProjects = new Set();
   const perProjectLedgers = new Map(); // campus → Set<code>
+  const factsByKey = new Map();        // "campus|ledgerCode" → fact (merges shared campuses)
 
   let activeProject = null;
   const totalRows = sheet.rowCount;
@@ -244,7 +251,6 @@ export function parseFpaWorkbook(workbook) {
 
     const ledger = detectLedgerInRow(cellAText);
     if (!ledger) continue;
-    if (activeProject.revenueOnly && ledger.category === "Expense") continue;
 
     const mtdAmount = normalizeAmount(cellNumber(row.getCell(3)), ledger.category); // column C
     const ytdAmount = normalizeAmount(cellNumber(row.getCell(4)), ledger.category); // column D
@@ -252,7 +258,23 @@ export function parseFpaWorkbook(workbook) {
     // Track ledger presence for per-campus warnings
     perProjectLedgers.get(activeProject.campus).add(ledger.code);
 
-    facts.push({
+    // Facts are stored one per campus × ledger (see fpaFactDocId). When two
+    // projects share a campus (Cafe Special = PRJ005076 + PRJ005077) and both
+    // post to the same ledger (e.g. 7750 Taxes), sum them here. Pushing two
+    // facts would give them the same Firestore doc ID and the second write
+    // would silently replace the first.
+    const factKey = `${activeProject.campus}|${ledger.code}`;
+    const existing = factsByKey.get(factKey);
+    if (existing) {
+      existing.mtdAmount = addCents(existing.mtdAmount, mtdAmount);
+      existing.ytdAmount = addCents(existing.ytdAmount, ytdAmount);
+      if (!existing.projectCode.split("+").includes(activeProject.code)) {
+        existing.projectCode += `+${activeProject.code}`;
+      }
+      continue;
+    }
+
+    const fact = {
       campus: activeProject.campus,
       projectCode: activeProject.code,
       ledgerCode: ledger.code,
@@ -261,7 +283,9 @@ export function parseFpaWorkbook(workbook) {
       category: ledger.category,
       mtdAmount,
       ytdAmount,
-    });
+    };
+    facts.push(fact);
+    factsByKey.set(factKey, fact);
   }
 
   if (facts.length === 0) {
@@ -271,11 +295,12 @@ export function parseFpaWorkbook(workbook) {
   // Soft warnings
   const expectedLedgerCodes = FPA_LEDGERS.map(l => l.code);
   for (const p of FPA_PROJECTS) {
-    if (p.revenueOnly) continue;
     if (!seenProjects.has(p.code)) {
       warnings.push(`Missing project block: ${p.code} (${p.campus})`);
       continue;
     }
+    // Cafe Special projects post to only a handful of ledgers by design.
+    if (p.sparseLedgers) continue;
     const seen = perProjectLedgers.get(p.campus) || new Set();
     const missing = expectedLedgerCodes.filter(code => !seen.has(code));
     if (missing.length > 0) {
