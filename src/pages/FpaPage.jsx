@@ -62,6 +62,7 @@ const CAMPUS_COLORS = {
   "Foothills":    COLORS.LAQUA,
   "Center Green": COLORS.AQUA,
   "ES Admin":     COLORS.ORANGE,
+  "Cafe Special": COLORS.TEXT_SECONDARY,
 };
 
 // ── Currency formatters ──────────────────────────────────────────────────────

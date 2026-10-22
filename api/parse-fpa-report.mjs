@@ -8,7 +8,9 @@
 // Returns: { success, monthKey, written, overwritten, warnings }
 //
 // Behavior:
-//   - Only the four approved project blocks are ingested.
+//   - Only the six approved project blocks are ingested. PRJ005076 and
+//     PRJ005077 both map to the "Cafe Special" campus; facts that land on the
+//     same campus × ledger are summed before writing (see parseFpaWorkbook).
 //   - Only the twelve mapped ledger rows are read; ledger codes 5051 and 9989
 //     both normalize to "Benefits" and are stored as separate facts with the
 //     same normalizedName (selectors sum them downstream).
@@ -43,6 +45,8 @@ const FPA_PROJECTS = [
   { code: "PRJ005073", campus: "Mesa Lab"     },
   { code: "PRJ005074", campus: "Foothills"    },
   { code: "PRJ005075", campus: "Center Green" },
+  { code: "PRJ005076", campus: "Cafe Special", sparseLedgers: true },
+  { code: "PRJ005077", campus: "Cafe Special", sparseLedgers: true },
 ];
 
 const FPA_LEDGERS = [
@@ -219,6 +223,11 @@ function detectPeriodFromSheet(sheet, workbook) {
   return null;
 }
 
+// Sum two amounts already rounded to cents without float drift; never -0.
+function addCents(a, b) {
+  return Math.round((a + b) * 100) / 100 || 0;
+}
+
 // ── Project + ledger detection ──────────────────────────────────────────────
 function detectProjectInRow(cellA) {
   if (!cellA) return null;
@@ -261,6 +270,7 @@ function parseFpaWorkbook(workbook) {
   const facts = [];
   const seenProjects = new Set();
   const perProjectLedgers = new Map(); // campus → Set<code>
+  const factsByKey = new Map();        // "campus|ledgerCode" → fact (merges shared campuses)
 
   let activeProject = null;
   const totalRows = sheet.rowCount;
@@ -296,7 +306,23 @@ function parseFpaWorkbook(workbook) {
     // Track ledger presence for per-campus warnings
     perProjectLedgers.get(activeProject.campus).add(ledger.code);
 
-    facts.push({
+    // Facts are stored one per campus × ledger (see fpaFactDocId). When two
+    // projects share a campus (Cafe Special = PRJ005076 + PRJ005077) and both
+    // post to the same ledger (e.g. 7750 Taxes), sum them here. Pushing two
+    // facts would give them the same Firestore doc ID and the second write
+    // would silently replace the first.
+    const factKey = `${activeProject.campus}|${ledger.code}`;
+    const existing = factsByKey.get(factKey);
+    if (existing) {
+      existing.mtdAmount = addCents(existing.mtdAmount, mtdAmount);
+      existing.ytdAmount = addCents(existing.ytdAmount, ytdAmount);
+      if (!existing.projectCode.split("+").includes(activeProject.code)) {
+        existing.projectCode += `+${activeProject.code}`;
+      }
+      continue;
+    }
+
+    const fact = {
       campus: activeProject.campus,
       projectCode: activeProject.code,
       ledgerCode: ledger.code,
@@ -305,7 +331,9 @@ function parseFpaWorkbook(workbook) {
       category: ledger.category,
       mtdAmount,
       ytdAmount,
-    });
+    };
+    facts.push(fact);
+    factsByKey.set(factKey, fact);
   }
 
   if (facts.length === 0) {
@@ -319,6 +347,8 @@ function parseFpaWorkbook(workbook) {
       warnings.push(`Missing project block: ${p.code} (${p.campus})`);
       continue;
     }
+    // Cafe Special projects post to only a handful of ledgers by design.
+    if (p.sparseLedgers) continue;
     const seen = perProjectLedgers.get(p.campus) || new Set();
     const missing = expectedLedgerCodes.filter(code => !seen.has(code));
     if (missing.length > 0) {
@@ -361,7 +391,7 @@ async function upsertFacts(db, period, facts, sourceFileName) {
   const existingSnap = await factsCol.where("monthKey", "==", monthKey).get();
   const overwritten = existingSnap.size;
 
-  // Firestore batches cap at 500 ops; 4 campuses × 12 ledgers = 48, plus
+  // Firestore batches cap at 500 ops; 5 campuses × 12 ledgers = 60, plus
   // deletes up to the same. Well under the limit.
   const batch = db.batch();
   existingSnap.docs.forEach(d => batch.delete(d.ref));
