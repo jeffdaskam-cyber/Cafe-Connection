@@ -20,10 +20,10 @@ import {
   EXPENSE_NORMALIZED_NAMES,
   LABOR_EXPENSE_NAMES,
   COST_OF_SALES_NAMES,
-  fiscalYearFor,
   fiscalMonthNumberFor,
   monthLabelFor,
 } from "./fpaMappings.js";
+import { fiscalYearOptions } from "./fiscalYear.js";
 
 // ── Fiscal-month ordering ────────────────────────────────────────────────────
 export function compareMonthKeysAsc(a, b) {
@@ -244,14 +244,13 @@ export function supportLevelFYTDForMonthKey(facts, fiscalYear, monthKey) {
 }
 
 // ── Fiscal year helper for the UI ────────────────────────────────────────────
-export function deriveFiscalYearsFromFacts(facts) {
-  return listFiscalYears(facts);
+// Always offers the current FY (even before its first upload) so the selector
+// rolls over on October 1st.
+export function deriveFiscalYearsFromFacts(facts, now = new Date()) {
+  return fiscalYearOptions(listFiscalYears(facts), now);
 }
 
-export function defaultFiscalYearFromFacts(facts) {
-  const years = listFiscalYears(facts);
-  if (years.length > 0) return years[years.length - 1];
-  // Fall back to current FY based on today's date.
-  const now = new Date();
-  return fiscalYearFor(now.getFullYear(), now.getMonth() + 1);
+export function defaultFiscalYearFromFacts(facts, now = new Date()) {
+  const years = deriveFiscalYearsFromFacts(facts, now);
+  return years[years.length - 1];
 }
