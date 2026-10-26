@@ -12,7 +12,8 @@
  */
 
 // ── Fiscal year config (UCAR FY runs Oct 1 → Sep 30) ─────────────────────────
-export const FISCAL_START_MONTH = 10; // October
+import { FISCAL_START_MONTH } from "./fiscalYear.js";
+export { fiscalYearLabel } from "./fiscalYear.js";
 
 // ── Approved projects ────────────────────────────────────────────────────────
 // Any row in column A that contains one of these project codes starts a
@@ -79,16 +80,6 @@ export const COST_OF_SALES_NAMES = ["Materials"];
 export function fiscalMonthNumberFor(calendarMonth) {
   // calendarMonth: 1-12 (Jan=1)
   return ((calendarMonth - FISCAL_START_MONTH + 12) % 12) + 1;
-}
-
-export function fiscalYearFor(calendarYear, calendarMonth) {
-  // UCAR FY label = calendar year containing the fiscal year-end (Sep).
-  // Oct 2025 → Sep 2026 = FY2026
-  return calendarMonth >= FISCAL_START_MONTH ? calendarYear + 1 : calendarYear;
-}
-
-export function fiscalYearLabel(fiscalYear) {
-  return `FY${String(fiscalYear).slice(-2)}`;
 }
 
 export function monthKeyFor(calendarYear, calendarMonth) {

@@ -22,6 +22,7 @@ const FINANCIALS_CAMPUSES = [...CAMPUSES, "All Campuses"];
 import { useWidgetSubscription } from "./hooks/useWidget.js";
 import { COLORS, SHADOWS, RADIUS } from "./theme.js";
 import { buildCafeVolume, buildVolumeAccum, resolveMonthKey, VOLUME_CAMPUSES } from "./utils/cafeVolume.js";
+import { fiscalYearLabel, fiscalYearOptions } from "./utils/fiscalYear.js";
 
 // ── Period helpers ─────────────────────────────────────────────────────────────
 function getMonthKey(date) {
@@ -253,7 +254,9 @@ export default function FinancialsPage() {
     ? buildMonthlyDataAllCampuses(safeAllDocs)
     : buildMonthlyData(safeAllDocs);
   const annualData  = buildAnnualData(monthlyData);
-  const fiscalYears = annualData.map(d => d.label);
+  // Always includes the current FY so the selector rolls over on October 1st,
+  // even before any of the new year's data has been uploaded.
+  const fiscalYears = fiscalYearOptions(annualData.map(d => d.fy + 1)).map(fiscalYearLabel);
 
   // Keep fiscal year selection in sync with available data
   useEffect(() => {

@@ -20,6 +20,7 @@ import { useWidgetSubscription } from "../hooks/useWidget.js";
 import { useRole } from "../hooks/useRole.js";
 import { canSeeWidget } from "../utils/permissions.js";
 import { COLORS, SHADOWS, RADIUS } from "../theme.js";
+import { fiscalYearFor, fiscalYearLabel, fiscalYearOptions } from "../utils/fiscalYear.js";
 
 // ── Fiscal year helpers ───────────────────────────────────────────────────────
 const FISCAL_MONTH_ORDER = [9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8]; // Oct=0 through Sep=11
@@ -305,9 +306,11 @@ export default function EventRevenuePage() {
     : (allDocs ?? []).filter(d => d.source !== "catering");
 
   // ── Derive fiscal years from data ─────────────────────────────────────────
-  const fiscalYears = [...new Set(
-    safeDocs.map(d => getFiscalYearLabel(d.year, d.month))
-  )].sort();
+  // Always includes the current FY so the selector rolls over on October 1st,
+  // even before any of the new year's reports have been uploaded.
+  const fiscalYears = fiscalYearOptions(
+    safeDocs.map(d => fiscalYearFor(d.year, d.month))
+  ).map(fiscalYearLabel);
 
   useEffect(() => {
     if (fiscalYears.length > 0 && !fiscalYears.includes(fiscalYear))
