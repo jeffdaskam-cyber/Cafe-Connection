@@ -7,6 +7,7 @@ import {
   chunksToText,
   detectCampus,
   docToChunks,
+  isCafeHeading,
   formatWeekFolderVariants,
   normalizeDriveName,
   pdfPagesToChunks,
@@ -210,4 +211,34 @@ test("an empty parent tab does not shift the cafes", () => {
   ])] };
   assert.deepEqual(splitCombinedSpecials(docToChunks(d)),
     { "Center Green": "grab menu", "Mesa Lab": "monday menu", "Foothills": "tuesday menu" });
+});
+
+// The real combined document (Nov 23rd - Nov 27th): no page breaks, no
+// sections, no tabs. Blank lines push each menu onto its own page, and the
+// Mesa Lab / Foothills pages open with a one-row banner table in the middle of
+// the document. Center Green's page has no banner.
+test("splits at banner tables in the middle of the document", () => {
+  const banner = (name) => table([`   ${name}\v11:30am - 1:30pm`, "WEEKLY SPECIALS", ""]);
+  const d = doc([
+    para("GRAB & GO\n"), para("\n"), para("B.L.T. Hoagie\n"), para("Chicken Salad Sandwich\t\t$7.50\n"),
+    para("\n"), para("\n"),
+    banner("Mesa LAB LUNCH"),
+    para(" \n"), para("Monday, November 23rd\n"), para("Chef’s Choice\n"), para("\n"), para("\n"),
+    banner("FOOTHILLS LAB LUNCH"),
+    para("\n"), para("Wednesday, November 25th\n"), para("Grab and GO\n"), para("\n"), para("\n"),
+  ]);
+  assert.deepEqual(splitCombinedSpecials(docToChunks(d)), {
+    "Center Green": "GRAB & GO\n\nB.L.T. Hoagie\nChicken Salad Sandwich\t\t$7.50",
+    "Mesa Lab":     "Monday, November 23rd\nChef’s Choice",
+    "Foothills":    "Wednesday, November 25th\nGrab and GO",
+  });
+});
+
+test("isCafeHeading accepts cafe banners and rejects menu lines", () => {
+  for (const t of ["Mesa LAB LUNCH 11:30am - 1:30pm   WEEKLY SPECIALS", "FOOTHILLS LAB", "Center Green", "Foothills Cafe Specials"]) {
+    assert.equal(isCafeHeading(t), true, t);
+  }
+  for (const t of ["Mesa Lab closed Friday", "Foothills is closed", "Monday, November 23rd", ""]) {
+    assert.equal(isCafeHeading(t), false, t);
+  }
 });
