@@ -13,7 +13,7 @@
  *
  * Exported constants:
  *   CAMPUSES          — ["Mesa Lab", "Foothills", "Center Green"]
- *   SPECIALS_CAMPUSES — campuses that publish weekly cafe specials
+ *   SPECIALS_CAMPUSES — campuses that publish weekly cafe specials (currently all three)
  *   CAMPUS_COLOR      — per-campus accent color map (all campuses currently use COLORS.AQUA)
  */
 
@@ -23,9 +23,10 @@ import { COLORS } from "../theme.js";
 // ── Campus constants (exported for use in other modules) ──────────────────────
 export const CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 
-// Center Green does not run a weekly specials menu, so it is never offered
-// as a choice in the Cafe Specials widgets.
-export const SPECIALS_CAMPUSES = ["Mesa Lab", "Foothills"];
+// Campuses offered in the Cafe Specials widgets. All three cafes now publish
+// specials (Center Green's is its Grab & Go menu), in one combined document
+// that /api/get-specials splits back into one menu per cafe.
+export const SPECIALS_CAMPUSES = ["Mesa Lab", "Foothills", "Center Green"];
 export const CAMPUS_COLOR = {
   "Mesa Lab":     COLORS.AQUA,
   "Foothills":    COLORS.AQUA,

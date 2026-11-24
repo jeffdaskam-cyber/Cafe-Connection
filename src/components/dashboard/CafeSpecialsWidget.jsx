@@ -55,8 +55,8 @@ function CampusPills({ value, onChange }) {
 }
 
 export default function CafeSpecialsWidget({ config = {} }) {
-  // A user's saved campus may be one that has no specials (e.g. Center Green) —
-  // fall back to the first campus that does.
+  // A user's saved campus may be one that has no specials — fall back to the
+  // first campus that does.
   const [activeCampus, setActiveCampus] = useState(
     SPECIALS_CAMPUSES.includes(config.campus) ? config.campus : SPECIALS_CAMPUSES[0]
   );

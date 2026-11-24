@@ -3,12 +3,34 @@
 // Fetches the current week's Cafe Specials from Google Drive / Google Docs.
 // Uses Google REST APIs directly via fetch — no googleapis npm package needed.
 //
+// Drive layout: <GOOGLE_SPECIALS_FOLDER_ID>/<YYYY>/<MM - Mon>/<week file>
+// The week file is either
+//   • one combined document for all three cafes ("Nov 23rd - Nov 27th"), one
+//     cafe per page in the order Center Green, Mesa Lab, Foothills — this
+//     endpoint returns only the requested cafe's page; or
+//   • the legacy per-cafe Google Doc ("Nov 23rd - 27th_ML" / "_FL").
+// The combined file may be a Google Doc or a PDF.
+//
 // GET /api/get-specials?weekOf=YYYY-MM-DD&campus=Mesa+Lab  (both optional)
 // Returns: { success: true, weekLabel: string, body: string }
 
 import { cert, getApp, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { SignJWT, importPKCS8 } from "jose";
+import {
+  CAMPUS_SUFFIX,
+  PDF_MIME,
+  chunksToText,
+  docToChunks,
+  extractPdfPages,
+  formatMonthFolder,
+  formatWeekFolderVariants,
+  formatYearFolder,
+  getMondayOf,
+  pdfPagesToChunks,
+  pickSpecialsFile,
+  splitCombinedSpecials,
+} from "./_lib/cafeSpecials.mjs";
 
 // ─── Required environment variables ──────────────────────────────────────────
 const REQUIRED_ENV = [
@@ -59,13 +81,6 @@ async function verifyAuth(req) {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// ─── Campus → filename suffix ─────────────────────────────────────────────────
-// Center Green is intentionally absent — that campus does not publish specials.
-const CAMPUS_SUFFIX = {
-  "Mesa Lab":  "_ML",
-  "Foothills": "_FL",
-};
-
 // ─── Google OAuth2 token via service account ─────────────────────────────────
 async function getAccessToken() {
   const email      = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
@@ -100,73 +115,43 @@ async function getAccessToken() {
 }
 
 // ─── Drive helpers ────────────────────────────────────────────────────────────
-async function findInFolder(token, parentId, name) {
-  // Escape single quotes in the name to prevent Drive query injection.
-  const safeName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const q   = `'${parentId}' in parents and name = '${safeName}' and trashed = false`;
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=10`;
+async function driveList(token, q) {
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,mimeType)&pageSize=200`;
   const res = await fetchWithTimeout(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error(`Drive API request failed: ${res.status}`);
   const data = await res.json();
   if (data.error) throw new Error(`Drive API error: ${data.error.message}`);
-  return data.files?.[0] || null;
+  return data.files ?? [];
 }
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-function getMondayOf(date) {
-  const d   = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-// Hardcoded to avoid Node.js ICU locale inconsistencies across environments
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-function formatYearFolder(date) {
-  return `${date.getFullYear()}`;
-}
-function formatMonthFolder(date) {
-  const mm        = String(date.getMonth() + 1).padStart(2, "0");
-  const monthName = MONTHS_SHORT[date.getMonth()];
-  return `${mm} - ${monthName}`;
-}
-function ordinal(n) {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-// Returns an array of possible week-folder names to try (new format first, then legacy)
-function formatWeekFolderVariants(monday) {
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  const monLabel = MONTHS_SHORT[monday.getMonth()];
-  const friLabel = MONTHS_SHORT[friday.getMonth()];
-
-  // New format: month only on start date  → "Mar 23rd - 27th"
-  // Legacy format: month on both dates    → "Mar 23rd - Mar 27th"
-  const sameMonth = monday.getMonth() === friday.getMonth();
-  const newFmt    = sameMonth
-    ? `${monLabel} ${ordinal(monday.getDate())} - ${ordinal(friday.getDate())}`
-    : `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
-  const legacyFmt = `${monLabel} ${ordinal(monday.getDate())} - ${friLabel} ${ordinal(friday.getDate())}`;
-
-  // Deduplicate when months differ (both formats are identical)
-  return sameMonth ? [newFmt, legacyFmt] : [newFmt];
+async function findInFolder(token, parentId, name) {
+  // Escape single quotes in the name to prevent Drive query injection.
+  const safeName = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const files = await driveList(token, `'${parentId}' in parents and name = '${safeName}' and trashed = false`);
+  return files[0] || null;
 }
 
-// ─── Extract plain text from Google Docs API response ────────────────────────
-function extractDocText(doc) {
-  const content = doc.body?.content ?? [];
-  return content
-    .flatMap(block => {
-      if (!block.paragraph) return [];
-      return block.paragraph.elements
-        ?.map(el => el.textRun?.content ?? "")
-        .join("") ?? "";
-    })
-    .join("")
-    .trim();
+function listFolder(token, parentId) {
+  return driveList(token, `'${parentId}' in parents and trashed = false`);
+}
+
+// ─── File contents → page chunks ──────────────────────────────────────────────
+async function readChunks(token, file) {
+  const auth = { headers: { Authorization: `Bearer ${token}` } };
+
+  if (file.mimeType === PDF_MIME) {
+    const res = await fetchWithTimeout(
+      `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, auth);
+    if (!res.ok) throw new Error(`Drive download failed: ${res.status}`);
+    const pages = await extractPdfPages(Buffer.from(await res.arrayBuffer()));
+    return pdfPagesToChunks(pages);
+  }
+
+  const res = await fetchWithTimeout(`https://docs.googleapis.com/v1/documents/${file.id}`, auth);
+  if (!res.ok) throw new Error(`Docs API request failed: ${res.status}`);
+  const doc = await res.json();
+  if (doc.error) throw new Error(`Docs API error: ${doc.error.message}`);
+  return docToChunks(doc);
 }
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -203,48 +188,45 @@ export default async function handler(req, res) {
       ? [monday]
       : [monday, new Date(monday.getTime() - 7 * 24 * 60 * 60 * 1000)];
 
-    let specialsFile = null;
-    let usedMonday   = null;
+    let body       = null;
+    let usedMonday = null;
 
     for (const weekMonday of weeksToTry) {
-      const yearFolder  = formatYearFolder(weekMonday);
-      const monthFolder = formatMonthFolder(weekMonday);
-      const variants    = formatWeekFolderVariants(weekMonday);
-
-      const yearDir = await findInFolder(token, rootFolderId, yearFolder);
+      const yearDir = await findInFolder(token, rootFolderId, formatYearFolder(weekMonday));
       if (!yearDir) continue;
 
-      const monthDir = await findInFolder(token, yearDir.id, monthFolder);
+      const monthDir = await findInFolder(token, yearDir.id, formatMonthFolder(weekMonday));
       if (!monthDir) continue;
 
-      // Try each naming variant with the campus suffix
-      for (const variant of variants) {
-        const weekFolder = variant + campusSuffix;
-        const file = await findInFolder(token, monthDir.id, weekFolder);
-        if (file) { specialsFile = file; usedMonday = weekMonday; break; }
-      }
-      if (specialsFile) break;
+      const picked = pickSpecialsFile(
+        await listFolder(token, monthDir.id),
+        formatWeekFolderVariants(weekMonday),
+        campusSuffix,
+      );
+      if (!picked) continue;
+
+      const chunks = await readChunks(token, picked.file);
+      const text   = picked.combined
+        ? splitCombinedSpecials(chunks)[campusParam]
+        : chunksToText(chunks);
+
+      // This week's file exists but has no section for this cafe: report
+      // not-found rather than silently showing last week's menu.
+      if (text) { body = text; usedMonday = weekMonday; }
+      break;
     }
 
-    if (!specialsFile) {
+    if (!body) {
       return res.status(404).json({
         error: "Specials not found.",
-        searched: weeksToTry.flatMap(m => formatWeekFolderVariants(m).map(v => ({
+        searched: weeksToTry.map(m => ({
           year:  formatYearFolder(m),
           month: formatMonthFolder(m),
-          week:  v + campusSuffix,
-        }))),
+          week:  formatWeekFolderVariants(m),
+          campus: campusParam,
+        })),
       });
     }
-
-    // ── Fetch Google Doc content ──────────────────────────────────────────────
-    const docUrl  = `https://docs.googleapis.com/v1/documents/${specialsFile.id}`;
-    const docRes  = await fetchWithTimeout(docUrl, { headers: { Authorization: `Bearer ${token}` } });
-    if (!docRes.ok) throw new Error(`Docs API request failed: ${docRes.status}`);
-    const docData = await docRes.json();
-    if (docData.error) throw new Error(`Docs API error: ${docData.error.message}`);
-
-    const body = extractDocText(docData);
 
     const weekLabel = `Week of ${usedMonday.toLocaleDateString("en-US", {
       month: "long", day: "numeric", year: "numeric",
