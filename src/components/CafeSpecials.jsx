@@ -19,7 +19,7 @@ import { COLORS } from "../theme.js";
 export default function CafeSpecials({ weekOf, campus }) {
   const accent = COLORS.AQUA;
 
-  // Some campuses (Center Green) don't publish specials — skip the fetch entirely.
+  // Skip the fetch for any campus that doesn't publish specials.
   const hasSpecials = SPECIALS_CAMPUSES.includes(campus);
 
   const {
