@@ -147,7 +147,10 @@ async function readChunks(token, file) {
     return pdfPagesToChunks(pages);
   }
 
-  const res = await fetchWithTimeout(`https://docs.googleapis.com/v1/documents/${file.id}`, auth);
+  // includeTabsContent: without it the API returns only the first tab, and the
+  // combined document may hold each cafe on its own tab.
+  const res = await fetchWithTimeout(
+    `https://docs.googleapis.com/v1/documents/${file.id}?includeTabsContent=true`, auth);
   if (!res.ok) throw new Error(`Docs API request failed: ${res.status}`);
   const doc = await res.json();
   if (doc.error) throw new Error(`Docs API error: ${doc.error.message}`);
@@ -190,6 +193,7 @@ export default async function handler(req, res) {
 
     let body       = null;
     let usedMonday = null;
+    const found    = new Map(); // week Monday → name of the file read, if any
 
     for (const weekMonday of weeksToTry) {
       const yearDir = await findInFolder(token, rootFolderId, formatYearFolder(weekMonday));
@@ -203,6 +207,7 @@ export default async function handler(req, res) {
         formatWeekFolderVariants(weekMonday),
         campusSuffix,
       );
+      found.set(weekMonday, picked?.file.name ?? null);
       if (!picked) continue;
 
       const chunks = await readChunks(token, picked.file);
@@ -219,11 +224,14 @@ export default async function handler(req, res) {
     if (!body) {
       return res.status(404).json({
         error: "Specials not found.",
-        searched: weeksToTry.map(m => ({
+        campus: campusParam,
+        // Which file (if any) was found for each week tried: a file name here
+        // means the file was read but had no section for this cafe.
+        searched: weeksToTry.map((m) => ({
           year:  formatYearFolder(m),
           month: formatMonthFolder(m),
           week:  formatWeekFolderVariants(m),
-          campus: campusParam,
+          file:  found.get(m) ?? null,
         })),
       });
     }

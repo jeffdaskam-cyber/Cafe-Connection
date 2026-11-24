@@ -164,3 +164,40 @@ test("legacy per-cafe docs read as before, banner table excluded", () => {
   const d = doc([...MESA_LAB, pageBreak(), para("Friday, November 27th\n")]);
   assert.equal(chunksToText(docToChunks(d)), "Monday, November 23rd\nChef’s Choice\n\nFriday, November 27th");
 });
+
+// ─── Documents that use Google Docs tabs ──────────────────────────────────────
+const tab = (title, content, childTabs = []) => ({
+  tabProperties: { title },
+  documentTab: { body: { content: [sectionBreak(), ...content] } },
+  childTabs,
+});
+
+test("reads every tab, naming cafes by tab title", () => {
+  const d = { tabs: [
+    tab("Center Green", CENTER_GREEN),
+    tab("Mesa Lab", [para("Monday, November 23rd\n")]),
+    tab("Foothills", [para("Closed\n")]),
+  ] };
+  const s = splitCombinedSpecials(docToChunks(d));
+  assert.match(s["Center Green"], /^GRAB & GO/);
+  assert.equal(s["Mesa Lab"], "Monday, November 23rd");
+  assert.equal(s["Foothills"], "Closed");
+});
+
+test("untitled tabs fall back to banner text and tab order", () => {
+  const d = { tabs: [tab("Tab 1", CENTER_GREEN), tab("Tab 2", MESA_LAB, [tab("Tab 3", FOOTHILLS)])] };
+  const s = splitCombinedSpecials(docToChunks(d));
+  assert.match(s["Center Green"], /^GRAB & GO/);
+  assert.equal(s["Mesa Lab"], "Monday, November 23rd\nChef’s Choice");
+  assert.equal(s["Foothills"], "Wednesday, November 25th\nGrab and GO");
+});
+
+test("pickSpecialsFile accepts words before or after the week dates", () => {
+  const variants = formatWeekFolderVariants(new Date(2026, 10, 23));
+  for (const name of ["Weekly Specials Nov 23rd - Nov 27th", "2026 Nov 23rd - 27th", "Nov 23rd - 27th Cafe Specials"]) {
+    const file = { id: "x", name, mimeType: GOOGLE_DOC_MIME };
+    assert.deepEqual(pickSpecialsFile([file], variants, "_ML"), { file, combined: true }, name);
+  }
+  // …but a cafe suffix after the dates is still a legacy file for that cafe only.
+  assert.equal(pickSpecialsFile([{ id: "y", name: "Specials Nov 23rd - 27th_FL", mimeType: GOOGLE_DOC_MIME }], variants, "_ML"), null);
+});
