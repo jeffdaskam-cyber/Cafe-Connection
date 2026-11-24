@@ -117,15 +117,18 @@ export function pickSpecialsFile(files, variants, campusSuffix) {
   for (const variant of variants) {
     const want  = normalizeDriveName(variant);
     const match = named
-      .filter(({ n }) => {
-        if (!n.startsWith(want)) return false;
-        const rest = n.slice(want.length);
-        // "" exact; a word such as "specials" is fine; a digit would be a
-        // different week ("nov26" vs "nov2630"); a cafe suffix is a legacy file.
-        return rest === "" || (!/^\d/.test(rest) && !suffixes.has(rest));
+      .map(({ f, n }) => ({ f, n, at: n.indexOf(want) }))
+      .filter(({ n, at }) => {
+        if (at < 0) return false;
+        // Words around the dates are fine ("Weekly Specials Nov 23rd - 27th").
+        // A digit right after them is a different week ("nov26" in
+        // "nov2630"); a cafe suffix marks a legacy per-cafe file.
+        const rest = n.slice(at + want.length);
+        return !/^\d/.test(rest) && !suffixes.has(rest);
       })
-      .map(({ f }) => f)
-      .sort(byMime)[0];
+      // A name that starts with the dates beats one with words in front.
+      .sort((a, b) => (a.at !== 0) - (b.at !== 0) || byMime(a.f, b.f))
+      .map(({ f }) => f)[0];
     if (match) return { file: match, combined: true };
   }
 
@@ -169,13 +172,35 @@ function headerText(doc, headerId) {
 /**
  * Split a Google Docs API document into page chunks.
  *
- * A chunk ends at a page break or a "next page" section break. Each chunk has
+ * A chunk ends at a page break, a "next page" section break, or the end of a
+ * tab. Each chunk has
  *   display — the text shown in the app
  *   banner  — page headers and a leading banner table: used to tell which cafe
  *             the chunk belongs to, but not displayed (the per-cafe docs never
  *             displayed them either)
  */
 export function docToChunks(doc) {
+  // Fetched with includeTabsContent=true, a document's content lives in
+  // doc.tabs (each with its own body and headers), not doc.body. The team may
+  // put each cafe on its own tab; the tab title then names the cafe.
+  if (Array.isArray(doc.tabs) && doc.tabs.length > 0) {
+    return flattenTabs(doc.tabs).flatMap((tab) => {
+      const chunks = tabContentToChunks(tab.documentTab ?? {});
+      const title  = tab.tabProperties?.title ?? "";
+      if (title && chunks.length) chunks[0].banner = `${title}\n${chunks[0].banner}`;
+      return chunks;
+    });
+  }
+  return tabContentToChunks(doc);
+}
+
+function flattenTabs(tabs) {
+  return (tabs ?? []).flatMap((t) => [t, ...flattenTabs(t.childTabs)]);
+}
+
+// Chunks for one body (a whole legacy document, or one tab's documentTab —
+// both carry body, headers and documentStyle).
+function tabContentToChunks(doc) {
   const chunks = [];
   const style  = doc.documentStyle ?? {};
   let current  = newChunk(headerText(doc, style.firstPageHeaderId) + headerText(doc, style.defaultHeaderId));
