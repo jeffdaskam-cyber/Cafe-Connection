@@ -303,11 +303,17 @@ const CAMPUS_PATTERNS = [
 // Text that opens with a cafe heading: the cafe name, then either nothing or
 // a heading word — "Mesa LAB LUNCH 11:30am - 1:30pm", "FOOTHILLS LAB",
 // "Center Green". A menu line such as "Mesa Lab closed Friday" doesn't count.
-const HEADING_RE = /^(mesa\s*lab|foothills(\s*lab)?|center\s*green)(\s+(lab|lunch|cafe|café|weekly|specials|menu)\b|\s*$)/i;
+// The name is matched on its own first, taking "Foothills Lab" whole, so the
+// heading word can't be the name's own "Lab": in one combined regex the
+// optional "lab" backtracks and "Foothills Lab closed Friday" passes.
+const CAFE_NAME_RE    = /^(mesa\s*lab|foothills(?:\s*lab)?|center\s*green)/i;
+const HEADING_REST_RE = /^(\s+(lunch|cafe|café|weekly|specials|menu)\b|\s*$)/i;
 
 export function isCafeHeading(text) {
   const t = String(text ?? "").replace(/\s+/g, " ").trim();
-  return t.length > 0 && t.length <= 80 && HEADING_RE.test(t);
+  if (t.length === 0 || t.length > 80) return false;
+  const name = CAFE_NAME_RE.exec(t);
+  return name !== null && HEADING_REST_RE.test(t.slice(name[0].length));
 }
 
 /**

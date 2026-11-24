@@ -238,7 +238,17 @@ test("isCafeHeading accepts cafe banners and rejects menu lines", () => {
   for (const t of ["Mesa LAB LUNCH 11:30am - 1:30pm   WEEKLY SPECIALS", "FOOTHILLS LAB", "Center Green", "Foothills Cafe Specials"]) {
     assert.equal(isCafeHeading(t), true, t);
   }
-  for (const t of ["Mesa Lab closed Friday", "Foothills is closed", "Monday, November 23rd", ""]) {
+  for (const t of ["Mesa Lab closed Friday", "Foothills Lab closed Friday", "Foothills is closed", "Monday, November 23rd", ""]) {
     assert.equal(isCafeHeading(t), false, t);
   }
+});
+
+test("a closure note naming another cafe doesn't cut the menu", () => {
+  const s = splitCombinedSpecials(pdfPagesToChunks([
+    "GRAB & GO",
+    "Mesa LAB LUNCH\nMonday menu\nFoothills Lab closed Friday\nTuesday menu",
+    "FOOTHILLS LAB\nWednesday menu",
+  ]));
+  assert.equal(s["Mesa Lab"], "Mesa LAB LUNCH\nMonday menu\nFoothills Lab closed Friday\nTuesday menu");
+  assert.equal(s["Foothills"], "FOOTHILLS LAB\nWednesday menu");
 });
