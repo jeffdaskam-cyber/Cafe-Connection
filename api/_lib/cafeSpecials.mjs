@@ -229,10 +229,19 @@ function tabContentToChunks(doc) {
 
     if (el.table) {
       const text = tableText(el.table);
-      // A table before any body text is the page banner (cafe name, hours,
-      // logos). Tables further down are menu content and are shown.
-      if (current.hasBody) current.display += text;
-      else current.banner += text;
+      // A table that opens with a cafe name is that cafe's banner (name,
+      // hours, logos) and starts its section, wherever it sits: the combined
+      // document has no page breaks — blank lines push each menu onto its own
+      // page. A table before any body text is a banner too. Other tables
+      // further down are menu content and are shown.
+      if (isCafeHeading(text)) {
+        if (current.hasBody) flush();
+        current.banner += text;
+      } else if (current.hasBody) {
+        current.display += text;
+      } else {
+        current.banner += text;
+      }
       continue;
     }
 
@@ -291,8 +300,15 @@ const CAMPUS_PATTERNS = [
   ["Center Green", /center\s*green/i],
 ];
 
-// A line that is only a cafe heading, e.g. "Mesa LAB LUNCH", "FOOTHILLS LAB".
-const HEADING_RE = /^(mesa\s*lab|foothills(\s*lab)?|center\s*green)(\s+(lab|cafe|café))?(\s+(lunch|cafe|café|weekly|specials|menu))*$/i;
+// Text that opens with a cafe heading: the cafe name, then either nothing or
+// a heading word — "Mesa LAB LUNCH 11:30am - 1:30pm", "FOOTHILLS LAB",
+// "Center Green". A menu line such as "Mesa Lab closed Friday" doesn't count.
+const HEADING_RE = /^(mesa\s*lab|foothills(\s*lab)?|center\s*green)(\s+(lab|lunch|cafe|café|weekly|specials|menu)\b|\s*$)/i;
+
+export function isCafeHeading(text) {
+  const t = String(text ?? "").replace(/\s+/g, " ").trim();
+  return t.length > 0 && t.length <= 80 && HEADING_RE.test(t);
+}
 
 /**
  * Which cafe a chunk belongs to, from the start of its text. Only the opening
@@ -322,7 +338,7 @@ function splitAtHeadings(chunks) {
     displayLines.forEach((line, i) => {
       const t = line.replace(/\s+/g, " ").trim();
       if (!t) return;
-      if (seenBody && t.length <= 40 && HEADING_RE.test(t)) cuts.push(i);
+      if (seenBody && isCafeHeading(t)) cuts.push(i);
       seenBody = true;
     });
     if (cuts.length === 0) { out.push(chunk); continue; }
