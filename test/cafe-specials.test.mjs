@@ -201,3 +201,13 @@ test("pickSpecialsFile accepts words before or after the week dates", () => {
   // …but a cafe suffix after the dates is still a legacy file for that cafe only.
   assert.equal(pickSpecialsFile([{ id: "y", name: "Specials Nov 23rd - 27th_FL", mimeType: GOOGLE_DOC_MIME }], variants, "_ML"), null);
 });
+
+test("an empty parent tab does not shift the cafes", () => {
+  const d = { tabs: [tab("Weekly specials", [para("\n")], [
+    tab("Tab 1", [para("grab menu\n")]),
+    tab("Tab 2", [para("monday menu\n")]),
+    tab("Tab 3", [para("tuesday menu\n")]),
+  ])] };
+  assert.deepEqual(splitCombinedSpecials(docToChunks(d)),
+    { "Center Green": "grab menu", "Mesa Lab": "monday menu", "Foothills": "tuesday menu" });
+});

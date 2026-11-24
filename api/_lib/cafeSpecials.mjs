@@ -187,7 +187,11 @@ export function docToChunks(doc) {
     return flattenTabs(doc.tabs).flatMap((tab) => {
       const chunks = tabContentToChunks(tab.documentTab ?? {});
       const title  = tab.tabProperties?.title ?? "";
-      if (title && chunks.length) chunks[0].banner = `${title}\n${chunks[0].banner}`;
+      // Only a tab with content gets its title: an empty organizing tab
+      // (a parent of the real tabs) would otherwise count as a page and
+      // shift every menu one cafe over in the page-order fallback.
+      const hasContent = chunks.some((c) => c.display.trim() || c.banner.trim());
+      if (title && hasContent) chunks[0].banner = `${title}\n${chunks[0].banner}`;
       return chunks;
     });
   }
